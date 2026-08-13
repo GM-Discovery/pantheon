@@ -26,9 +26,12 @@ import (
 )
 
 type config struct {
-	Model       string `json:"model"`
-	OllamaURL   string `json:"ollama_url"`
-	RoadmapPath string `json:"roadmap_path"`
+	Model         string `json:"model,omitempty"` // Backwards-compatible alias for LocalModel.
+	OllamaURL     string `json:"ollama_url,omitempty"`
+	LocalModel    string `json:"local_model,omitempty"`
+	FrontierModel string `json:"frontier_model,omitempty"`
+	VaultPath     string `json:"vault_path,omitempty"`
+	RoadmapPath   string `json:"roadmap_path,omitempty"`
 }
 
 type message struct {
@@ -75,6 +78,13 @@ func loadConfig() (config, error) {
 	var cfg config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return config{}, err
+	}
+
+	if cfg.LocalModel == "" {
+		cfg.LocalModel = cfg.Model
+	}
+	if cfg.Model == "" {
+		cfg.Model = cfg.LocalModel
 	}
 
 	return cfg, nil
@@ -138,6 +148,7 @@ func main() {
 		fmt.Println(`usage:
   pantheon "your request"
   pantheon status
+  pantheon past "what should I search for?"
   pantheon hermes "request"
   pantheon notify "message"`)
 		os.Exit(1)
@@ -158,13 +169,33 @@ func main() {
 	// Deterministic runtime status.
 	if os.Args[1] == "status" {
 		fmt.Println("Pantheon Runtime")
-		fmt.Println("Model:", cfg.Model)
+		fmt.Println("Local model:", cfg.LocalModel)
+		fmt.Println("Frontier model:", cfg.FrontierModel)
 		fmt.Println("Ollama:", cfg.OllamaURL)
+		fmt.Println("Vault:", cfg.VaultPath)
 		fmt.Println("Roadmap:", cfg.RoadmapPath)
 		fmt.Println("Capabilities:")
 		for _, c := range capabilities.Capabilities {
 			fmt.Printf("  - %s [%s, risk=%s]\n", c.Name, c.Type, c.Risk)
 		}
+		return
+	}
+
+	// Past has a single authority: searching the configured vault. It never
+	// writes to the vault or invokes another daemon.
+	if os.Args[1] == "past" {
+		if len(os.Args) < 3 {
+			fmt.Println(`usage: pantheon past "what should I search for?"`)
+			os.Exit(1)
+		}
+
+		result, err := searchPast(cfg.VaultPath, strings.Join(os.Args[2:], " "))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Past could not search the vault: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Print(result)
 		return
 	}
 
