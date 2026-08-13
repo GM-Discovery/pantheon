@@ -1,0 +1,29 @@
+{
+  "capabilities": [
+    {
+      "name": "notify",
+      "type": "deterministic",
+      "command": "/home/brick/.local/bin/pantheon-notify",
+      "risk": "low"
+    },
+    {
+      "name": "transcribe",
+      "type": "deterministic",
+      "command": "/home/brick/whisper.cpp/build/bin/whisper-cli",
+      "model": "/home/brick/whisper.cpp/models/ggml-large-v3.bin",
+      "risk": "low"
+    },
+    {
+      "name": "hermes",
+      "type": "delegated",
+      "command": "/home/brick/.local/bin/hermes",
+      "risk": "medium"
+    },
+    {
+      "name": "reason",
+      "type": "model",
+      "model": "mistral-small3.1:latest",
+      "risk": "low"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# Compiled binaries
+bin/
+
+# Runtime logs/state
+logs/
+
+# Local backups / scratch
+*.bak
+*.pre-config
+
+# Secrets
+*.env
+.env
+.env.*
+
+# Editor / OS noise
+.zed/
+.DS_Store
+
+# Local/private config overrides
+config/*secret*
+config/*token*
+config/*.local.*
