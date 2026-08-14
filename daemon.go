@@ -285,6 +285,16 @@ func (d *daemon) handleWeaveRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	started := time.Now()
+	paused, err := d.paused()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if paused {
+		id := d.audit("POST /v1/weave/refresh", d.cfg.VaultPath, "vault.connect", "", "blocked", "", "Pantheon is paused; scheduled maintenance is blocked", 0)
+		writeJSON(w, http.StatusServiceUnavailable, apiError{fmt.Sprintf("Pantheon is paused; refresh not run (audit %s)", id)})
+		return
+	}
 	if _, err := d.auditRequired("POST /v1/weave/refresh", d.cfg.VaultPath, "vault.connect", "", "started", "local derived Nexus refresh authorized", "", 0); err != nil {
 		writeError(w, http.StatusServiceUnavailable, err)
 		return
