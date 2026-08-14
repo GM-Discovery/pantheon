@@ -1,0 +1,20 @@
+# Human-reviewed Weave retrieval policy
+# Declarative only until Kernel 7 retrieval is implemented and tested.
+concepts:
+  socio_stories_of_us:
+    source_order:
+      - "20 Projects/Socio/Writing"       # official rules
+      - "20 Projects/Socio/Drafts"        # game-draft material
+      - "20 Projects/Socio/Reference"     # project reference
+      - "adjacent Vault notes"             # bounded, query-dependent expansion
+    passage_output:
+      short_excerpt: true
+      expanded_context: true
+      direct_source_link: true
+    confidence:
+      past_minimum: 0.90
+      apollo_contextual_floor: 0.30
+    boundaries:
+      apollo_results_are_proposals: true
+      nexus_speaker_attribution_required: true
+      nexus_assistant_contextual_only: true

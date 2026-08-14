@@ -11,7 +11,7 @@ import (
 )
 
 func TestDaemonStatusReturnsAuthoritativeConfigAndAuditsRequest(t *testing.T) {
-	t.Parallel()
+
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "pantheon.json")
 	capsPath := filepath.Join(dir, "capabilities.json")
@@ -149,6 +149,39 @@ func TestOpenVaultMarkdownRejectsSymlink(t *testing.T) {
 	}
 	if _, err := openVaultMarkdown(link); err == nil {
 		t.Fatal("symlink was opened")
+	}
+}
+
+func TestBuildWeaveIndexUsesPrimaryDomainsAndMarkdownPassages(t *testing.T) {
+	vault := t.TempDir()
+	for path, text := range map[string]string{
+		"00 Pantheon Core/one.md": "# Flourishing\nAgency and flourishing belong together.\n",
+		"10 Operations/two.md":    "# Priorities\nFlourishing needs agency.\n",
+		"Nexus/import.md":         "# Import\nFlourishing appears in an imported chat.\n",
+	} {
+		full := filepath.Join(vault, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	index, err := buildWeaveIndex(vault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.Passages) != 3 {
+		t.Fatalf("passages=%d", len(index.Passages))
+	}
+	if index.PrimaryTermCounts["flourishing"] != 2 {
+		t.Fatalf("primary flourishing=%d", index.PrimaryTermCounts["flourishing"])
+	}
+	if index.PrimaryTermCounts["imported"] != 0 {
+		t.Fatal("Nexus import polluted primary signal")
+	}
+	if index.Passages[0].Heading == "" || index.Passages[0].Path == "" {
+		t.Fatalf("missing citation: %#v", index.Passages[0])
 	}
 }
 

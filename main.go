@@ -121,6 +121,13 @@ func runClient(args []string) error {
 			return fmt.Errorf("usage: pantheon grant <capability> <scope> <intent-summary>")
 		}
 		return clientPOSTWithControl("/v1/grants", grantRequest{Capability: args[1], Scope: args[2], IntentSummary: args[3], HumanApproved: true})
+	case "weave-review":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon weave-review <subject>")
+		}
+		return clientPOSTMarkdown("/v1/weave/review", weaveRetrieveRequest{Query: strings.Join(args[1:], " ")})
+	case "weave-refresh":
+		return clientPOSTWithControl("/v1/weave/refresh", nil)
 	case "hermes", "past":
 		return fmt.Errorf("pantheon %s remains a direct command during this daemon milestone; it is not yet daemon-routed", command)
 	default:
@@ -177,6 +184,8 @@ func clientPOST(path string, value any) error {
 	return printClientResponse(resp)
 }
 
+func clientPOSTMarkdown(path string, value any) error { return clientPOST(path, value) }
+
 func printClientResponse(resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -188,6 +197,13 @@ func printClientResponse(resp *http.Response) error {
 	var input inputResponse
 	if json.Unmarshal(body, &input) == nil && input.Result != "" {
 		fmt.Println(input.Result)
+		return nil
+	}
+	var markdown struct {
+		Markdown string `json:"markdown"`
+	}
+	if json.Unmarshal(body, &markdown) == nil && markdown.Markdown != "" {
+		fmt.Println(markdown.Markdown)
 		return nil
 	}
 	var result map[string]string

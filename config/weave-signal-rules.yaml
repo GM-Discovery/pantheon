@@ -1,0 +1,41 @@
+# Human-reviewed Weave signal rules
+# Derived only from Grant's annotations in
+# 00 Pantheon Core/Weave/Weave Curated Signal Review.md.
+# These rules influence local retrieval/display candidates; they do not alter
+# source notes, create Obsidian links, or make claims about Grant's identity.
+
+promote_for_review:
+  - phrase: bread standard
+    note: "Grant's magnum opus; show fuller source coverage."
+  - phrase: socio- stories
+    note: "Grant's biggest project to date and the VTT's muse."
+  - phrase: environmental stewardship
+    note: "Candidate meaningful connection."
+  - phrase: value hierarchy
+    note: "Integrated into the Bread Standard preamble; treat as a constituent concept within Bread Standard, not an independent neighboring concept."
+  - phrase: documents obsidian
+    note: "Good example of connections needed."
+
+connection_types:
+  - phrase: require approval
+    rule: "Do not treat generic discussion as an approval request. Recognize only the explicit YAML field approval_required: true in a later dedicated workflow; it remains a review cue, never automatic authorization."
+  - phrase: obsidian vault
+    rule: "Treat as a navigational/infrastructure connection, not a personal-theme claim."
+  - phrase: figure out
+    rule: "Keep available as a broad search/retrieval phrase, not a high-salience theme."
+
+suppress_as_theme_noise:
+  - seed phrases
+  - layer time
+  - one layer
+  - well enough
+  - internal ssd
+  - too much
+  - codex oauth
+
+context_or_historical_only:
+  - open webui
+  - amd ryzen
+  - current model
+  - git version
+  - gmktec nucbox

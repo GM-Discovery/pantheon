@@ -252,7 +252,240 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/grants", d.handleCreateGrant)
 	mux.HandleFunc("POST /v1/email/inventory", d.handleEmailInventory)
 	mux.HandleFunc("POST /v1/vault/connections", d.handleVaultConnections)
+	mux.HandleFunc("POST /v1/weave/retrieve", d.handleWeaveRetrieve)
+	mux.HandleFunc("POST /v1/weave/review", d.handleWeaveReview)
+	mux.HandleFunc("POST /v1/weave/dry-run", d.handleWeaveDryRun)
+	mux.HandleFunc("POST /v1/weave/refresh", d.handleWeaveRefresh)
 	return mux
+}
+
+type weaveRetrieveRequest struct {
+	Query string `json:"query"`
+	Mode  string `json:"mode"`
+}
+
+type weaveCitedResult struct {
+	Path       string  `json:"path"`
+	Heading    string  `json:"heading"`
+	Line       int     `json:"line"`
+	Excerpt    string  `json:"excerpt"`
+	Context    string  `json:"context"`
+	Confidence float64 `json:"confidence"`
+}
+
+type weaveRetrieveResponse struct {
+	Mode    string             `json:"mode"`
+	Results []weaveCitedResult `json:"results"`
+	AuditID string             `json:"audit_id"`
+}
+
+func (d *daemon) handleWeaveRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get(controlTokenHeader) != d.controlToken {
+		writeError(w, http.StatusForbidden, errors.New("local CLI control token required"))
+		return
+	}
+	started := time.Now()
+	if _, err := d.auditRequired("POST /v1/weave/refresh", d.cfg.VaultPath, "vault.connect", "", "started", "local derived Nexus refresh authorized", "", 0); err != nil {
+		writeError(w, http.StatusServiceUnavailable, err)
+		return
+	}
+	stateDir := filepath.Join(filepath.Dir(d.databasePath), "weave")
+	inventoryPath := filepath.Join(stateDir, "nexus-chunks.json")
+	fingerprintPath := filepath.Join(stateDir, "nexus-fingerprints.json")
+	current, err := buildNexusFingerprintState(d.cfg.VaultPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	previous := weaveFingerprintState{Files: map[string]string{}}
+	if loaded, err := readFingerprintState(fingerprintPath); err == nil {
+		previous = loaded
+	} else if !os.IsNotExist(err) {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	diff := diffFingerprintStates(previous, current)
+	rebuilt, err := buildNexusChunkInventory(d.cfg.VaultPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	existing := nexusChunkInventory{}
+	if loaded, err := readNexusChunkInventory(inventoryPath); err == nil {
+		existing = loaded
+	} else if os.IsNotExist(err) {
+		// Inventory and fingerprints are a consistency pair. Rebuild fully if either is absent.
+		previous = weaveFingerprintState{Files: map[string]string{}}
+		diff = diffFingerprintStates(previous, current)
+	} else {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	inventory := applyNexusChunkDiff(existing, rebuilt, diff)
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	tmp := inventoryPath + ".tmp"
+	if err := writeNexusChunkInventory(tmp, inventory); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := os.Rename(tmp, inventoryPath); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := writeWeaveFingerprintState(fingerprintPath, current); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	primaryFingerprintPath := filepath.Join(stateDir, "fingerprints.json")
+	primaryDiff, err := buildWeaveChangeReport(d.cfg.VaultPath, primaryFingerprintPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	rebuiltPrimary, err := buildPrimaryWeaveIndex(d.cfg.VaultPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	primaryPath := filepath.Join(stateDir, "primary-index.json")
+	existingPrimary := weaveIndex{PrimaryTermCounts: map[string]int{}}
+	if loaded, err := readWeaveIndex(primaryPath); err == nil {
+		existingPrimary = loaded
+	} else if os.IsNotExist(err) {
+		// Index and fingerprints are a consistency pair. Rebuild fully if either is absent.
+		primaryDiff = fullRebuildDiff(primaryDiff.Current)
+	} else {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	primary := applyPrimaryIndexDiff(existingPrimary, rebuiltPrimary, primaryDiff)
+	if err := writeWeaveIndex(primaryPath+".tmp", primary); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := os.Rename(primaryPath+".tmp", primaryPath); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := writeWeaveFingerprintState(primaryFingerprintPath, primaryDiff.Current); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	reviewPath := filepath.Join(stateDir, "primary-review.md")
+	if err := os.WriteFile(reviewPath+".tmp", []byte(renderWeavePrimaryReview(primary)), 0o600); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := os.Rename(reviewPath+".tmp", reviewPath); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	configPath := filepath.Join(filepath.Dir(filepath.Dir(d.databasePath)), "config", "weave-subject-reviews.json")
+	if err := writeConfiguredSubjectReviews(configPath, stateDir, primary); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	id := d.audit("POST /v1/weave/refresh", d.cfg.VaultPath, "vault.connect", "", "completed", fmt.Sprintf("new=%d changed=%d removed=%d; Nexus user=%d agent=%d", len(diff.New), len(diff.Changed), len(diff.Removed), inventory.UserChunkCount, inventory.AgentChunkCount), "", time.Since(started))
+	writeJSON(w, http.StatusOK, map[string]any{"audit_id": id, "new": len(diff.New), "changed": len(diff.Changed), "removed": len(diff.Removed), "nexus_user_chunks": inventory.UserChunkCount, "nexus_agent_chunks": inventory.AgentChunkCount})
+}
+
+func (d *daemon) handleWeaveDryRun(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	if _, err := d.auditRequired("POST /v1/weave/dry-run", d.cfg.VaultPath, "vault.connect", "", "started", "read-only incremental weave inspection authorized", "", 0); err != nil {
+		writeError(w, http.StatusServiceUnavailable, err)
+		return
+	}
+	report, err := buildWeaveChangeReport(d.cfg.VaultPath, filepath.Join(filepath.Dir(d.databasePath), "weave", "fingerprints.json"))
+	if err != nil {
+		d.audit("POST /v1/weave/dry-run", d.cfg.VaultPath, "vault.connect", "", "failed", "", err.Error(), time.Since(started))
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	id := d.audit("POST /v1/weave/dry-run", d.cfg.VaultPath, "vault.connect", "", "completed", fmt.Sprintf("new=%d changed=%d unchanged=%d excluded=%d", len(report.New), len(report.Changed), len(report.Unchanged), len(report.Excluded)), "", time.Since(started))
+	writeJSON(w, http.StatusOK, struct {
+		weaveChangeReport
+		AuditID string `json:"audit_id"`
+	}{report, id})
+}
+
+func (d *daemon) handleWeaveReview(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	var request weaveRetrieveRequest
+	if err := decodeJSON(r, &request); err != nil || strings.TrimSpace(request.Query) == "" {
+		if err == nil {
+			err = errors.New("query is required")
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if _, err := d.auditRequired("POST /v1/weave/review", request.Query, "vault.connect", "", "started", "read-only subject review authorized", "", time.Since(started)); err != nil {
+		writeError(w, http.StatusServiceUnavailable, err)
+		return
+	}
+	index, err := buildPrimaryWeaveIndex(d.cfg.VaultPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	results := rankWeavePassages(request.Query, index.Passages, 0.30)
+	if len(results) > 12 {
+		results = results[:12]
+	}
+	id := d.audit("POST /v1/weave/review", request.Query, "vault.connect", "", "completed", fmt.Sprintf("%d cited passages", len(results)), "", time.Since(started))
+	writeJSON(w, http.StatusOK, map[string]string{"audit_id": id, "markdown": renderWeaveQueryReview(request.Query, results)})
+}
+
+func (d *daemon) handleWeaveRetrieve(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	var request weaveRetrieveRequest
+	if err := decodeJSON(r, &request); err != nil || strings.TrimSpace(request.Query) == "" {
+		if err == nil {
+			err = errors.New("query is required")
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	floor := 0.90
+	mode := "past"
+	if request.Mode == "apollo_context" {
+		floor, mode = 0.30, request.Mode
+	}
+	if request.Mode != "" && request.Mode != mode {
+		writeError(w, http.StatusBadRequest, errors.New("mode must be past or apollo_context"))
+		return
+	}
+	if _, err := d.auditRequired("POST /v1/weave/retrieve", request.Query, "vault.connect", "", "started", "read-only weave retrieval authorized", "", time.Since(started)); err != nil {
+		writeError(w, http.StatusServiceUnavailable, err)
+		return
+	}
+	index, err := buildPrimaryWeaveIndex(d.cfg.VaultPath)
+	if err != nil {
+		d.audit("POST /v1/weave/retrieve", request.Query, "vault.connect", "", "failed", "", err.Error(), time.Since(started))
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	ranked := rankWeavePassages(request.Query, index.Passages, floor)
+	results := make([]weaveCitedResult, 0, min(12, len(ranked)))
+	for _, result := range ranked {
+		if strings.HasPrefix(result.Passage.Path, "Nexus/") || strings.HasPrefix(result.Passage.Path, "00 Pantheon Core/Weave/") {
+			continue
+		}
+		context, err := expandWeaveContext(d.cfg.VaultPath, result.Passage)
+		if err != nil {
+			d.audit("POST /v1/weave/retrieve", request.Query, "vault.connect", "", "failed", "", err.Error(), time.Since(started))
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		results = append(results, weaveCitedResult{Path: result.Passage.Path, Heading: result.Passage.Heading, Line: result.Passage.Line, Excerpt: result.Passage.Text, Context: context, Confidence: result.Confidence})
+		if len(results) == 12 {
+			break
+		}
+	}
+	id := d.audit("POST /v1/weave/retrieve", request.Query, "vault.connect", "", "completed", fmt.Sprintf("%d cited passages", len(results)), "", time.Since(started))
+	writeJSON(w, http.StatusOK, weaveRetrieveResponse{Mode: mode, Results: results, AuditID: id})
 }
 
 func (d *daemon) handleStatus(w http.ResponseWriter, r *http.Request) {
