@@ -20,33 +20,33 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type config struct {
-	Model       string `json:"model"`
-	OllamaURL   string `json:"ollama_url"`
-	RoadmapPath string `json:"roadmap_path"`
+	Model         string `json:"model,omitempty"`
+	OllamaURL     string `json:"ollama_url,omitempty"`
+	LocalModel    string `json:"local_model,omitempty"`
+	FrontierModel string `json:"frontier_model,omitempty"`
+	VaultPath     string `json:"vault_path,omitempty"`
+	RoadmapPath   string `json:"roadmap_path,omitempty"`
 }
 
 type message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
-
 type ollamaRequest struct {
 	Model    string    `json:"model"`
 	Messages []message `json:"messages"`
 	Stream   bool      `json:"stream"`
 }
-
 type ollamaResponse struct {
 	Message message `json:"message"`
 	Done    bool    `json:"done"`
 }
-
 type capability struct {
 	Name    string `json:"name"`
 	Type    string `json:"type"`
@@ -54,309 +54,152 @@ type capability struct {
 	Model   string `json:"model,omitempty"`
 	Risk    string `json:"risk"`
 }
-
 type capabilityConfig struct {
 	Capabilities []capability `json:"capabilities"`
 }
 
-func loadConfig() (config, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return config{}, err
-	}
-
-	path := filepath.Join(home, "pantheon-runtime", "config", "pantheon.json")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return config{}, err
-	}
-
-	var cfg config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return config{}, err
-	}
-
-	return cfg, nil
-}
-
-func callHermes(prompt string) (string, error) {
-	cmd := exec.Command(
-		"/home/brick/.local/bin/hermes",
-		"--safe-mode",
-		"-z",
-		prompt,
-	)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("Hermes failed: %w\n%s", err, string(output))
-	}
-
-	return strings.TrimSpace(string(output)), nil
-}
-
-func notify(topic, title, text string) error {
-	cmd := exec.Command(
-		"/home/brick/.local/bin/pantheon-notify",
-		topic,
-		title,
-		text,
-	)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("notification failed: %w\n%s", err, string(output))
-	}
-
-	return nil
-}
-
-func loadCapabilities() (capabilityConfig, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return capabilityConfig{}, err
-	}
-
-	path := filepath.Join(home, "pantheon-runtime", "config", "capabilities.json")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return capabilityConfig{}, err
-	}
-
-	var cfg capabilityConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return capabilityConfig{}, err
-	}
-
-	return cfg, nil
-}
+const daemonURL = "http://127.0.0.1:8765"
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "daemon" {
+		runDaemon()
+		return
+	}
 	if len(os.Args) < 2 {
-		fmt.Println(`usage:
-  pantheon "your request"
-  pantheon status
-  pantheon hermes "request"
-  pantheon notify "message"`)
+		fmt.Fprintln(os.Stderr, "usage: pantheon [status|route|notify|hermes|past] \"request\"")
 		os.Exit(1)
 	}
+	if err := runClient(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-	cfg, err := loadConfig()
+func runDaemon() {
+	opts, err := defaultDaemonOptions()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not load Pantheon config: %v\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	capabilities, err := loadCapabilities()
+	d, err := newDaemon(opts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not load Pantheon capabilities: %v\n", err)
+		fmt.Fprintln(os.Stderr, "Pantheon daemon startup failed:", err)
 		os.Exit(1)
 	}
-
-	// Deterministic runtime status.
-	if os.Args[1] == "status" {
-		fmt.Println("Pantheon Runtime")
-		fmt.Println("Model:", cfg.Model)
-		fmt.Println("Ollama:", cfg.OllamaURL)
-		fmt.Println("Roadmap:", cfg.RoadmapPath)
-		fmt.Println("Capabilities:")
-		for _, c := range capabilities.Capabilities {
-			fmt.Printf("  - %s [%s, risk=%s]\n", c.Name, c.Type, c.Risk)
-		}
-		return
+	defer d.Close()
+	server := &http.Server{Addr: defaultListenAddress, Handler: d.Handler(), ReadHeaderTimeout: 5 * time.Second}
+	fmt.Println("Pantheon daemon listening on", defaultListenAddress)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
+}
 
-	if os.Args[1] == "route" {
-		if len(os.Args) < 3 {
-			fmt.Println(`usage: pantheon route "request"`)
-			os.Exit(1)
+func runClient(args []string) error {
+	command := args[0]
+	switch command {
+	case "status":
+		return clientGET("/v1/status")
+	case "route":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon route \"request\"")
 		}
-
-		input := strings.Join(os.Args[2:], " ")
-
-		decision, err := routeRequest(cfg, capabilities, input)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "routing failed: %v\n", err)
-			os.Exit(1)
+		return clientPOST("/v1/route", inputRequest{Input: strings.Join(args[1:], " ")})
+	case "notify":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon notify \"message\"")
 		}
-
-		fmt.Println("Capability:", decision.Capability)
-		fmt.Println("Confidence:", decision.Confidence)
-		fmt.Println("Reason:", decision.Reason)
-		return
+		return clientPOST("/v1/notify", inputRequest{Input: strings.Join(args[1:], " ")})
+	case "pause":
+		return clientPOST("/v1/pause", nil)
+	case "resume":
+		return clientPOST("/v1/resume", nil)
+	case "grants":
+		return clientGET("/v1/grants")
+	case "grant":
+		if len(args) != 4 {
+			return fmt.Errorf("usage: pantheon grant <capability> <scope> <intent-summary>")
+		}
+		return clientPOSTWithControl("/v1/grants", grantRequest{Capability: args[1], Scope: args[2], IntentSummary: args[3], HumanApproved: true})
+	case "hermes", "past":
+		return fmt.Errorf("pantheon %s remains a direct command during this daemon milestone; it is not yet daemon-routed", command)
+	default:
+		return clientPOST("/v1/input", inputRequest{Input: strings.Join(args, " ")})
 	}
+}
 
-	if os.Args[1] == "do" {
-		if len(os.Args) < 3 {
-			fmt.Println(`usage: pantheon do "request"`)
-			os.Exit(1)
-		}
-
-		input := strings.Join(os.Args[2:], " ")
-
-		decision, err := routeRequest(cfg, capabilities, input)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "routing failed: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("Pantheon routed to: %s\n", decision.Capability)
-
-		switch decision.Capability {
-		case "notify":
-			if err := notify(
-				"pantheon-alerts",
-				"Pantheon",
-				input,
-			); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-
-			fmt.Println("Notification sent.")
-			return
-
-		case "hermes":
-			fmt.Println("Hermes selected, but automatic Hermes execution is not yet authorized.")
-			fmt.Println(`Use: pantheon hermes "request"`)
-			return
-
-		case "reason":
-			// Fall through into Pantheon's normal reasoning path below.
-			os.Args = append([]string{os.Args[0]}, strings.Fields(input)...)
-
-		default:
-			fmt.Fprintf(os.Stderr, "unsupported capability: %s\n", decision.Capability)
-			os.Exit(1)
-		}
-	}
-
-	// Explicit delegation to Hermes.
-	if os.Args[1] == "hermes" {
-		if len(os.Args) < 3 {
-			fmt.Println(`usage: pantheon hermes "request"`)
-			os.Exit(1)
-		}
-
-		prompt := strings.Join(os.Args[2:], " ")
-
-		fmt.Println("Pantheon → Hermes")
-
-		result, err := callHermes(prompt)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-
-		fmt.Println(result)
-		return
-	}
-
-	// Send a notification through Pantheon's ntfy service.
-	if os.Args[1] == "notify" {
-		if len(os.Args) < 3 {
-			fmt.Println(`usage: pantheon notify "message"`)
-			os.Exit(1)
-		}
-
-		text := strings.Join(os.Args[2:], " ")
-
-		err := notify(
-			"pantheon-alerts",
-			"Pantheon",
-			text,
-		)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-
-		fmt.Println("Notification sent.")
-		return
-	}
-
-	// Normal Pantheon reasoning path.
-	userInput := strings.Join(os.Args[1:], " ")
-
-	roadmap, err := os.ReadFile(cfg.RoadmapPath)
+func clientGET(path string) error {
+	resp, err := (&http.Client{Timeout: 90 * time.Second}).Get(daemonURL + path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not read Pantheon Roadmap: %v\n", err)
-		os.Exit(1)
-	}
-
-	systemPrompt := fmt.Sprintf(`You are the reasoning engine currently serving Pantheon.
-
-	Pantheon is larger than you. You are a replaceable component inside its runtime.
-
-	Known runtime facts:
-	- Current reasoning model: %s
-	- Ollama endpoint: %s
-	- Pantheon Roadmap: %s
-
-	These runtime facts are authoritative. Do not contradict them or invent alternatives.
-
-	Use the supplied Pantheon Roadmap as governing context. Follow its objective, value hierarchy, non-goals, and operating principles. Do not invent facts not supported by the provided context. Be concise and useful.`,
-		cfg.Model,
-		cfg.OllamaURL,
-		cfg.RoadmapPath,
-	)
-
-	reqBody := ollamaRequest{
-		Model: cfg.Model,
-		Messages: []message{
-			{
-				Role:    "system",
-				Content: systemPrompt + "\n\nPANTHEON ROADMAP:\n" + string(roadmap),
-			},
-			{
-				Role:    "user",
-				Content: userInput,
-			},
-		},
-		Stream: true,
-	}
-
-	data, err := json.Marshal(reqBody)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not encode request: %v\n", err)
-		os.Exit(1)
-	}
-
-	resp, err := http.Post(cfg.OllamaURL, "application/json", bytes.NewReader(data))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not reach Ollama: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Pantheon daemon unavailable at %s: %w", daemonURL, err)
 	}
 	defer resp.Body.Close()
+	return printClientResponse(resp)
+}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		fmt.Fprintf(os.Stderr, "Ollama returned %s:\n%s\n", resp.Status, body)
-		os.Exit(1)
+func clientPOSTWithControl(path string, value any) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
 	}
-
-	decoder := json.NewDecoder(resp.Body)
-
-	for {
-		var chunk ollamaResponse
-
-		err := decoder.Decode(&chunk)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "\ncould not decode Ollama stream: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Print(chunk.Message.Content)
-
-		if chunk.Done {
-			break
-		}
+	token, err := os.ReadFile(filepath.Join(home, "pantheon-runtime", "state", "control.token"))
+	if err != nil {
+		return fmt.Errorf("read local Pantheon control token: %w", err)
 	}
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, daemonURL+path, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(controlTokenHeader, strings.TrimSpace(string(token)))
+	resp, err := (&http.Client{Timeout: 90 * time.Second}).Do(req)
+	if err != nil {
+		return fmt.Errorf("Pantheon daemon unavailable at %s: %w", daemonURL, err)
+	}
+	defer resp.Body.Close()
+	return printClientResponse(resp)
+}
 
-	fmt.Println()
+func clientPOST(path string, value any) error {
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	resp, err := (&http.Client{Timeout: 5 * time.Minute}).Post(daemonURL+path, "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("Pantheon daemon unavailable at %s: %w", daemonURL, err)
+	}
+	defer resp.Body.Close()
+	return printClientResponse(resp)
+}
+
+func printClientResponse(resp *http.Response) error {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("daemon returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var input inputResponse
+	if json.Unmarshal(body, &input) == nil && input.Result != "" {
+		fmt.Println(input.Result)
+		return nil
+	}
+	var result map[string]string
+	if json.Unmarshal(body, &result) == nil && result["result"] != "" {
+		fmt.Println(result["result"])
+		return nil
+	}
+	var pretty bytes.Buffer
+	if json.Indent(&pretty, body, "", "  ") == nil {
+		fmt.Println(pretty.String())
+		return nil
+	}
+	fmt.Println(string(body))
+	return nil
 }

@@ -1,0 +1,83 @@
+# Vault Permission Manifest
+#
+# Intended Pantheon access boundaries for the existing Obsidian Vault.
+# This declares policy only. It does not alter Linux permissions or Vault files.
+# Every filesystem-permission change requires a separately reviewed intent summary
+# and matching diff.
+
+version: 1
+vault_root: "/home/brick/Documents/Obsidian Vault"
+
+roles:
+  pantheon:
+    access: [read_policy, read_configuration, write_audit_references]
+  present:
+    access: [read_authorized_source, write_fact_only_observations]
+    denied: [identity_map, archimedes_transport]
+  past:
+    access: [read_vault, read_identity_map, write_trajectory_reports]
+  apollo:
+    access: [read_full_authorized_vault, read_complete_email, read_identity_map, write_proposals]
+  mercury:
+    access: [read_bounded_instructions, write_approved_brief_notes, write_email_drafts]
+    denied: [identity_map, unrestricted_vault]
+  archimedes:
+    access: []
+    denied: [filesystem, vault, weave, identity_map]
+
+# Existing top-level directories discovered locally. These declarations are
+# conservative placeholders until each directory's function is reviewed.
+directories:
+  "00 Pantheon Core":
+    classification: pantheon_governance
+    apollo: read
+    past: read
+    present: read_authorized_source
+    mercury: denied_except_bounded_instruction
+    archimedes: denied
+  "10 Operations":
+    classification: operational_context
+    apollo: read
+    past: read
+    present: read_authorized_source
+    mercury: denied_except_approved_target
+    archimedes: denied
+  "20 Projects":
+    classification: project_context
+    apollo: read
+    past: read
+    present: read_authorized_source
+    mercury: denied_except_approved_target
+    archimedes: denied
+  "30 Procedures":
+    classification: procedures
+    apollo: read
+    past: read
+    present: read_authorized_source
+    mercury: read_bounded_instruction_only
+    archimedes: denied
+  "90 Archive":
+    classification: archived_continuity
+    apollo: read_when_authorized
+    past: read
+    present: denied_by_default
+    mercury: denied
+    archimedes: denied
+  "Nexus":
+    classification: imported_conversations_and_reference
+    apollo: read
+    past: read
+    present: read_authorized_source
+    mercury: denied
+    archimedes: denied
+
+identity_map:
+  location: "UNRESOLVED — do not create or relocate automatically"
+  allowed_roles: [apollo, past]
+  prohibited_roles: [present, mercury, archimedes]
+
+external_packets:
+  location: "UNRESOLVED — create only after Present packet contract review"
+  contents: [deidentified_minimum_necessary_context]
+  token_form: "Adult #<stable-token>"
+  reidentification: "Apollo/Past only, through local identity map"

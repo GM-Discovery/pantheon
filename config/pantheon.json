@@ -1,5 +1,6 @@
 {
   "model": "mistral-small3.1:latest",
   "ollama_url": "http://172.17.0.1:11434/api/chat",
+  "vault_path": "/home/brick/Documents/Obsidian Vault",
   "roadmap_path": "/home/brick/Documents/Obsidian Vault/00 Pantheon Core/Pantheon Roadmap.md"
 }

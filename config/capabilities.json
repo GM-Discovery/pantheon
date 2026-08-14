@@ -20,6 +20,40 @@
       "risk": "medium"
     },
     {
+      "name": "email.read",
+      "type": "delegated",
+      "command": "/home/brick/.local/bin/himalaya",
+      "risk": "low"
+    },
+    {
+      "name": "email.tag",
+      "type": "delegated",
+      "command": "/home/brick/.local/bin/himalaya",
+      "risk": "low"
+    },
+    {
+      "name": "email.archive",
+      "type": "delegated",
+      "command": "/home/brick/.local/bin/himalaya",
+      "risk": "low"
+    },
+    {
+      "name": "email.draft",
+      "type": "delegated",
+      "command": "/home/brick/.local/bin/himalaya",
+      "risk": "medium"
+    },
+    {
+      "name": "self.change",
+      "type": "deterministic",
+      "risk": "high"
+    },
+    {
+      "name": "vault.connect",
+      "type": "model",
+      "risk": "low"
+    },
+    {
       "name": "reason",
       "type": "model",
       "model": "mistral-small3.1:latest",

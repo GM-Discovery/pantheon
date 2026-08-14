@@ -3,6 +3,7 @@ bin/
 
 # Runtime logs/state
 logs/
+state/
 
 # Local backups / scratch
 *.bak

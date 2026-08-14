@@ -1,0 +1,7 @@
+{
+  "ollama_url": "http://127.0.0.1:11434/api/chat",
+  "local_model": "",
+  "frontier_model": "",
+  "vault_path": "",
+  "roadmap_path": ""
+}

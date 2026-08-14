@@ -1,0 +1,51 @@
+# Pantheon Policy Manifest
+#
+# This is a human-readable declaration of intended authority. Go code remains
+# the enforcement point; edits here do not silently grant a capability.
+
+version: 1
+
+principles:
+  - "Agents propose; Pantheon authorizes; the harness enforces."
+  - "Human agency and correction outrank convenience."
+  - "Scheduled work is authorized by its reviewed schedule, not by per-run approval."
+  - "No external model receives direct Vault access."
+
+runtime:
+  listener: "127.0.0.1 only"
+  pause:
+    blocks: [scheduled_work, event_driven_work, external_delivery, mercury_execution, archimedes_calls]
+    allows: [status, audit_inspection, manual_read_only_queries]
+    resume_replays_skipped_work: false
+  hard_stop: "systemctl --user stop pantheon"
+
+roles:
+  present:
+    writes: [fact_only_observations]
+    may_not: [make_claims, infer_meaning, authorize, execute]
+  apollo:
+    current_implementation: "mistral-small3.1:latest via Ollama"
+    local_access: [authorized_full_vault, complete_email]
+    may: [reason, propose_mercury_instructions, request_archimedes_escalation, reintegrate_local_identity]
+    may_not: [authorize, execute, send_email]
+  mercury:
+    current_implementation: "Hermes Agent"
+    initial_authority: [email_tag, email_archive, daily_brief_notes, email_draft]
+    prohibited: [email_send, unrestricted_shell, self_authorization]
+  archimedes:
+    preferred_provider: "Sol; Mistral is a possible replaceable alternative"
+    vault_access: false
+    receives: [minimum_necessary_deidentified_packet]
+    returns: [reasoning_result_only]
+
+email:
+  may: [read, tag, archive, include_in_daily_brief, submit_to_apollo, create_draft]
+  may_not: [send]
+
+self_change:
+  requires: [human_readable_intent_summary, corresponding_diff, explicit_human_approval]
+  excludes: [reviewed_scheduled_runs, append_only_audit_events]
+
+correction:
+  struck_records_influence_reasoning: false
+  lifecycle: [strike, archive, "retain 30 days", purge]
