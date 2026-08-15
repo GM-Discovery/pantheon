@@ -25,15 +25,6 @@ import (
 	"time"
 )
 
-type config struct {
-	Model         string `json:"model,omitempty"`
-	OllamaURL     string `json:"ollama_url,omitempty"`
-	LocalModel    string `json:"local_model,omitempty"`
-	FrontierModel string `json:"frontier_model,omitempty"`
-	VaultPath     string `json:"vault_path,omitempty"`
-	RoadmapPath   string `json:"roadmap_path,omitempty"`
-}
-
 type message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -66,8 +57,8 @@ func main() {
 		return
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: pantheon [status|route|notify|hermes|past] \"request\"")
-		os.Exit(1)
+		printWelcome()
+		return
 	}
 	if err := runClient(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -98,6 +89,35 @@ func runDaemon() {
 func runClient(args []string) error {
 	command := args[0]
 	switch command {
+	case "show":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors]")
+		}
+		switch args[1] {
+		case "config":
+			return runShowConfig()
+		case "intake":
+			return clientGET("/v1/intake")
+		case "father-time":
+			return clientGET("/v1/father-time")
+		case "present":
+			return clientGET("/v1/present")
+		case "processors":
+			return clientGET("/v1/processors")
+		default:
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors]")
+		}
+	case "intake":
+		if len(args) != 2 || args[1] != "scan" {
+			return fmt.Errorf("usage: pantheon intake scan")
+		}
+		return clientPOST("/v1/intake/scan", nil)
+	case "config":
+		return runConfigCommand(args[1:])
+	case "present":
+		return runPresentCommand(args[1:])
+	case "prometheus":
+		return runPrometheusCommand(args[1:])
 	case "status":
 		return clientGET("/v1/status")
 	case "route":
@@ -133,6 +153,100 @@ func runClient(args []string) error {
 	default:
 		return clientPOST("/v1/input", inputRequest{Input: strings.Join(args, " ")})
 	}
+}
+
+func runPresentCommand(args []string) error {
+	if len(args) == 1 && args[0] == "--new" {
+		return clientPOST("/v1/present", presentRequest{ProcessNew: true})
+	}
+	if len(args) == 2 && args[0] == "--occurrence" {
+		if strings.TrimSpace(args[1]) == "" {
+			return fmt.Errorf("usage: pantheon present --occurrence <occurrence-id>")
+		}
+		return clientPOST("/v1/present", presentRequest{OccurrenceID: args[1]})
+	}
+	if len(args) == 0 || (len(args) > 0 && (args[0] == "--new" || args[0] == "--occurrence")) {
+		return fmt.Errorf("usage: pantheon present \"request\" | pantheon present --occurrence <occurrence-id> | pantheon present --new")
+	}
+	return clientPOST("/v1/present", presentRequest{Request: strings.Join(args, " ")})
+}
+
+func runShowConfig() error {
+	path, err := configPathFromDefaults()
+	if err != nil {
+		return err
+	}
+	resolution, err := validateConfigFile(path)
+	if err != nil {
+		return fmt.Errorf("show config: %w", err)
+	}
+	fmt.Print(renderResolvedConfig(path, resolution))
+	return nil
+}
+
+func runConfigCommand(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: pantheon config [validate|path|migrate [--apply]]")
+	}
+	path, err := configPathFromDefaults()
+	if err != nil {
+		return err
+	}
+	switch args[0] {
+	case "path":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon config path")
+		}
+		fmt.Println(path)
+		return nil
+	case "validate":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon config validate")
+		}
+		resolution, err := validateConfigFile(path)
+		if err != nil {
+			return fmt.Errorf("configuration invalid: %w", err)
+		}
+		if resolution.Legacy {
+			fmt.Printf("Configuration is structurally valid as legacy flat configuration.\nRun `pantheon config migrate` to preview the current schema.\n")
+		} else {
+			fmt.Printf("Configuration is structurally valid (schema_version %d).\n", resolution.SchemaVersion)
+		}
+		return nil
+	case "migrate":
+		apply := false
+		if len(args) == 2 {
+			if args[1] != "--apply" {
+				return fmt.Errorf("usage: pantheon config migrate [--apply]")
+			}
+			apply = true
+		} else if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon config migrate [--apply]")
+		}
+		result, err := migrateConfig(path, apply)
+		if err != nil {
+			return err
+		}
+		fmt.Print(formatMigrationResult(result, apply))
+		return nil
+	default:
+		return fmt.Errorf("unknown config command %q; expected validate, path, or migrate", args[0])
+	}
+}
+
+func runPrometheusCommand(args []string) error {
+	if len(args) != 2 || args[0] != "protocol" {
+		return fmt.Errorf("usage: pantheon prometheus protocol [--status|--pause|--resume|--hard-stop]")
+	}
+	action := strings.TrimPrefix(args[1], "--")
+	if action != "status" && action != "pause" && action != "resume" && action != "hard-stop" {
+		return fmt.Errorf("usage: pantheon prometheus protocol [--status|--pause|--resume|--hard-stop]")
+	}
+	result, err := runPrometheusProtocol(action)
+	if result != "" {
+		fmt.Print(result)
+	}
+	return err
 }
 
 func clientGET(path string) error {

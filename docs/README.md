@@ -11,5 +11,10 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Kernel 3 kill-switch feature reportback](reportbacks/kernel-3-killswitch-feat.md): persistent pause control and declared policy boundaries.
 - [Kernel 1 reportback](reportbacks/kernel-1.md): the first reportback and the template for its successors.
 - [Daemon milestone](daemon-milestone.md): the localhost executive service, its persistence boundary, and its current limits.
+- [Configuration](configuration.md): the Kernel 8 schema, migration, inspection, and authority boundary.
+- [Kernel 8 reportback](reportbacks/kernel-8-configuration-prometheus.md): implementation evidence for the configuration foundation and Prometheus Protocol Zero.
+- [Kernel 9 reportback](reportbacks/kernel-9-father-time-intake-ledger.md): implementation evidence for deterministic Intake identity and Father Time chronology.
+- [Kernel 10 specification](building%20kernels/kernel-10-present-normalization.md): Present, faithful normalization, local processors, and retention arming boundaries.
+- [Kernel 10 reportback](reportbacks/kernel-10-present-normalization.md): implementation and verification status for Present.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.

@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -123,31 +123,6 @@ func defaultDaemonOptions() (daemonOptions, error) {
 	}, nil
 }
 
-func loadConfigPath(path string) (config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return config{}, err
-	}
-	var cfg config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return config{}, err
-	}
-	if cfg.LocalModel == "" {
-		cfg.LocalModel = cfg.Model
-	}
-	if cfg.Model == "" {
-		cfg.Model = cfg.LocalModel
-	}
-	if cfg.LocalModel == "" || cfg.OllamaURL == "" {
-		return config{}, errors.New("local_model/model and ollama_url must be configured")
-	}
-	endpoint, err := url.Parse(cfg.OllamaURL)
-	if err != nil || endpoint.Scheme != "http" || !localApolloHosts[strings.ToLower(endpoint.Hostname())] {
-		return config{}, errors.New("ollama_url must use approved local HTTP transport")
-	}
-	return cfg, nil
-}
-
 func loadCapabilitiesPath(path string) (capabilityConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -198,11 +173,21 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if pauseMarkerExists(pauseMarkerPathForDatabase(opts.DatabasePath)) {
+		if _, err := db.Exec(`UPDATE runtime_state SET value = 'true', updated_at = ? WHERE key = 'paused'`, time.Now().Format(time.RFC3339Nano)); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS capability_grants (
 		id TEXT PRIMARY KEY, capability TEXT NOT NULL, scope TEXT NOT NULL,
 		intent_summary TEXT NOT NULL, diff TEXT, human_approved INTEGER NOT NULL,
 		status TEXT NOT NULL, created_at TEXT NOT NULL
 	)`); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := initializeIntakeSchema(db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -243,11 +228,18 @@ func (d *daemon) Close() error { return d.db.Close() }
 func (d *daemon) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/status", d.handleStatus)
+	mux.HandleFunc("POST /v1/intake/scan", d.handleIntakeScan)
+	mux.HandleFunc("GET /v1/intake", d.handleShowIntake)
+	mux.HandleFunc("GET /v1/father-time", d.handleShowFatherTime)
+	mux.HandleFunc("POST /v1/present", d.handlePresent)
+	mux.HandleFunc("GET /v1/present", d.handleShowPresent)
+	mux.HandleFunc("GET /v1/processors", d.handleShowProcessors)
 	mux.HandleFunc("POST /v1/input", d.handleInput)
 	mux.HandleFunc("POST /v1/route", d.handleRoute)
 	mux.HandleFunc("POST /v1/notify", d.handleNotify)
 	mux.HandleFunc("POST /v1/pause", d.handlePause)
 	mux.HandleFunc("POST /v1/resume", d.handleResume)
+	mux.HandleFunc("POST /v1/prometheus/hard-stop", d.handlePrometheusHardStopAudit)
 	mux.HandleFunc("GET /v1/grants", d.handleGrants)
 	mux.HandleFunc("POST /v1/grants", d.handleCreateGrant)
 	mux.HandleFunc("POST /v1/email/inventory", d.handleEmailInventory)
@@ -257,6 +249,49 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/weave/dry-run", d.handleWeaveDryRun)
 	mux.HandleFunc("POST /v1/weave/refresh", d.handleWeaveRefresh)
 	return mux
+}
+
+func (d *daemon) handleIntakeScan(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	if d.blockIfPaused(w, "POST /v1/intake/scan", d.cfg.IntakePath, "intake.scan") {
+		return
+	}
+	result, err := d.runIntakeScan()
+	if err != nil {
+		id := d.audit("POST /v1/intake/scan", d.cfg.IntakePath, "intake.scan", "", "failed", fmt.Sprintf("new=%d unchanged=%d departed=%d deferred=%d skipped=%d failed=%d", result.New, result.Unchanged, result.Departed, result.Deferred, result.Skipped, result.Failed), err.Error(), time.Since(started))
+		result.AuditID = id
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "scan": result})
+		return
+	}
+	result.AuditID = d.audit("POST /v1/intake/scan", d.cfg.IntakePath, "intake.scan", "", "completed", fmt.Sprintf("new=%d unchanged=%d departed=%d deferred=%d skipped=%d failed=%d chronology=%s", result.New, result.Unchanged, result.Departed, result.Deferred, result.Skipped, result.Failed, result.Chronology), "", time.Since(started))
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (d *daemon) handleShowIntake(w http.ResponseWriter, r *http.Request) {
+	limit := 10
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		parsed, err := strconv.Atoi(rawLimit)
+		if err != nil || parsed < 1 || parsed > 100 {
+			writeError(w, http.StatusBadRequest, errors.New("limit must be an integer between 1 and 100"))
+			return
+		}
+		limit = parsed
+	}
+	inspection, err := d.intakeInspectionWithQuery(limit, r.URL.Query().Get("path"), r.URL.Query().Get("extension"), r.URL.Query().Get("type"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, inspection)
+}
+
+func (d *daemon) handleShowFatherTime(w http.ResponseWriter, r *http.Request) {
+	inspection, err := d.fatherTimeInspection()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, inspection)
 }
 
 type weaveRetrieveRequest struct {
@@ -524,6 +559,9 @@ func (d *daemon) handleInput(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	if d.blockIfPaused(w, "POST /v1/input", request.Input, "reason") {
+		return
+	}
 	decision, err := routeRequest(d.cfg, d.capabilities, request.Input)
 	if err != nil {
 		id := d.audit("POST /v1/input", request.Input, "", d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
@@ -553,6 +591,9 @@ func (d *daemon) handleRoute(w http.ResponseWriter, r *http.Request) {
 			err = errors.New("input is required")
 		}
 		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if d.blockIfPaused(w, "POST /v1/route", request.Input, "route") {
 		return
 	}
 	decision, err := routeRequest(d.cfg, d.capabilities, request.Input)
@@ -740,6 +781,9 @@ func (d *daemon) handleCreateGrant(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, apiError{fmt.Sprintf("grant creation requires local CLI approval (audit %s)", id)})
 		return
 	}
+	if d.blockIfPaused(w, "POST /v1/grants", "", "grant") {
+		return
+	}
 	var request grantRequest
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -803,7 +847,15 @@ func (d *daemon) handleResume(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"audit_id": id, "paused": false, "result": "Pantheon resumed. Skipped work remains skipped."})
 }
 
+func (d *daemon) handlePrometheusHardStopAudit(w http.ResponseWriter, r *http.Request) {
+	id := d.audit("POST /v1/prometheus/hard-stop", "", "", "", "requested", "direct user-service hard-stop requested", "", 0)
+	writeJSON(w, http.StatusOK, map[string]any{"audit_id": id, "result": "Direct user-service hard-stop requested."})
+}
+
 func (d *daemon) paused() (bool, error) {
+	if pauseMarkerExists(pauseMarkerPathForDatabase(d.databasePath)) {
+		return true, nil
+	}
 	var value string
 	if err := d.db.QueryRow(`SELECT value FROM runtime_state WHERE key = 'paused'`).Scan(&value); err != nil {
 		return false, err
@@ -812,12 +864,37 @@ func (d *daemon) paused() (bool, error) {
 }
 
 func (d *daemon) setPaused(value bool) error {
+	markerPath := pauseMarkerPathForDatabase(d.databasePath)
+	if value {
+		if err := writePauseMarker(markerPath); err != nil {
+			return err
+		}
+	}
 	text := "false"
 	if value {
 		text = "true"
 	}
-	_, err := d.db.Exec(`UPDATE runtime_state SET value = ?, updated_at = ? WHERE key = 'paused'`, text, time.Now().Format(time.RFC3339Nano))
-	return err
+	if _, err := d.db.Exec(`UPDATE runtime_state SET value = ?, updated_at = ? WHERE key = 'paused'`, text, time.Now().Format(time.RFC3339Nano)); err != nil {
+		return err
+	}
+	if !value {
+		return removePauseMarker(markerPath)
+	}
+	return nil
+}
+
+func (d *daemon) blockIfPaused(w http.ResponseWriter, endpoint, input, capability string) bool {
+	paused, err := d.paused()
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, fmt.Errorf("pause state unavailable; consequential work is blocked: %w", err))
+		return true
+	}
+	if !paused {
+		return false
+	}
+	id := d.audit(endpoint, input, capability, "", "blocked", "", "Pantheon is paused; consequential work is blocked", 0)
+	writeJSON(w, http.StatusServiceUnavailable, apiError{fmt.Sprintf("Pantheon is paused; request not run (audit %s)", id)})
+	return true
 }
 
 var apolloHTTPClient = &http.Client{

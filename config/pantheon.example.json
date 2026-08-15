@@ -1,7 +1,39 @@
 {
-  "ollama_url": "http://127.0.0.1:11434/api/chat",
-  "local_model": "",
-  "frontier_model": "",
-  "vault_path": "",
-  "roadmap_path": ""
+  "schema_version": 1,
+  "runtime": {
+    "listen": "127.0.0.1:8765"
+  },
+  "paths": {
+    "vault": "",
+    "roadmap": "",
+    "intake": "",
+    "father_time_chronicles": "",
+    "raw": ""
+  },
+  "retention": {
+    "raw_input_days": 30
+  },
+  "time": {
+    "timezone": ""
+  },
+  "ingestion": {
+    "whisper": {
+      "enabled": true,
+      "binary": "",
+      "model": "",
+      "language": "auto"
+    },
+    "media": {
+      "converter": ""
+    }
+  },
+  "models": {
+    "apollo": {
+      "model": "",
+      "endpoint": "http://127.0.0.1:11434/api/chat"
+    },
+    "archimedes": {
+      "model": ""
+    }
+  }
 }

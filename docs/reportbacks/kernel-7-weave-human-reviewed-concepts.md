@@ -1,7 +1,10 @@
 # Kernel 7 — Weave: human-reviewed local concept substrate
 
+HUMAN NOTE - KERNELS ARE HISTORIC RECORDS, NOT ACCURATE ACCOUNTING OF CURRENT STATE
+Historical reconciliation: this Kernel 7 reportback originally said that no nightly refresh was enabled. Kernel 8 predecessor commit `7373adb` later added scheduled Weave maintenance. This note is preserved as history; the current runtime state is described by the Kernel 8 reportback.
+
 ## Status
-Completion candidate, pending final source-policy review, verification, and your explicit commit approval. Kernel 7 now has bounded read-only retrieval, source-policy dry runs, incremental primary/Nexus derived-state refresh, and reproducible local subject reviews. No nightly refresh or semantic graphing is enabled.
+Completion candidate, pending final source-policy review, verification, and your explicit commit approval. Kernel 7 now has bounded read-only retrieval, source-policy dry runs, incremental primary/Nexus derived-state refresh, and reproducible local subject reviews. No nightly refresh or semantic graphing was enabled at the time of this reportback.
 
 ## What was built
 - A local passage index and source-aware term inventory.
@@ -21,7 +24,7 @@ Completion candidate, pending final source-policy review, verification, and your
 - Original Vault and Nexus source notes remain intact.
 - No automatic note links, tags, semantic claims, or external calls were made.
 - Nexus excerpts on a concept card remain speaker-attributed, contextual-only, and do not affect concept rank or meaning.
-- No nightly job has been enabled.
+- No nightly job had been enabled at the time of this reportback; later Kernel 8 predecessor history added scheduled Weave maintenance.
 
 ## Executable retrieval and incremental slices
 - Added a tested local retrieval ranker for Weave passages. It uses transparent query-term coverage as a provisional score and preserves Socio tie ordering: official rules → drafts → reference → adjacent material.
