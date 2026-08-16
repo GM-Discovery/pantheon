@@ -2,14 +2,14 @@
 
 ## Status
 
-Repository implementation and automated verification are complete. **Live deployment was not performed in this pass.** Kernel 10’s live Whisper verification debt remains open.
+Repository implementation and automated verification are complete. **Live runtime verification completed August 15, 2026.** The verified Kernel 11 binary was installed at the service runtime, `pantheon.service` was restarted, and the local status endpoint responded successfully. Kernel 10’s live Whisper verification debt remains open.
 
 ## A. Actual predecessor
 
 - Branch: `trunk`.
 - Exact predecessor commit: `f15c5b2` (`reconcile kernels 8 through 10`).
 - Starting state was dirty because the Kernel 11 specification had been added and the tracked tests were temporarily present under an untracked `testing/` directory; the test files were restored to their tracked root layout without content changes.
-- Inherited Kernel 10 status: repository-verified; live Present/Whisper deployment verification remains pending.
+- Inherited Kernel 10 status: repository-verified; live Whisper verification remains pending. Kernel 11’s live Present-backed deterministic order path was separately verified below.
 
 ## B. Constitutional status
 
@@ -68,6 +68,8 @@ authority_ref, parent_go_id, valid_until, consumed_at, invalidated_at, status
 
 Person order submission remains available while paused. Structured orders can be sealed but are projected `waiting_paused`; Mercury issues no Go. Prometheus pause invalidates outstanding issued Go Commands. Resume only clears the pause; it does not dispatch. A later explicit `pantheon mercury round` reevaluates and may issue a fresh Go. An in-flight/outstanding Go is recorded as invalidated/interrupted rather than replayed automatically.
 
+Live verification on August 15, 2026 confirmed the complete pause sequence: a direct-person order submitted while paused was retained without a Go; resume alone produced no dispatch; a later explicit Mercury round reevaluated the order and completed it once.
+
 ## I. Child orders
 
 The automated suite demonstrates an equal exact occurrence scope as an in-scope child with `authority_basis=parent_order`. A child with `occurrence:x/..` under parent `occurrence:x` is refused as `needs_ruling`. Scope comparison is deliberately conservative and does not use vague semantic similarity.
@@ -86,7 +88,7 @@ is a control-token-protected one-round primitive. It inspects durable pending wo
 
 ## L. Deterministic fallback
 
-The Kernel 11 e2e test runs with no Hermes/Terra binary. A trusted structured person order for an exact Intake occurrence is sealed, receives a Father Time Go, invokes local Present, records one attempt and completion, and is not dispatched on a second round. A free-form request remains `needs_interpretation` instead of being guessed.
+The Kernel 11 e2e test and the August 15 live smoke test run without requiring a Hermes/Terra binary. A trusted structured person order for an exact Intake occurrence was sealed, received a Father Time Go, invoked local Present, recorded one attempt and completion, and was not dispatched on a second round. A free-form request remains `needs_interpretation` instead of being guessed.
 
 ## M. Inspection
 
@@ -110,7 +112,7 @@ GOCACHE=/tmp/pantheon-go-cache go vet ./...
 GOCACHE=/tmp/pantheon-go-cache go build -o /tmp/pantheon-kernel11 .
 ```
 
-Kernel 11 tests cover direct ingress anti-forgery, no second approval, immutable seal projection, one-Go/one-dispatch/idempotent rounds, pause queue and no automatic resume replay, `needs_interpretation`, `needs_ruling`, `blocked_unavailable`, exact grant authority, parent-child scope inheritance/refusal, and harmless Present end-to-end dispatch. Live runtime verification is intentionally not claimed.
+Kernel 11 tests cover direct ingress anti-forgery, no second approval, immutable seal projection, one-Go/one-dispatch/idempotent rounds, pause queue and no automatic resume replay, `needs_interpretation`, `needs_ruling`, `blocked_unavailable`, exact grant authority, parent-child scope inheritance/refusal, and harmless Present end-to-end dispatch. Live verification completed August 15, 2026 and confirmed: direct-person order creation; one-dispatch idempotency on a repeated round; paused-order retention without Go; resume without automatic dispatch; and later Mercury-round completion. The live runtime was not used to claim Whisper verification.
 
 Kernel 10 coverage remains accurately bounded: PDF extraction, DOCX structure, traversal and symlink escape, stale source identity, exact occurrence processing, filename collisions, idempotency, human-modified artifacts, mocked/local Whisper dispatch, and missing processor behavior are tested. Kernel 10 does not currently have focused tests for `present --new` end-to-end, video audio-only handling, or deterministic recent-source resolution; no claim is made for those gaps. Kernel 10’s pause/no-replay test covers Present, while Kernel 11 separately covers no replay after Mercury resume.
 
