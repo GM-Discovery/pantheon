@@ -2,7 +2,7 @@
 
 ## Status
 
-Repository implementation and automated verification are complete. **Live runtime verification completed August 15, 2026.** The verified Kernel 11 binary was installed at the service runtime, `pantheon.service` was restarted, and the local status endpoint responded successfully. Kernel 10’s live Whisper verification debt remains open.
+Repository implementation and automated verification are complete. **Historical live runtime verification completed August 15, 2026.** The verified Kernel 11 binary was installed at the service runtime, `pantheon.service` was restarted, and the local status endpoint responded successfully. Kernel 13 superseded that runtime on August 16, 2026. Kernel 10’s live Whisper verification debt remains open.
 
 ## A. Actual predecessor
 
@@ -126,11 +126,11 @@ Kernel 10 coverage remains accurately bounded: PDF extraction, DOCX structure, t
 
 ## P. Risks
 
-Free-form interpretation is intentionally limited without Hermes/Terra. Scope comparison is conservative rather than semantically rich. Existing grants have exact-match semantics and no expiry/remaining-use extension. Hermes/Terra readiness is observational only. Cron integration is a documented command hook, not an installed scheduler. Recipient adapters are currently narrow. Cancellation and interruption are durable best-effort state transitions; they do not promise process-level termination of an already-running local operation.
+Free-form interpretation is intentionally limited without Hermes/Terra. Kernel 13 later generalized grant lifecycle, deterministic containment, delegation, expiry, and remaining-use semantics; those changes are recorded in the Kernel 13 reportback. Hermes/Terra readiness is observational only. Cron integration is a documented command hook, not an installed scheduler. Recipient adapters are currently narrow. Cancellation and interruption are durable best-effort state transitions; they do not promise process-level termination of an already-running local operation.
 
 ## Q. Expiry conditions
 
-This report expires if order authority, seal serialization, Go validation, pause invalidation, recipient adapters, grant semantics, or the live deployment state changes. It also expires if Kernel 10’s outstanding Whisper verification is completed or materially changed; that result must be recorded separately.
+This report is a historical Kernel 11 record and is no longer a current-runtime deployment claim after the Kernel 13 restart. It also expires as a behavioral baseline if order authority, seal serialization, Go validation, pause invalidation, recipient adapters, or Kernel 10’s outstanding Whisper verification materially changes; those later changes must be recorded separately.
 
 ## R. Next safe successor
 

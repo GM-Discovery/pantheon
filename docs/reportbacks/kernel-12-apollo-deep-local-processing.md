@@ -2,9 +2,9 @@
 
 ## Status
 
-**PASS — repository verified August 16, 2026.**
+**PASS — repository verified August 16, 2026; predecessor backend deployment recorded August 16, 2026.**
 
-Kernel 12 is complete at the repository boundary. The runtime was not restarted or deployed for Kernel 12, so this report does not claim live Apollo or live Whisper verification.
+Kernel 12 is complete at the repository boundary. Its backend binary was deployed as the predecessor runtime on August 16, 2026, then superseded by the Kernel 13 backend deployment later that day. No live Apollo execution or live Whisper verification was claimed for Kernel 12.
 
 ## Corrected orchestration boundary
 
@@ -66,7 +66,12 @@ All completed successfully. The build artifact was produced at `/tmp/pantheon-ke
 
 ## Explicit non-claims
 
-- No live Kernel 12 deployment or runtime restart was performed.
-- Future’s active-state engine and tool-call/child-order proposal logic remain Kernel 13 work.
+- No live Kernel 12 Apollo reasoning smoke test or live Whisper verification was performed.
+- Future’s active-state engine and tool-call/child-order proposal logic remain later Future work; Kernel 13 supplies authority infrastructure without implementing Future’s complete daemon behavior.
 - No Internet/public-research adapter or Archimedes/frontier reasoning was added.
 - Kernel 10 Whisper live verification remains separate and open.
+
+## Deployment history
+
+- Kernel 12 predecessor backend build was installed at `bin/pantheon` and `pantheon.service` was restarted on August 16, 2026.
+- Kernel 13 superseded that runtime later on August 16, 2026; current live authority state is recorded in the Kernel 13 reportback.

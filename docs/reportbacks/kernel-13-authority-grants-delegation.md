@@ -2,15 +2,26 @@
 
 ## Status
 
-**PASS — repository verified August 16, 2026.**
+**PASS — repository and live backend verified August 16, 2026.**
 
-Kernel 13 is complete at the repository boundary. No Kernel 13 live deployment or runtime restart was performed; the backend remains on the previously deployed Kernel 12 binary.
+Kernel 13 is complete at the repository boundary and was rebuilt, installed, and restarted as the backend runtime on August 16, 2026. Only `pantheon.service` was restarted.
 
 ## Predecessor and starting state
 
 - Predecessor implementation commit: `42e76a5 feat: complete Kernel 12 Apollo processing`.
 - The tracked repository was clean at start; the user-provided Kernel 13 specification was newly present as an untracked documentation file.
 - No constitutional documentation correction was required. Kernel 13 preserves the person-sovereign, intelligence-is-not-authority, Prometheus pause, and Mercury sealed-order principles already recorded by earlier kernels.
+
+## Live verification
+
+- Build artifact: `/tmp/pantheon-kernel13`.
+- Installed runtime: `/home/brick/pantheon-runtime/bin/pantheon`.
+- Installed and build SHA-256: `6e98e3d534cb11028405a5b1883432e541b5d4d279395f4da73386f9898fecf0`.
+- `pantheon.service` was active after restart with exit status 0 and main PID `1673856`.
+- `GET /v1/status` succeeded on `127.0.0.1:8765`; the backend reported `paused=false` and the expected local listener.
+- `GET /v1/grants` succeeded and returned the preserved active legacy grants.
+- An unauthorized live authority check for `present.process` against `occurrence:kernel13-live-check` returned `allowed=false`; configuration/technical availability did not become permission.
+- No live grant was created, approved, revoked, paused, or consumed during this smoke verification.
 
 ## Existing machinery reused
 
@@ -77,7 +88,7 @@ Build artifact: `/tmp/pantheon-kernel13`.
 - Future’s active-state administration and planning consumer remain Kernel 14 work; Kernel 13 provides the authority infrastructure only.
 - No generalized RBAC model, GUI, recurring scheduler, Archimedes execution, or new cryptographic layer was added.
 - The Prometheus policy for deciding which permission changes are “meaningful” remains intentionally narrow: the deterministic machinery supports approve, deny, and pending/escalate outcomes, but does not claim to encode comprehensive policy discretion.
-- No Kernel 13 live deployment, restart, or live operational smoke test was performed.
+- The live smoke verification covered service identity, health, read-only grant inspection, and an unauthorized authority decision. The full authority matrix remains covered by the repository tests rather than mutating live state.
 
 ## Files changed
 
