@@ -8,7 +8,8 @@
     "roadmap": "",
     "intake": "",
     "father_time_chronicles": "",
-    "raw": ""
+    "raw": "",
+    "apollo_reports": ""
   },
   "retention": {
     "raw_input_days": 30
@@ -33,6 +34,14 @@
     "binary": "",
     "deterministic_fallback": true,
     "round_on_cron_wake": true
+  },
+  "apollo": {
+    "max_retrieval_rounds": 12,
+    "max_sources": 64,
+    "max_context_bytes": 200000,
+    "max_reasoning_duration_seconds": 900,
+    "require_citations": true,
+    "external_research": { "enabled": false }
   },
   "models": {
     "apollo": {

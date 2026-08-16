@@ -9,6 +9,7 @@ Copy `pantheon.example.json` to `~/pantheon-runtime/config/pantheon.json` and fi
 - `paths.intake`: configurable Intake tree; absent means the per-user default `~/Pantheon Intake`.
 - `paths.father_time_chronicles`: yearly Father Time Markdown directory; absent means beneath `paths.vault/00 Pantheon Core/Chronicles/Father Time/`.
 - `paths.raw`: Kernel 10 durable source-faithful Markdown root; absent means `paths.vault/80 Pantheon Raw`.
+- `paths.apollo_reports`: Kernel 12 cited Apollo report root; absent means `paths.vault/70 Pantheon Reports/Apollo`.
 - `retention.raw_input_days`: raw-input policy value, default `30`; Kernel 9 does not arm this clock or delete files.
 - `time.timezone`: optional IANA timezone for Father Time; absent means the machine's local timezone.
 - `ingestion.whisper`: optional local-only Whisper settings. Missing binaries do not invalidate the rest of Pantheon.
@@ -17,6 +18,7 @@ Copy `pantheon.example.json` to `~/pantheon-runtime/config/pantheon.json` and fi
 - `mercury.binary`: optional local Hermes/Terra executable. Kernel 11 does not install or start it.
 - `mercury.deterministic_fallback`: enables the durable structured-order fallback, default `true`.
 - `mercury.round_on_cron_wake`: records the safe scheduled-wake integration point; Kernel 11 provides `pantheon mercury round` but does not install a new scheduler.
+- `apollo`: bounded local reasoning budgets and citation policy. `external_research.enabled` defaults to `false`; Kernel 12 does not grant Apollo Internet access by configuration alone.
 - `models.apollo.model`: the local reasoning model (for example, `mistral-small3.1:latest`).
 - `models.apollo.endpoint`: local Ollama chat endpoint, normally `http://127.0.0.1:11434/api/chat`.
 - `models.archimedes.model`: reserved and inactive in Kernel 8; naming a model grants no access or authority.

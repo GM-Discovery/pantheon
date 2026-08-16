@@ -100,6 +100,20 @@ Kernel 11 activates this small Mercury namespace:
 
 The binary is optional. Kernel 11 does not install Hermes/Terra or create a new recurring background loop; the explicit `pantheon mercury round` command is the safe integration point for an existing controlled wake.
 
+Kernel 12 activates `paths.apollo_reports` and bounded local Apollo settings. The report path defaults beneath the Vault at `70 Pantheon Reports/Apollo`; external research remains disabled:
+
+```json
+"paths": { "apollo_reports": "" },
+"apollo": {
+  "max_retrieval_rounds": 12,
+  "max_sources": 64,
+  "max_context_bytes": 200000,
+  "max_reasoning_duration_seconds": 900,
+  "require_citations": true,
+  "external_research": { "enabled": false }
+}
+```
+
 Reserved values belong in documented schema space rather than being emitted as a large collection of false implementation claims in every user's file.
 
 ## Legacy compatibility and migration
