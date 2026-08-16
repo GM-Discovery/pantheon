@@ -92,22 +92,38 @@ type emailInventoryResponse struct {
 	AuditID   string          `json:"audit_id"`
 }
 type grantRequest struct {
-	Capability    string `json:"capability"`
-	Scope         string `json:"scope"`
-	IntentSummary string `json:"intent_summary"`
-	Diff          string `json:"diff,omitempty"`
-	HumanApproved bool   `json:"human_approved"`
+	Capability            string          `json:"capability"`
+	Scope                 string          `json:"scope"`
+	IntentSummary         string          `json:"intent_summary"`
+	Diff                  string          `json:"diff,omitempty"`
+	HumanApproved         bool            `json:"human_approved"`
+	Holder                string          `json:"holder,omitempty"`
+	GrantedBy             string          `json:"granted_by,omitempty"`
+	ParentGrantID         string          `json:"parent_grant_id,omitempty"`
+	ValidFrom             string          `json:"valid_from,omitempty"`
+	ValidUntil            string          `json:"valid_until,omitempty"`
+	RemainingUses         *int            `json:"remaining_uses,omitempty"`
+	DelegationConstraints json.RawMessage `json:"delegation_constraints,omitempty"`
 }
 
 type capabilityGrant struct {
-	ID            string `json:"id"`
-	Capability    string `json:"capability"`
-	Scope         string `json:"scope"`
-	IntentSummary string `json:"intent_summary"`
-	Diff          string `json:"diff,omitempty"`
-	HumanApproved bool   `json:"human_approved"`
-	Status        string `json:"status"`
-	CreatedAt     string `json:"created_at"`
+	ID                    string          `json:"id"`
+	Holder                string          `json:"holder"`
+	Capability            string          `json:"capability"`
+	Scope                 string          `json:"scope"`
+	IntentSummary         string          `json:"intent_summary"`
+	Diff                  string          `json:"diff,omitempty"`
+	HumanApproved         bool            `json:"human_approved"`
+	GrantedBy             string          `json:"granted_by"`
+	ParentGrantID         string          `json:"parent_grant_id,omitempty"`
+	CreatedAt             string          `json:"created_at"`
+	ValidFrom             string          `json:"valid_from,omitempty"`
+	ValidUntil            string          `json:"valid_until,omitempty"`
+	RemainingUses         *int            `json:"remaining_uses,omitempty"`
+	Status                string          `json:"status"`
+	DelegationConstraints json.RawMessage `json:"delegation_constraints,omitempty"`
+	RevokedAt             string          `json:"revoked_at,omitempty"`
+	UpdatedAt             string          `json:"updated_at,omitempty"`
 }
 
 func defaultDaemonOptions() (daemonOptions, error) {
@@ -179,11 +195,7 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 			return nil, err
 		}
 	}
-	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS capability_grants (
-		id TEXT PRIMARY KEY, capability TEXT NOT NULL, scope TEXT NOT NULL,
-		intent_summary TEXT NOT NULL, diff TEXT, human_approved INTEGER NOT NULL,
-		status TEXT NOT NULL, created_at TEXT NOT NULL
-	)`); err != nil {
+	if err := initializeAuthoritySchema(db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -254,7 +266,14 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/resume", d.handleResume)
 	mux.HandleFunc("POST /v1/prometheus/hard-stop", d.handlePrometheusHardStopAudit)
 	mux.HandleFunc("GET /v1/grants", d.handleGrants)
+	mux.HandleFunc("GET /v1/grants/{id}", d.handleGrant)
 	mux.HandleFunc("POST /v1/grants", d.handleCreateGrant)
+	mux.HandleFunc("POST /v1/grants/{id}/approve", d.handleApproveGrant)
+	mux.HandleFunc("POST /v1/grants/{id}/revoke", d.handleRevokeGrant)
+	mux.HandleFunc("POST /v1/grants/{id}/pause", d.handlePauseGrant)
+	mux.HandleFunc("POST /v1/grants/{id}/resume", d.handleResumeGrant)
+	mux.HandleFunc("POST /v1/prometheus/grants/{id}/approve", d.handlePrometheusApproveGrant)
+	mux.HandleFunc("GET /v1/authority/check", d.handleAuthorityCheck)
 	mux.HandleFunc("POST /v1/email/inventory", d.handleEmailInventory)
 	mux.HandleFunc("POST /v1/vault/connections", d.handleVaultConnections)
 	mux.HandleFunc("POST /v1/weave/retrieve", d.handleWeaveRetrieve)
@@ -731,9 +750,15 @@ func (d *daemon) handleEmailInventory(w http.ResponseWriter, r *http.Request) {
 	}
 	const pageSize = 50
 	scope := fmt.Sprintf("account=%s; mailbox=%s; page=1; page_size=50; envelopes_only", request.Account, request.Mailbox)
-	if !d.hasActiveGrant("email.read", scope) {
+	grant, grantErr := d.matchingGrant("email.read", scope)
+	if grantErr != nil {
 		id := d.audit("POST /v1/email/inventory", scope, "email.read", "", "refused", "", "no matching active grant", time.Since(started))
 		writeJSON(w, http.StatusForbidden, apiError{fmt.Sprintf("email.read requires an active matching grant (audit %s)", id)})
+		return
+	}
+	if err := d.consumeGrant(grant.ID); err != nil {
+		id := d.audit("POST /v1/email/inventory", scope, "email.read", "", "refused", "", err.Error(), time.Since(started))
+		writeJSON(w, http.StatusForbidden, apiError{fmt.Sprintf("email.read grant could not be consumed (audit %s)", id)})
 		return
 	}
 	if _, err := d.auditRequired("POST /v1/email/inventory", scope, "email.read", "", "started", "read-only envelope inventory authorized", "", time.Since(started)); err != nil {
@@ -757,14 +782,12 @@ func (d *daemon) handleEmailInventory(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, emailInventoryResponse{Account: request.Account, Mailbox: request.Mailbox, PageSize: pageSize, Envelopes: envelopeDocument.Envelopes, AuditID: id})
 }
 
-func (d *daemon) hasActiveGrant(capability, scope string) bool {
-	var count int
-	err := d.db.QueryRow(`SELECT COUNT(*) FROM capability_grants WHERE capability = ? AND scope = ? AND status = 'active'`, capability, scope).Scan(&count)
-	return err == nil && count > 0
-}
-
 func (d *daemon) handleGrants(w http.ResponseWriter, r *http.Request) {
-	rows, err := d.db.Query(`SELECT id, capability, scope, intent_summary, diff, human_approved, status, created_at FROM capability_grants ORDER BY created_at DESC`)
+	if err := initializeAuthoritySchema(d.db); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	rows, err := d.db.Query(`SELECT id, holder, capability, scope, intent_summary, diff, human_approved, granted_by, parent_grant_id, created_at, valid_from, valid_until, remaining_uses, status, delegation_constraints, revoked_at, updated_at FROM capability_grants ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -773,12 +796,25 @@ func (d *daemon) handleGrants(w http.ResponseWriter, r *http.Request) {
 	var grants []capabilityGrant
 	for rows.Next() {
 		var grant capabilityGrant
-		var approved int
-		if err := rows.Scan(&grant.ID, &grant.Capability, &grant.Scope, &grant.IntentSummary, &grant.Diff, &approved, &grant.Status, &grant.CreatedAt); err != nil {
+		var approved, uses sql.NullInt64
+		var diff, holder, grantedBy, parentID, validFrom, validUntil, constraints, revokedAt, updatedAt sql.NullString
+		if err := rows.Scan(&grant.ID, &holder, &grant.Capability, &grant.Scope, &grant.IntentSummary, &diff, &approved, &grantedBy, &parentID, &grant.CreatedAt, &validFrom, &validUntil, &uses, &grant.Status, &constraints, &revokedAt, &updatedAt); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		grant.HumanApproved = approved == 1
+		grant.Holder, grant.GrantedBy = holder.String, grantedBy.String
+		grant.Diff, grant.ParentGrantID = diff.String, parentID.String
+		grant.ValidFrom, grant.ValidUntil = validFrom.String, validUntil.String
+		grant.RevokedAt, grant.UpdatedAt = revokedAt.String, updatedAt.String
+		grant.HumanApproved = approved.Int64 == 1
+		if uses.Valid {
+			remaining := int(uses.Int64)
+			grant.RemainingUses = &remaining
+		}
+		if constraints.Valid && constraints.String != "" {
+			grant.DelegationConstraints = json.RawMessage(constraints.String)
+		}
+		grant = d.refreshGrantState(grant, time.Now())
 		grants = append(grants, grant)
 	}
 	if err := rows.Err(); err != nil {
@@ -788,6 +824,177 @@ func (d *daemon) handleGrants(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, grants)
 }
 
+func (d *daemon) handleGrant(w http.ResponseWriter, r *http.Request) {
+	grant, err := d.loadCapabilityGrant(r.PathValue("id"))
+	if errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusNotFound, errors.New("grant not found"))
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	grant = d.refreshGrantState(grant, time.Now())
+	chain, chainErr := d.authorityChain(grant.ID)
+	if chainErr != nil {
+		writeError(w, http.StatusInternalServerError, chainErr)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"grant": grant, "authority_chain": chain})
+}
+
+func (d *daemon) requireGrantControl(w http.ResponseWriter, r *http.Request) bool {
+	if r.Header.Get(controlTokenHeader) == d.controlToken {
+		return true
+	}
+	id := d.audit("POST "+r.URL.Path, "", "grant", "", "refused", "", "local CLI control token required", 0)
+	writeJSON(w, http.StatusForbidden, apiError{fmt.Sprintf("grant control requires local CLI approval (audit %s)", id)})
+	return false
+}
+
+func (d *daemon) setGrantStatus(id, status string) error {
+	grant, err := d.loadCapabilityGrant(id)
+	if err != nil {
+		return err
+	}
+	grant = d.refreshGrantState(grant, time.Now())
+	if grant.Status == grantStatusRevoked || grant.Status == grantStatusExpired {
+		return errors.New("terminal grant cannot change status")
+	}
+	now := time.Now().Format(time.RFC3339Nano)
+	var query string
+	switch status {
+	case grantStatusRevoked:
+		query = `UPDATE capability_grants SET status = ?, revoked_at = ?, updated_at = ? WHERE id = ?`
+		_, err = d.db.Exec(query, status, now, now, id)
+	case grantStatusPaused, grantStatusActive:
+		query = `UPDATE capability_grants SET status = ?, updated_at = ? WHERE id = ?`
+		_, err = d.db.Exec(query, status, now, id)
+	default:
+		return errors.New("unsupported grant status transition")
+	}
+	return err
+}
+
+func (d *daemon) handleApproveGrant(w http.ResponseWriter, r *http.Request) {
+	if !d.requireGrantControl(w, r) {
+		return
+	}
+	grant, err := d.loadCapabilityGrant(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, errors.New("grant not found"))
+		return
+	}
+	if grant.Status != grantStatusPending {
+		writeError(w, http.StatusConflict, errors.New("only pending grants may be approved"))
+		return
+	}
+	if grant.ParentGrantID != "" {
+		request := grantRequest{Capability: grant.Capability, Scope: grant.Scope, ParentGrantID: grant.ParentGrantID, ValidFrom: grant.ValidFrom, ValidUntil: grant.ValidUntil, RemainingUses: grant.RemainingUses}
+		if _, err := d.validateDelegatedGrant(request); err != nil {
+			writeError(w, http.StatusConflict, err)
+			return
+		}
+	}
+	if err := d.setGrantStatus(grant.ID, grantStatusActive); err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	grant, _ = d.loadCapabilityGrant(grant.ID)
+	d.audit("POST "+r.URL.Path, grant.IntentSummary, grant.Capability, "", "completed", "grant approved by person: "+grant.ID, "", 0)
+	writeJSON(w, http.StatusOK, grant)
+}
+
+func (d *daemon) handlePrometheusApproveGrant(w http.ResponseWriter, r *http.Request) {
+	if !d.requireGrantControl(w, r) {
+		return
+	}
+	if err := d.approveGrantAsPrometheus(r.PathValue("id")); err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	grant, err := d.loadCapabilityGrant(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	d.audit("POST "+r.URL.Path, grant.IntentSummary, grant.Capability, "", "completed", "grant approved within Prometheus delegation: "+grant.ID, "", 0)
+	writeJSON(w, http.StatusOK, grant)
+}
+
+func (d *daemon) handleRevokeGrant(w http.ResponseWriter, r *http.Request) {
+	if !d.requireGrantControl(w, r) {
+		return
+	}
+	if err := d.setGrantStatus(r.PathValue("id"), grantStatusRevoked); err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	grant, err := d.loadCapabilityGrant(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	d.audit("POST "+r.URL.Path, grant.IntentSummary, grant.Capability, "", "completed", "grant revoked: "+grant.ID, "", 0)
+	writeJSON(w, http.StatusOK, grant)
+}
+
+func (d *daemon) handlePauseGrant(w http.ResponseWriter, r *http.Request) {
+	if !d.requireGrantControl(w, r) {
+		return
+	}
+	if err := d.setGrantStatus(r.PathValue("id"), grantStatusPaused); err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	grant, err := d.loadCapabilityGrant(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, grant)
+}
+
+func (d *daemon) handleResumeGrant(w http.ResponseWriter, r *http.Request) {
+	if !d.requireGrantControl(w, r) {
+		return
+	}
+	if err := d.setGrantStatus(r.PathValue("id"), grantStatusActive); err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	grant, err := d.loadCapabilityGrant(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, grant)
+}
+
+func (d *daemon) handleAuthorityCheck(w http.ResponseWriter, r *http.Request) {
+	capability, scope := strings.TrimSpace(r.URL.Query().Get("capability")), strings.TrimSpace(r.URL.Query().Get("scope"))
+	if capability == "" || scope == "" {
+		writeError(w, http.StatusBadRequest, errors.New("capability and scope query parameters are required"))
+		return
+	}
+	decision := map[string]any{"capability": capability, "scope": scope, "capability_configured": d.hasCapability(capability), "allowed": false}
+	grant, err := d.matchingGrant(capability, scope)
+	if err == nil {
+		chain, chainErr := d.authorityChain(grant.ID)
+		if chainErr != nil {
+			writeError(w, http.StatusInternalServerError, chainErr)
+			return
+		}
+		decision["allowed"] = true
+		decision["reason"] = "active grant contains requested capability and scope"
+		decision["grant"] = grant
+		decision["authority_chain"] = chain
+	} else {
+		decision["reason"] = "no active exact or containing grant; request remains unauthorized or requires escalation"
+	}
+	writeJSON(w, http.StatusOK, decision)
+}
+
 func (d *daemon) handleCreateGrant(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get(controlTokenHeader) != d.controlToken {
 		id := d.audit("POST /v1/grants", "", "", "", "refused", "", "local CLI control token required", 0)
@@ -795,6 +1002,10 @@ func (d *daemon) handleCreateGrant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if d.blockIfPaused(w, "POST /v1/grants", "", "grant") {
+		return
+	}
+	if err := initializeAuthoritySchema(d.db); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	var request grantRequest
@@ -815,22 +1026,70 @@ func (d *daemon) handleCreateGrant(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("self.change requires human_approved=true and a non-empty diff"))
 		return
 	}
+	if err := validateGrantWindow(request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	holder := strings.TrimSpace(request.Holder)
+	if holder == "" {
+		holder = holderPrometheus
+	}
+	if !deterministicHolder(holder) {
+		writeError(w, http.StatusBadRequest, errors.New("deities and models cannot hold operational authority"))
+		return
+	}
+	grantedBy := strings.TrimSpace(request.GrantedBy)
+	if grantedBy == "" {
+		grantedBy = holderPerson
+	}
+	if deityHolders[strings.ToLower(grantedBy)] {
+		writeError(w, http.StatusBadRequest, errors.New("deities and models cannot grant operational authority"))
+		return
+	}
+	status := grantStatusActive
+	if request.ParentGrantID != "" && !request.HumanApproved {
+		status = grantStatusPending
+	}
+	if request.ParentGrantID != "" {
+		if _, err := d.validateDelegatedGrant(request); err != nil {
+			if request.HumanApproved {
+				writeError(w, http.StatusBadRequest, err)
+				return
+			}
+			status = grantStatusPending
+		}
+	}
 	if _, err := d.auditRequired("POST /v1/grants", request.IntentSummary, request.Capability, "", "started", "grant creation authorized", "", 0); err != nil {
 		writeError(w, http.StatusServiceUnavailable, fmt.Errorf("grant creation blocked: audit unavailable: %w", err))
 		return
 	}
 	created := time.Now().Format(time.RFC3339Nano)
-	grant := capabilityGrant{ID: fmt.Sprintf("grant-%d", time.Now().UnixNano()), Capability: request.Capability, Scope: request.Scope, IntentSummary: request.IntentSummary, Diff: request.Diff, HumanApproved: request.HumanApproved, Status: "active", CreatedAt: created}
+	grant := capabilityGrant{ID: fmt.Sprintf("grant-%d", time.Now().UnixNano()), Holder: holder, Capability: request.Capability, Scope: request.Scope, IntentSummary: request.IntentSummary, Diff: request.Diff, HumanApproved: request.HumanApproved, GrantedBy: grantedBy, ParentGrantID: request.ParentGrantID, ValidFrom: request.ValidFrom, ValidUntil: request.ValidUntil, RemainingUses: request.RemainingUses, DelegationConstraints: request.DelegationConstraints, Status: status, CreatedAt: created, UpdatedAt: created}
 	approved := 0
 	if grant.HumanApproved {
 		approved = 1
 	}
-	if _, err := d.db.Exec(`INSERT INTO capability_grants (id, capability, scope, intent_summary, diff, human_approved, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, grant.ID, grant.Capability, grant.Scope, grant.IntentSummary, grant.Diff, approved, grant.Status, grant.CreatedAt); err != nil {
+	if _, err := d.db.Exec(`INSERT INTO capability_grants (id, holder, capability, scope, intent_summary, diff, human_approved, granted_by, parent_grant_id, created_at, valid_from, valid_until, remaining_uses, status, delegation_constraints, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, grant.ID, grant.Holder, grant.Capability, grant.Scope, grant.IntentSummary, grant.Diff, approved, grant.GrantedBy, nullableString(grant.ParentGrantID), grant.CreatedAt, nullableString(grant.ValidFrom), nullableString(grant.ValidUntil), grant.RemainingUses, grant.Status, nullableJSON(grant.DelegationConstraints), grant.UpdatedAt); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	d.audit("POST /v1/grants", grant.IntentSummary, grant.Capability, "", "completed", "grant created: "+grant.ID, "", 0)
-	writeJSON(w, http.StatusCreated, grant)
+	outcome := "completed"
+	if grant.Status == grantStatusPending {
+		outcome = "referred"
+	}
+	d.audit("POST /v1/grants", grant.IntentSummary, grant.Capability, "", outcome, "grant created: "+grant.ID, "", 0)
+	statusCode := http.StatusCreated
+	if grant.Status == grantStatusPending {
+		statusCode = http.StatusAccepted
+	}
+	writeJSON(w, statusCode, grant)
+}
+
+func nullableString(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }
 
 func (d *daemon) hasCapability(name string) bool {

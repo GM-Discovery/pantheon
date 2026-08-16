@@ -277,14 +277,14 @@ func (d *daemon) authorityForOrder(order mercuryOrder, trustedPerson bool) (stri
 	if trustedPerson {
 		return orderOriginPersonDirect, order.RequestedBy, nil
 	}
-	if d.hasActiveGrant(order.Capability, order.Scope) {
-		var grantID string
-		if err := d.db.QueryRow(`SELECT id FROM capability_grants WHERE capability = ? AND scope = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1`, order.Capability, order.Scope).Scan(&grantID); err == nil {
-			return orderOriginStanding, grantID, nil
-		}
-	}
 	if order.ParentOrderID != "" {
+		if err := d.validateChildOrder(order); err != nil {
+			return "", "", err
+		}
 		return orderOriginParent, order.ParentOrderID, nil
+	}
+	if grant, err := d.matchingGrant(order.Capability, order.Scope); err == nil {
+		return orderOriginStanding, grant.ID, nil
 	}
 	return "", "", errors.New("current authority is absent")
 }
@@ -294,8 +294,13 @@ func (d *daemon) authorityStillValid(order mercuryOrder) error {
 	case orderOriginPersonDirect:
 		return nil
 	case orderOriginStanding:
-		if !d.hasActiveGrant(order.Capability, order.Scope) {
-			return errors.New("active grant is no longer present")
+		grant, err := d.loadCapabilityGrant(order.AuthorityRef)
+		if err != nil {
+			return errors.New("standing grant is no longer present")
+		}
+		grant = d.refreshGrantState(grant, time.Now())
+		if !grantTimeValid(grant, time.Now()) || !capabilityWithin(grant.Capability, order.Capability) || !scopeWithin(grant.Scope, order.Scope) {
+			return errors.New("standing grant no longer contains this operation")
 		}
 		return nil
 	case orderOriginParent:
@@ -319,8 +324,18 @@ func (d *daemon) validateChildOrder(order mercuryOrder) error {
 	if order.ParentSealDigest != parent.SealDigest {
 		return errors.New("parent seal digest does not match")
 	}
-	if parent.Recipient != order.Recipient || parent.Capability != order.Capability || !scopeWithin(parent.Scope, order.Scope) {
+	if parent.Recipient != order.Recipient || !capabilityWithin(parent.Capability, order.Capability) || !scopeWithin(parent.Scope, order.Scope) {
 		return errors.New("child order widens parent recipient, capability, or scope")
+	}
+	if parent.AuthorityBasis == orderOriginStanding {
+		grant, err := d.loadCapabilityGrant(parent.AuthorityRef)
+		if err != nil {
+			return errors.New("parent standing grant is unavailable")
+		}
+		grant = d.refreshGrantState(grant, time.Now())
+		if !grantTimeValid(grant, time.Now()) || !delegationAllowed(grant) {
+			return errors.New("parent standing grant does not permit delegation")
+		}
 	}
 	return nil
 }
@@ -330,7 +345,21 @@ func scopeWithin(parent, child string) bool {
 	if parent == child {
 		return true
 	}
-	return strings.HasSuffix(parent, "/") && strings.HasPrefix(child, parent)
+	if strings.HasSuffix(parent, "/") && strings.HasPrefix(child, parent) {
+		return true
+	}
+	switch {
+	case parent == "calendar:personal" && strings.HasPrefix(child, "calendar:event:"):
+		return true
+	case parent == "email:inbox" && strings.HasPrefix(child, "email:message:"):
+		return true
+	case strings.HasPrefix(parent, "internet:domain:") && strings.HasPrefix(child, "internet:domain:"):
+		parentDomain := strings.TrimPrefix(parent, "internet:domain:")
+		childDomain := strings.TrimPrefix(child, "internet:domain:")
+		return childDomain == parentDomain || strings.HasSuffix(childDomain, "."+parentDomain)
+	default:
+		return false
+	}
 }
 
 func (d *daemon) sealOrder(order *mercuryOrder) error {
@@ -593,6 +622,11 @@ func (d *daemon) issueGo(order mercuryOrder) (mercuryGo, error) {
 	if err != nil {
 		return mercuryGo{}, err
 	}
+	if grantID := d.orderAuthorityGrantID(order); grantID != "" {
+		if err := d.consumeGrant(grantID); err != nil {
+			return mercuryGo{}, err
+		}
+	}
 	command := mercuryGo{GoID: id, OrderID: order.OrderID, OrderSealDigest: order.SealDigest, IssuedAt: issued, AuthorityBasis: order.AuthorityBasis, AuthorityRef: order.AuthorityRef, ParentGoID: ""}
 	if _, err := d.db.Exec(`INSERT INTO order_go_commands (go_id, order_id, order_seal_digest, issued_at, authority_basis, authority_ref, parent_go_id, valid_until, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, command.GoID, command.OrderID, command.OrderSealDigest, command.IssuedAt, command.AuthorityBasis, command.AuthorityRef, command.ParentGoID, command.ValidUntil, goStatusIssued); err != nil {
 		return mercuryGo{}, err
@@ -602,6 +636,20 @@ func (d *daemon) issueGo(order mercuryOrder) (mercuryGo, error) {
 	}
 	d.recordOrderEvent(order.OrderID, "go_issued", command.GoID)
 	return command, nil
+}
+
+func (d *daemon) orderAuthorityGrantID(order mercuryOrder) string {
+	if order.AuthorityBasis == orderOriginStanding {
+		return order.AuthorityRef
+	}
+	if order.AuthorityBasis != orderOriginParent || order.ParentOrderID == "" {
+		return ""
+	}
+	parent, err := d.loadOrder(order.ParentOrderID)
+	if err != nil {
+		return ""
+	}
+	return d.orderAuthorityGrantID(parent)
 }
 
 func (d *daemon) dispatchOrder(ctx context.Context, order mercuryOrder, command mercuryGo) error {

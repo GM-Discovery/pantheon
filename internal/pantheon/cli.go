@@ -95,6 +95,9 @@ func runClient(args []string) error {
 		if len(args) == 3 && args[1] == "order" {
 			return clientGET("/v1/orders/" + url.PathEscape(args[2]))
 		}
+		if len(args) == 3 && args[1] == "grant" {
+			return clientGET("/v1/grants/" + url.PathEscape(args[2]))
+		}
 		if len(args) == 3 && args[1] == "apollo" && args[2] == "reports" {
 			return clientGET("/v1/apollo/reports")
 		}
@@ -102,7 +105,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/apollo/reports/" + url.PathEscape(args[3]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|mercury|apollo]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|mercury|apollo]")
 		}
 		switch args[1] {
 		case "config":
@@ -122,7 +125,7 @@ func runClient(args []string) error {
 		case "apollo":
 			return clientGET("/v1/apollo")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|mercury|apollo]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|mercury|apollo]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -160,6 +163,11 @@ func runClient(args []string) error {
 		return clientPOST("/v1/resume", nil)
 	case "grants":
 		return clientGET("/v1/grants")
+	case "authority":
+		if len(args) != 3 || args[0] != "check" {
+			return fmt.Errorf("usage: pantheon authority check <capability> <scope>")
+		}
+		return clientGET("/v1/authority/check?capability=" + url.QueryEscape(args[1]) + "&scope=" + url.QueryEscape(args[2]))
 	case "grant":
 		if len(args) != 4 {
 			return fmt.Errorf("usage: pantheon grant <capability> <scope> <intent-summary>")
