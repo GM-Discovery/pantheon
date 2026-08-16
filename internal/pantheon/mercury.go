@@ -190,6 +190,17 @@ func (d *daemon) createOrder(input orderRequest, trustedPerson bool) (mercuryOrd
 		payloadBytes, _ := json.Marshal(map[string]string{"occurrence_id": strings.TrimPrefix(input.Scope, "occurrence:")})
 		payload = string(payloadBytes)
 	}
+	if input.Recipient == "apollo" && input.Capability == apolloCapability && payload != "" {
+		prepared, prepareErr := d.prepareApolloOrderPayload(requestText, json.RawMessage(payload))
+		if prepareErr != nil {
+			return mercuryOrder{}, prepareErr
+		}
+		preparedJSON, marshalErr := json.Marshal(prepared)
+		if marshalErr != nil {
+			return mercuryOrder{}, marshalErr
+		}
+		payload = string(preparedJSON)
+	}
 	orderID, err := newLocalID("order-")
 	if err != nil {
 		return mercuryOrder{}, err
