@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "plugin": {
+    "name": "core",
+    "version": "1.0.0"
+  },
+  "packages": [
+    {
+      "subject_code": "NOTIFICATION",
+      "version": "1.0.0",
+      "description": "Prepare a bounded local notification.",
+      "capability": "notify.send",
+      "adapter": "local-notify",
+      "required_fields": ["message"],
+      "optional_fields": ["title"],
+      "payload_rules": {
+        "message": "body",
+        "title": "TITLE"
+      },
+      "returns": ["status"],
+      "permission_class": "bounded_local_output",
+      "permission_shapes": ["once", "bounded_uses"]
+    },
+    {
+      "subject_code": "EMAIL:DRAFT",
+      "version": "1.0.0",
+      "description": "Prepare a non-sent email draft for an adapter.",
+      "capability": "email.draft",
+      "adapter": "gmail",
+      "required_fields": ["to", "subject", "body"],
+      "optional_fields": ["cc", "bcc", "attachments"],
+      "payload_rules": {
+        "to": "TO",
+        "subject": "SUBJECT",
+        "body": "body",
+        "cc": "CC",
+        "bcc": "BCC",
+        "attachments": "ATTACHMENTS"
+      },
+      "returns": ["draft_id", "status"],
+      "permission_class": "nonpublic_composed_output",
+      "permission_shapes": ["once", "project", "bounded_uses"],
+      "enabled": true
+    }
+  ]
+}

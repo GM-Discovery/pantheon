@@ -16,5 +16,6 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Kernel 9 reportback](reportbacks/kernel-9-father-time-intake-ledger.md): implementation evidence for deterministic Intake identity and Father Time chronology.
 - [Kernel 10 specification](building%20kernels/kernel-10-present-normalization.md): Present, faithful normalization, local processors, and retention arming boundaries.
 - [Kernel 10 reportback](reportbacks/kernel-10-present-normalization.md): implementation and verification status for Present.
+- [Seshat plugin extension](seshat-plugin-extension.md): the local manifest workflow for adding package contracts without changing Seshat core.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.

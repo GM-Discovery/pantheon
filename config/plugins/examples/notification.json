@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "plugin": {"name": "example-notification", "version": "1.0.0"},
+  "packages": [
+    {
+      "subject_code": "EXAMPLE:NOTIFICATION",
+      "version": "1.0.0",
+      "description": "A simple bounded notification package.",
+      "capability": "example.notification",
+      "adapter": "noop",
+      "required_fields": ["message"],
+      "optional_fields": ["title"],
+      "payload_rules": {"message": "body", "title": "TITLE"},
+      "returns": ["status"],
+      "permission_class": "bounded_local_output",
+      "permission_shapes": ["once", "bounded_uses"]
+    }
+  ]
+}

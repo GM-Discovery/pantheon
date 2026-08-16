@@ -49,6 +49,9 @@ Available commands:
   pantheon show orders                    inspect durable orders
   pantheon show mercury                   inspect Mercury readiness and backlog
   pantheon show apollo                    inspect Apollo readiness and reports
+  pantheon show plugins                   inspect registered Seshat plugins
+  pantheon show packages                  inspect package vocabulary
+  pantheon plugin help                    learn the local plugin extension workflow
   pantheon show father-time               inspect Father Time chronology
   pantheon prometheus protocol --pause    pause Pantheon for inspection
 

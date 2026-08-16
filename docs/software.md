@@ -18,9 +18,9 @@ speaker -> Present -> Past -> Future -> Pantheon
                             Apollo / Hermes / tool
 ```
 
-Apollo is the local reasoning deity. It can be given a full-Vault capability when the task warrants it and the local boundary is intact.
+Apollo writes a human-auditable missive in Pantheon’s small subject vocabulary. Seshat owns the deterministic package contract and adapter-facing formatting, so Apollo does not need to know external API encodings. A registered package describes form, not authority; Kernel 13 grants remain authoritative.
 
-Hermes moves approved messages and actions between nodes. Hermes does not establish policy.
+Hermes moves approved messages and actions between nodes. Hermes does not establish policy. Mercury carries the normalized package after authority has been resolved.
 
 The frontier model is an optional reasoning escalation. It receives an intentionally curated brief, never an automatic Vault dump.
 

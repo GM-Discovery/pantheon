@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "plugin": {"name": "example-calendar", "version": "1.0.0"},
+  "packages": [
+    {
+      "subject_code": "EXAMPLE:CALENDAR:CREATE",
+      "version": "1.0.0",
+      "description": "A structured calendar proposal package.",
+      "capability": "calendar.create",
+      "adapter": "calendar-adapter",
+      "required_fields": ["calendar", "title", "start", "end"],
+      "optional_fields": ["attendees", "location", "notes"],
+      "payload_rules": {
+        "calendar": "CALENDAR",
+        "title": "TITLE",
+        "start": "START",
+        "end": "END",
+        "attendees": "ATTENDEES",
+        "location": "LOCATION",
+        "notes": "body"
+      },
+      "returns": ["event_id", "status"],
+      "permission_class": "calendar_change",
+      "permission_shapes": ["once", "this_project"]
+    }
+  ]
+}

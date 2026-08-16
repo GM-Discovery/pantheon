@@ -104,8 +104,11 @@ func runClient(args []string) error {
 		if len(args) == 4 && args[1] == "apollo" && args[2] == "report" {
 			return clientGET("/v1/apollo/reports/" + url.PathEscape(args[3]))
 		}
+		if len(args) == 3 && args[1] == "package" {
+			return clientGET("/v1/seshat/packages/" + url.PathEscape(args[2]))
+		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|mercury|apollo]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|mercury|apollo]")
 		}
 		switch args[1] {
 		case "config":
@@ -124,8 +127,12 @@ func runClient(args []string) error {
 			return clientGET("/v1/mercury")
 		case "apollo":
 			return clientGET("/v1/apollo")
+		case "plugins":
+			return clientGET("/v1/seshat/plugins")
+		case "packages":
+			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|mercury|apollo]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|mercury|apollo]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -134,6 +141,8 @@ func runClient(args []string) error {
 		return clientPOST("/v1/intake/scan", nil)
 	case "config":
 		return runConfigCommand(args[1:])
+	case "plugin":
+		return runPluginCommand(args[1:])
 	case "present":
 		return runPresentCommand(args[1:])
 	case "order":
@@ -185,6 +194,22 @@ func runClient(args []string) error {
 	default:
 		return clientPOST("/v1/input", inputRequest{Input: strings.Join(args, " ")})
 	}
+}
+
+func runPluginCommand(args []string) error {
+	if len(args) == 1 && args[0] == "help" {
+		return clientGET("/v1/seshat/help")
+	}
+	if len(args) == 1 && args[0] == "schema" {
+		return clientGET("/v1/seshat/schema")
+	}
+	if len(args) == 2 && args[0] == "validate" {
+		return clientPOST("/v1/seshat/plugins/validate", seshatPathRequest{Path: args[1]})
+	}
+	if len(args) == 2 && args[0] == "register" {
+		return clientPOSTWithControl("/v1/seshat/plugins/register", seshatPathRequest{Path: args[1]})
+	}
+	return fmt.Errorf("usage: pantheon plugin [help|schema|validate <path>|register <path>]")
 }
 
 func runOrderCommand(args []string) error {

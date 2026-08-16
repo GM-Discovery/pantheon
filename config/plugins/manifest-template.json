@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "plugin": {
+    "name": "example-plugin",
+    "version": "1.0.0"
+  },
+  "packages": [
+    {
+      "subject_code": "EXAMPLE:ACTION",
+      "version": "1.0.0",
+      "description": "A bounded example package contract.",
+      "capability": "example.action",
+      "adapter": "example-adapter",
+      "required_fields": ["target", "body"],
+      "optional_fields": ["note"],
+      "payload_rules": {
+        "target": "TARGET",
+        "body": "body",
+        "note": "NOTE"
+      },
+      "returns": ["result_id", "status"],
+      "permission_class": "bounded_external_action",
+      "permission_shapes": ["once", "bounded_uses"]
+    }
+  ]
+}

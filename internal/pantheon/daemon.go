@@ -40,6 +40,7 @@ type daemon struct {
 	db           *sql.DB
 	databasePath string
 	controlToken string
+	seshat       *seshatRegistry
 	mu           sync.Mutex
 }
 
@@ -212,7 +213,12 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
-	return &daemon{cfg: cfg, capabilities: caps, db: db, databasePath: opts.DatabasePath, controlToken: controlToken}, nil
+	seshat, err := newSeshatRegistry(filepath.Join(filepath.Dir(opts.ConfigPath), "plugins", "registered"))
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("load Seshat registry: %w", err)
+	}
+	return &daemon{cfg: cfg, capabilities: caps, db: db, databasePath: opts.DatabasePath, controlToken: controlToken, seshat: seshat}, nil
 }
 
 func loadOrCreateControlToken(path string) (string, error) {
@@ -274,6 +280,15 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/grants/{id}/resume", d.handleResumeGrant)
 	mux.HandleFunc("POST /v1/prometheus/grants/{id}/approve", d.handlePrometheusApproveGrant)
 	mux.HandleFunc("GET /v1/authority/check", d.handleAuthorityCheck)
+	mux.HandleFunc("GET /v1/seshat/plugins", d.handleSeshatPlugins)
+	mux.HandleFunc("GET /v1/seshat/packages", d.handleSeshatPackages)
+	mux.HandleFunc("GET /v1/seshat/packages/{subject}", d.handleSeshatPackage)
+	mux.HandleFunc("GET /v1/seshat/index", d.handleSeshatIndex)
+	mux.HandleFunc("GET /v1/seshat/help", d.handleSeshatHelp)
+	mux.HandleFunc("GET /v1/seshat/schema", d.handleSeshatSchema)
+	mux.HandleFunc("POST /v1/seshat/plugins/validate", d.handleSeshatValidate)
+	mux.HandleFunc("POST /v1/seshat/plugins/register", d.handleSeshatRegister)
+	mux.HandleFunc("POST /v1/seshat/package", d.handleSeshatPackageMissive)
 	mux.HandleFunc("POST /v1/email/inventory", d.handleEmailInventory)
 	mux.HandleFunc("POST /v1/vault/connections", d.handleVaultConnections)
 	mux.HandleFunc("POST /v1/weave/retrieve", d.handleWeaveRetrieve)
