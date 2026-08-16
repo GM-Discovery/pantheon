@@ -2,13 +2,13 @@
 
 ## Status
 
-Repository implementation and automated verification are complete as a review candidate. The installed runtime has not been replaced or restarted in this pass, and the local Whisper path is implemented but not live-verified because no Whisper binary is currently available on PATH.
+Repository implementation and automated verification are complete at the reconciled Kernel 8–10 commit. The installed runtime is not being claimed as Kernel 10-live-verified in this report; the local Whisper path is implemented but not live-verified because no Whisper binary is currently available on PATH.
 
 ## A. Actual predecessor
 
 - Branch: `trunk`.
-- Exact committed predecessor: `7373adba47f033f6af6c923656f858c294528262` (`feat: schedule nightly Weave maintenance`).
-- Kernel 9 source implementation is present in the current review worktree; its prior reportback remains explicit that installed-runtime deployment was pending.
+- Exact reconciled predecessor: `f15c5b2` (`reconcile kernels 8 through 10`).
+- Kernel 9 is a completed live PASS separately recorded in `docs/reportbacks/kernel-9-father-time-intake-ledger.md`; Kernel 10 must not inherit that live deployment claim.
 - Kernel 10 cleanup corrected persisted `intake_scans.father_time_year` and populated nested `show intake` scan fields.
 
 ## B. Constitutional status
@@ -88,7 +88,7 @@ GOCACHE=/tmp/pantheon-go-cache go build -o /tmp/pantheon-kernel10 .
 
 Focused tests cover faithful text body preservation, provenance, verification, retention arming and due-date calculation, idempotency, unsupported images, request preservation, pause refusal, configuration resolution, processor inspection, DOCX structure, conditional local PDF extraction, Raw-path traversal and symlink escape rejection, stale source identity rejection, filename collision protection, human-modified artifact protection, local Whisper dispatch, and missing-Whisper blocking. Live installed-runtime and Whisper smoke tests remain pending.
 
-Coverage boundaries are explicit: the current focused suite does not yet exercise `present --new` end-to-end, video audio-only conversion, latest-recording type filtering, equal-candidate ambiguity presentation, or a live Whisper installation. The exact occurrence primitive is exercised directly through occurrence IDs, and no-replay behavior is covered by the pause test.
+Coverage boundaries are explicit. The suite has focused coverage for PDF extraction when `pdftotext` is available, DOCX structure, path traversal prevention, symlink escape prevention, changed/stale source identity, exact occurrence processing, filename collisions, idempotent processing, human-modified Raw artifact protection, mocked/local Whisper dispatch, and missing Whisper processor behavior. It does not currently have focused coverage for `present --new` end-to-end, video audio-only handling, deterministic recent-source resolution, or a live Whisper installation. The exact occurrence primitive is exercised directly through occurrence IDs, and Present no-replay behavior is covered by the pause test.
 
 ## L. Files changed
 

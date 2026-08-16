@@ -191,6 +191,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeMercurySchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -234,6 +238,12 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/present", d.handlePresent)
 	mux.HandleFunc("GET /v1/present", d.handleShowPresent)
 	mux.HandleFunc("GET /v1/processors", d.handleShowProcessors)
+	mux.HandleFunc("POST /v1/orders", d.handleCreateOrder)
+	mux.HandleFunc("GET /v1/orders", d.handleShowOrders)
+	mux.HandleFunc("GET /v1/orders/{id}", d.handleShowOrder)
+	mux.HandleFunc("POST /v1/orders/{id}/cancel", d.handleCancelOrder)
+	mux.HandleFunc("POST /v1/mercury/round", d.handleMercuryRound)
+	mux.HandleFunc("GET /v1/mercury", d.handleShowMercury)
 	mux.HandleFunc("POST /v1/input", d.handleInput)
 	mux.HandleFunc("POST /v1/route", d.handleRoute)
 	mux.HandleFunc("POST /v1/notify", d.handleNotify)
@@ -880,7 +890,17 @@ func (d *daemon) setPaused(value bool) error {
 	if !value {
 		return removePauseMarker(markerPath)
 	}
+	d.invalidateMercuryGos()
 	return nil
+}
+
+func (d *daemon) handleShowMercury(w http.ResponseWriter, r *http.Request) {
+	inspection, err := d.mercuryInspection()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, inspection)
 }
 
 func (d *daemon) blockIfPaused(w http.ResponseWriter, endpoint, input, capability string) bool {

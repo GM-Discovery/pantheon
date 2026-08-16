@@ -16,9 +16,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,8 +92,11 @@ func runClient(args []string) error {
 	command := args[0]
 	switch command {
 	case "show":
+		if len(args) == 3 && args[1] == "order" {
+			return clientGET("/v1/orders/" + url.PathEscape(args[2]))
+		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|mercury]")
 		}
 		switch args[1] {
 		case "config":
@@ -104,8 +109,12 @@ func runClient(args []string) error {
 			return clientGET("/v1/present")
 		case "processors":
 			return clientGET("/v1/processors")
+		case "orders":
+			return clientGET("/v1/orders")
+		case "mercury":
+			return clientGET("/v1/mercury")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|mercury]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -116,6 +125,13 @@ func runClient(args []string) error {
 		return runConfigCommand(args[1:])
 	case "present":
 		return runPresentCommand(args[1:])
+	case "order":
+		return runOrderCommand(args[1:])
+	case "mercury":
+		if len(args) != 2 || args[1] != "round" {
+			return fmt.Errorf("usage: pantheon mercury round")
+		}
+		return clientPOSTWithControl("/v1/mercury/round", nil)
 	case "prometheus":
 		return runPrometheusCommand(args[1:])
 	case "status":
@@ -153,6 +169,52 @@ func runClient(args []string) error {
 	default:
 		return clientPOST("/v1/input", inputRequest{Input: strings.Join(args, " ")})
 	}
+}
+
+func runOrderCommand(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: pantheon order \"request\" | pantheon order --recipient <name> --capability <name> --scope <scope> \"request\" | pantheon order cancel <id>")
+	}
+	if args[0] == "cancel" {
+		if len(args) != 2 || strings.TrimSpace(args[1]) == "" {
+			return fmt.Errorf("usage: pantheon order cancel <id>")
+		}
+		return clientPOSTWithControl("/v1/orders/"+url.PathEscape(args[1])+"/cancel", nil)
+	}
+	request := orderRequest{}
+	var text []string
+	for i := 0; i < len(args); i++ {
+		if strings.HasPrefix(args[i], "--") {
+			if i+1 >= len(args) {
+				return fmt.Errorf("missing value for %s", args[i])
+			}
+			value := args[i+1]
+			switch args[i] {
+			case "--recipient":
+				request.Recipient = value
+			case "--capability":
+				request.Capability = value
+			case "--scope":
+				request.Scope = value
+			case "--parent":
+				request.ParentOrderID = value
+			case "--parent-seal":
+				request.ParentSealDigest = value
+			case "--purpose":
+				request.Purpose = value
+			default:
+				return fmt.Errorf("unknown order option %q", args[i])
+			}
+			i++
+			continue
+		}
+		text = append(text, args[i])
+	}
+	if len(text) == 0 {
+		return errors.New("order request text is required")
+	}
+	request.RequestText = strings.Join(text, " ")
+	return clientPOSTWithControl("/v1/orders", request)
 }
 
 func runPresentCommand(args []string) error {

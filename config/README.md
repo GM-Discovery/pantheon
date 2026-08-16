@@ -13,6 +13,10 @@ Copy `pantheon.example.json` to `~/pantheon-runtime/config/pantheon.json` and fi
 - `time.timezone`: optional IANA timezone for Father Time; absent means the machine's local timezone.
 - `ingestion.whisper`: optional local-only Whisper settings. Missing binaries do not invalidate the rest of Pantheon.
 - `ingestion.media.converter`: optional local media converter, normally FFmpeg, used for video audio extraction.
+- `mercury.mode` and `mercury.agent`: flexible Mercury labels (`hermes` / `Terra` by default); absence of the optional binary does not block deterministic orders.
+- `mercury.binary`: optional local Hermes/Terra executable. Kernel 11 does not install or start it.
+- `mercury.deterministic_fallback`: enables the durable structured-order fallback, default `true`.
+- `mercury.round_on_cron_wake`: records the safe scheduled-wake integration point; Kernel 11 provides `pantheon mercury round` but does not install a new scheduler.
 - `models.apollo.model`: the local reasoning model (for example, `mistral-small3.1:latest`).
 - `models.apollo.endpoint`: local Ollama chat endpoint, normally `http://127.0.0.1:11434/api/chat`.
 - `models.archimedes.model`: reserved and inactive in Kernel 8; naming a model grants no access or authority.

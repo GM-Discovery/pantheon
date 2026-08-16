@@ -27,6 +27,13 @@
       "converter": ""
     }
   },
+  "mercury": {
+    "mode": "hermes",
+    "agent": "Terra",
+    "binary": "",
+    "deterministic_fallback": true,
+    "round_on_cron_wake": true
+  },
   "models": {
     "apollo": {
       "model": "",

@@ -44,6 +44,10 @@ Available commands:
   pantheon show intake                    inspect current Intake ledger
   pantheon show present                   inspect Present missives
   pantheon show processors                inspect local processor readiness
+  pantheon order "request"                record a trusted durable order
+  pantheon mercury round                  run one deterministic Mercury round
+  pantheon show orders                    inspect durable orders
+  pantheon show mercury                   inspect Mercury readiness and backlog
   pantheon show father-time               inspect Father Time chronology
   pantheon prometheus protocol --pause    pause Pantheon for inspection
 

@@ -86,6 +86,20 @@ The following namespaces have a documented place but are not active merely becau
 
 Future examples include Intake paths under `paths`, raw retention under `retention`, work windows under `time`, attention defaults under `notifications`, Mercury rounds under `mercury`, provider settings under `archimedes`, and display preferences under `panopticon`. Kernel 8 does not activate those behaviors, scheduling, purge, frontier calls, or an installer.
 
+Kernel 11 activates this small Mercury namespace:
+
+```json
+"mercury": {
+  "mode": "hermes",
+  "agent": "Terra",
+  "binary": "",
+  "deterministic_fallback": true,
+  "round_on_cron_wake": true
+}
+```
+
+The binary is optional. Kernel 11 does not install Hermes/Terra or create a new recurring background loop; the explicit `pantheon mercury round` command is the safe integration point for an existing controlled wake.
+
 Reserved values belong in documented schema space rather than being emitted as a large collection of false implementation claims in every user's file.
 
 ## Legacy compatibility and migration

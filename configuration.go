@@ -36,7 +36,7 @@ type canonicalConfig struct {
 	Past          map[string]any      `json:"past,omitempty"`
 	Weave         map[string]any      `json:"weave,omitempty"`
 	Future        map[string]any      `json:"future,omitempty"`
-	Mercury       map[string]any      `json:"mercury,omitempty"`
+	Mercury       *canonicalMercury   `json:"mercury,omitempty"`
 	Prometheus    map[string]any      `json:"prometheus,omitempty"`
 	Notifications map[string]any      `json:"notifications,omitempty"`
 	Zeus          map[string]any      `json:"zeus,omitempty"`
@@ -84,6 +84,14 @@ type canonicalRetention struct {
 	RawInputDays *int `json:"raw_input_days,omitempty"`
 }
 
+type canonicalMercury struct {
+	Mode                  *string `json:"mode,omitempty"`
+	Agent                 *string `json:"agent,omitempty"`
+	Binary                *string `json:"binary,omitempty"`
+	DeterministicFallback *bool   `json:"deterministic_fallback,omitempty"`
+	RoundOnCronWake       *bool   `json:"round_on_cron_wake,omitempty"`
+}
+
 type canonicalModels struct {
 	Apollo     *canonicalApollo     `json:"apollo,omitempty"`
 	Archimedes *canonicalArchimedes `json:"archimedes,omitempty"`
@@ -115,26 +123,31 @@ type configResolution struct {
 }
 
 type config struct {
-	Model                    string `json:"model,omitempty"`
-	OllamaURL                string `json:"ollama_url,omitempty"`
-	LocalModel               string `json:"local_model,omitempty"`
-	FrontierModel            string `json:"frontier_model,omitempty"`
-	VaultPath                string `json:"vault_path,omitempty"`
-	RoadmapPath              string `json:"roadmap_path,omitempty"`
-	IntakePath               string `json:"intake_path,omitempty"`
-	FatherTimeChroniclesPath string `json:"father_time_chronicles_path,omitempty"`
-	RawPath                  string `json:"raw_path,omitempty"`
-	RawInputDays             int    `json:"raw_input_days,omitempty"`
-	Timezone                 string `json:"timezone,omitempty"`
-	WhisperEnabled           bool   `json:"whisper_enabled,omitempty"`
-	WhisperBinary            string `json:"whisper_binary,omitempty"`
-	WhisperModel             string `json:"whisper_model,omitempty"`
-	WhisperLanguage          string `json:"whisper_language,omitempty"`
-	MediaConverter           string `json:"media_converter,omitempty"`
-	IntakeConfigured         bool   `json:"-"`
-	FatherTimeConfigured     bool   `json:"-"`
-	SchemaVersion            int    `json:"schema_version,omitempty"`
-	ListenAddress            string `json:"listen_address,omitempty"`
+	Model                        string `json:"model,omitempty"`
+	OllamaURL                    string `json:"ollama_url,omitempty"`
+	LocalModel                   string `json:"local_model,omitempty"`
+	FrontierModel                string `json:"frontier_model,omitempty"`
+	VaultPath                    string `json:"vault_path,omitempty"`
+	RoadmapPath                  string `json:"roadmap_path,omitempty"`
+	IntakePath                   string `json:"intake_path,omitempty"`
+	FatherTimeChroniclesPath     string `json:"father_time_chronicles_path,omitempty"`
+	RawPath                      string `json:"raw_path,omitempty"`
+	RawInputDays                 int    `json:"raw_input_days,omitempty"`
+	Timezone                     string `json:"timezone,omitempty"`
+	WhisperEnabled               bool   `json:"whisper_enabled,omitempty"`
+	WhisperBinary                string `json:"whisper_binary,omitempty"`
+	WhisperModel                 string `json:"whisper_model,omitempty"`
+	WhisperLanguage              string `json:"whisper_language,omitempty"`
+	MediaConverter               string `json:"media_converter,omitempty"`
+	MercuryMode                  string `json:"mercury_mode,omitempty"`
+	MercuryAgent                 string `json:"mercury_agent,omitempty"`
+	MercuryBinary                string `json:"mercury_binary,omitempty"`
+	MercuryDeterministicFallback bool   `json:"mercury_deterministic_fallback,omitempty"`
+	MercuryRoundOnCronWake       bool   `json:"mercury_round_on_cron_wake,omitempty"`
+	IntakeConfigured             bool   `json:"-"`
+	FatherTimeConfigured         bool   `json:"-"`
+	SchemaVersion                int    `json:"schema_version,omitempty"`
+	ListenAddress                string `json:"listen_address,omitempty"`
 }
 
 type migrationResult struct {
@@ -205,6 +218,7 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 		RawInputDays:    30,
 		WhisperEnabled:  true,
 		WhisperLanguage: "auto",
+		MercuryMode:     "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 	}
 	sources := map[string]string{
 		"schema_version":          "user",
@@ -309,6 +323,29 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 			resolved.MediaConverter = strings.TrimSpace(*canonical.Ingestion.Media.Converter)
 		}
 	}
+	if canonical.Mercury != nil {
+		if canonical.Mercury.Mode != nil {
+			resolved.MercuryMode = strings.TrimSpace(*canonical.Mercury.Mode)
+		}
+		if canonical.Mercury.Agent != nil {
+			resolved.MercuryAgent = strings.TrimSpace(*canonical.Mercury.Agent)
+		}
+		if canonical.Mercury.Binary != nil {
+			resolved.MercuryBinary = strings.TrimSpace(*canonical.Mercury.Binary)
+		}
+		if canonical.Mercury.DeterministicFallback != nil {
+			resolved.MercuryDeterministicFallback = *canonical.Mercury.DeterministicFallback
+		}
+		if canonical.Mercury.RoundOnCronWake != nil {
+			resolved.MercuryRoundOnCronWake = *canonical.Mercury.RoundOnCronWake
+		}
+	}
+	if resolved.MercuryMode == "" {
+		resolved.MercuryMode = "hermes"
+	}
+	if resolved.MercuryAgent == "" {
+		resolved.MercuryAgent = "Terra"
+	}
 	if resolved.RawPath == "" && resolved.VaultPath != "" {
 		resolved.RawPath = filepath.Join(resolved.VaultPath, "80 Pantheon Raw")
 	}
@@ -352,8 +389,9 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		RawInputDays:    30,
 		WhisperEnabled:  true,
 		WhisperLanguage: "auto",
-		SchemaVersion:   0,
-		ListenAddress:   defaultListenAddress,
+		MercuryMode:     "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
+		SchemaVersion: 0,
+		ListenAddress: defaultListenAddress,
 	}
 	if resolved.VaultPath != "" {
 		resolved.RawPath = filepath.Join(resolved.VaultPath, "80 Pantheon Raw")
@@ -472,6 +510,7 @@ func canonicalConfigFor(cfg config) canonicalConfig {
 			Whisper: &canonicalWhisper{Enabled: &cfg.WhisperEnabled, Binary: &cfg.WhisperBinary, Model: &cfg.WhisperModel, Language: &cfg.WhisperLanguage},
 			Media:   &canonicalMedia{Converter: &cfg.MediaConverter},
 		},
+		Mercury: &canonicalMercury{Mode: &cfg.MercuryMode, Agent: &cfg.MercuryAgent, Binary: &cfg.MercuryBinary, DeterministicFallback: &cfg.MercuryDeterministicFallback, RoundOnCronWake: &cfg.MercuryRoundOnCronWake},
 	}
 }
 
@@ -607,6 +646,11 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 	fmt.Fprintf(&b, "models.archimedes.model: %s (%s; reserved/inactive)\n", displayConfigValue(cfg.FrontierModel), sourceOrOptional(resolution.Sources, "models.archimedes.model"))
 	fmt.Fprintf(&b, "ingestion.whisper: %s (binary=%s, model=%s, language=%s)\n", readinessConfigBool(cfg.WhisperEnabled), displayConfigValue(cfg.WhisperBinary), displayConfigValue(cfg.WhisperModel), cfg.WhisperLanguage)
 	fmt.Fprintf(&b, "ingestion.media.converter: %s\n", displayConfigValue(cfg.MediaConverter))
+	fmt.Fprintf(&b, "mercury.mode: %s\n", displayConfigValue(cfg.MercuryMode))
+	fmt.Fprintf(&b, "mercury.agent: %s\n", displayConfigValue(cfg.MercuryAgent))
+	fmt.Fprintf(&b, "mercury.binary: %s\n", displayConfigValue(cfg.MercuryBinary))
+	fmt.Fprintf(&b, "mercury.deterministic_fallback: %t\n", cfg.MercuryDeterministicFallback)
+	fmt.Fprintf(&b, "mercury.round_on_cron_wake: %t\n", cfg.MercuryRoundOnCronWake)
 	b.WriteString("active Kernel 10 behavior: local Present normalization; no semantic reasoning or deletion\n")
 	b.WriteString("secrets: omitted from resolved output\n")
 	return b.String()
