@@ -25,5 +25,6 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Kernel 16 reportback](reportbacks/kernel-16-future-authority.md): repository and live Future verification.
 - [Kernel 17 reportback](reportbacks/kernel-17-whole-animal-integration.md): whole-animal integration, documentation, and usability proof.
 - [Kernel 18 reportback](reportbacks/kernel-18-rumor-whisper-audio-intake.md): local Rumor audio transcription, durable evidence, Intake handoff, and live verification.
+- [Kernel 19 reportback](reportbacks/kernel-19-bifrost-capability-bridge.md): governed external-capability registry, approval lifecycle, receipts, and bounded read-only mail intake.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.

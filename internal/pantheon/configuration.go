@@ -39,6 +39,7 @@ type canonicalConfig struct {
 	Weave         map[string]any           `json:"weave,omitempty"`
 	Future        map[string]any           `json:"future,omitempty"`
 	Mercury       *canonicalMercury        `json:"mercury,omitempty"`
+	Bifrost       *canonicalBifrost        `json:"bifrost,omitempty"`
 	Prometheus    map[string]any           `json:"prometheus,omitempty"`
 	Notifications map[string]any           `json:"notifications,omitempty"`
 	Zeus          map[string]any           `json:"zeus,omitempty"`
@@ -105,6 +106,19 @@ type canonicalMercury struct {
 	Binary                *string `json:"binary,omitempty"`
 	DeterministicFallback *bool   `json:"deterministic_fallback,omitempty"`
 	RoundOnCronWake       *bool   `json:"round_on_cron_wake,omitempty"`
+}
+
+type canonicalBifrost struct {
+	Enabled *bool                 `json:"enabled,omitempty"`
+	Mail    *canonicalBifrostMail `json:"mail,omitempty"`
+}
+
+type canonicalBifrostMail struct {
+	Account     *string `json:"account,omitempty"`
+	Mailbox     *string `json:"mailbox,omitempty"`
+	Capability  *string `json:"capability,omitempty"`
+	Schedule    *string `json:"schedule,omitempty"`
+	MaxMessages *int    `json:"max_messages,omitempty"`
 }
 
 type canonicalModels struct {
@@ -182,6 +196,12 @@ type config struct {
 	MercuryBinary                     string   `json:"mercury_binary,omitempty"`
 	MercuryDeterministicFallback      bool     `json:"mercury_deterministic_fallback,omitempty"`
 	MercuryRoundOnCronWake            bool     `json:"mercury_round_on_cron_wake,omitempty"`
+	BifrostEnabled                    bool     `json:"bifrost_enabled,omitempty"`
+	BifrostMailAccount                string   `json:"bifrost_mail_account,omitempty"`
+	BifrostMailMailbox                string   `json:"bifrost_mailbox,omitempty"`
+	BifrostMailCapabilityID           string   `json:"bifrost_mail_capability_id,omitempty"`
+	BifrostMailSchedule               string   `json:"bifrost_mail_schedule,omitempty"`
+	BifrostMailMaxMessages            int      `json:"bifrost_mail_max_messages,omitempty"`
 	ApolloMaxRetrievalRounds          int      `json:"apollo_max_retrieval_rounds,omitempty"`
 	ApolloMaxSources                  int      `json:"apollo_max_sources,omitempty"`
 	ApolloMaxContextBytes             int      `json:"apollo_max_context_bytes,omitempty"`
@@ -264,6 +284,7 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 		WhisperLanguage: "auto",
 		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
+		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 	}
 	sources := map[string]string{
@@ -446,6 +467,28 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 			resolved.MercuryRoundOnCronWake = *canonical.Mercury.RoundOnCronWake
 		}
 	}
+	if canonical.Bifrost != nil {
+		if canonical.Bifrost.Enabled != nil {
+			resolved.BifrostEnabled = *canonical.Bifrost.Enabled
+		}
+		if canonical.Bifrost.Mail != nil {
+			if canonical.Bifrost.Mail.Account != nil {
+				resolved.BifrostMailAccount = strings.TrimSpace(*canonical.Bifrost.Mail.Account)
+			}
+			if canonical.Bifrost.Mail.Mailbox != nil {
+				resolved.BifrostMailMailbox = strings.TrimSpace(*canonical.Bifrost.Mail.Mailbox)
+			}
+			if canonical.Bifrost.Mail.Capability != nil {
+				resolved.BifrostMailCapabilityID = strings.TrimSpace(*canonical.Bifrost.Mail.Capability)
+			}
+			if canonical.Bifrost.Mail.Schedule != nil {
+				resolved.BifrostMailSchedule = strings.TrimSpace(*canonical.Bifrost.Mail.Schedule)
+			}
+			if canonical.Bifrost.Mail.MaxMessages != nil {
+				resolved.BifrostMailMaxMessages = *canonical.Bifrost.Mail.MaxMessages
+			}
+		}
+	}
 	if resolved.MercuryMode == "" {
 		resolved.MercuryMode = "hermes"
 	}
@@ -481,6 +524,21 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	}
 	if resolved.RumorTranscriptDestination == "" && resolved.VaultPath != "" {
 		resolved.RumorTranscriptDestination = filepath.Join(resolved.VaultPath, "80 Pantheon Raw", "Audio Transcripts")
+	}
+	if resolved.BifrostMailAccount == "" {
+		resolved.BifrostMailAccount = "gmail"
+	}
+	if resolved.BifrostMailMailbox == "" {
+		resolved.BifrostMailMailbox = "INBOX"
+	}
+	if resolved.BifrostMailCapabilityID == "" {
+		resolved.BifrostMailCapabilityID = "gmail-mail"
+	}
+	if resolved.BifrostMailSchedule == "" {
+		resolved.BifrostMailSchedule = "hourly"
+	}
+	if resolved.BifrostMailMaxMessages == 0 {
+		resolved.BifrostMailMaxMessages = 50
 	}
 	if err := validateResolvedConfig(resolved); err != nil {
 		return configResolution{}, fmt.Errorf("configuration %s is invalid: %w", path, err)
@@ -521,6 +579,7 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		WhisperLanguage: "auto",
 		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
+		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 		SchemaVersion: 0,
 		ListenAddress: defaultListenAddress,
@@ -634,6 +693,12 @@ func validateResolvedConfig(cfg config) error {
 	if cfg.RumorRetryLimit <= 0 || cfg.RumorRetryLimit > 100 {
 		return errors.New("rumor.retry_limit must be between 1 and 100")
 	}
+	if strings.TrimSpace(cfg.BifrostMailAccount) == "" || strings.TrimSpace(cfg.BifrostMailMailbox) == "" || strings.TrimSpace(cfg.BifrostMailCapabilityID) == "" {
+		return errors.New("bifrost.mail account, mailbox, and capability must be configured")
+	}
+	if cfg.BifrostMailMaxMessages <= 0 || cfg.BifrostMailMaxMessages > 250 {
+		return errors.New("bifrost.mail.max_messages must be between 1 and 250")
+	}
 	if cfg.RumorStabilitySeconds < 0 || cfg.RumorStabilitySeconds > 86400 {
 		return errors.New("rumor.stability_seconds must be between 0 and 86400")
 	}
@@ -676,6 +741,7 @@ func canonicalConfigFor(cfg config) canonicalConfig {
 		},
 		Rumor:   &canonicalRumor{Enabled: &cfg.RumorEnabled, WatchPaths: append([]string(nil), cfg.RumorWatchPaths...), WhisperModel: &cfg.RumorWhisperModel, Language: &cfg.RumorLanguage, RetryLimit: &cfg.RumorRetryLimit, TranscriptDestination: &cfg.RumorTranscriptDestination, OnComplete: &cfg.RumorOnComplete, StabilitySeconds: &cfg.RumorStabilitySeconds, PollSeconds: &cfg.RumorPollSeconds},
 		Mercury: &canonicalMercury{Mode: &cfg.MercuryMode, Agent: &cfg.MercuryAgent, Binary: &cfg.MercuryBinary, DeterministicFallback: &cfg.MercuryDeterministicFallback, RoundOnCronWake: &cfg.MercuryRoundOnCronWake},
+		Bifrost: &canonicalBifrost{Enabled: &cfg.BifrostEnabled, Mail: &canonicalBifrostMail{Account: &cfg.BifrostMailAccount, Mailbox: &cfg.BifrostMailMailbox, Capability: &cfg.BifrostMailCapabilityID, Schedule: &cfg.BifrostMailSchedule, MaxMessages: &cfg.BifrostMailMaxMessages}},
 		Apollo:  &canonicalApolloSettings{MaxRetrievalRounds: &cfg.ApolloMaxRetrievalRounds, MaxSources: &cfg.ApolloMaxSources, MaxContextBytes: &cfg.ApolloMaxContextBytes, MaxReasoningDurationSecs: &cfg.ApolloMaxReasoningDurationSeconds, RequireCitations: &cfg.ApolloRequireCitations, ExternalResearch: &canonicalExternalResearch{Enabled: &cfg.ApolloExternalResearchEnabled}},
 	}
 }
@@ -813,6 +879,8 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 	fmt.Fprintf(&b, "models.archimedes.model: %s (%s; reserved/inactive)\n", displayConfigValue(cfg.FrontierModel), sourceOrOptional(resolution.Sources, "models.archimedes.model"))
 	fmt.Fprintf(&b, "ingestion.whisper: %s (binary=%s, model=%s, language=%s)\n", readinessConfigBool(cfg.WhisperEnabled), displayConfigValue(cfg.WhisperBinary), displayConfigValue(cfg.WhisperModel), cfg.WhisperLanguage)
 	fmt.Fprintf(&b, "ingestion.media.converter: %s\n", displayConfigValue(cfg.MediaConverter))
+	fmt.Fprintf(&b, "bifrost.enabled: %t\n", cfg.BifrostEnabled)
+	fmt.Fprintf(&b, "bifrost.mail: account=%s mailbox=%s capability=%s schedule=%s max_messages=%d\n", cfg.BifrostMailAccount, cfg.BifrostMailMailbox, cfg.BifrostMailCapabilityID, cfg.BifrostMailSchedule, cfg.BifrostMailMaxMessages)
 	rumorModel := cfg.RumorWhisperModel
 	if rumorModel == "" {
 		rumorModel = cfg.WhisperModel

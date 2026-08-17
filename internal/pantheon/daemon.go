@@ -226,6 +226,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeBifrostSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -328,6 +332,19 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/seshat/plugins/register", d.handleSeshatRegister)
 	mux.HandleFunc("POST /v1/seshat/package", d.handleSeshatPackageMissive)
 	mux.HandleFunc("POST /v1/email/inventory", d.handleEmailInventory)
+	mux.HandleFunc("GET /v1/bifrost", d.handleBifrostStatus)
+	mux.HandleFunc("GET /v1/bifrost/status", d.handleBifrostStatus)
+	mux.HandleFunc("GET /v1/bifrost/capabilities", d.handleBifrostCapabilities)
+	mux.HandleFunc("GET /v1/bifrost/capabilities/{id}", d.handleBifrostCapability)
+	mux.HandleFunc("POST /v1/bifrost/capabilities", d.handleBifrostRegister)
+	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/download", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostUnsupportedLifecycle(w, r, "capability.download") })
+	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/install", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostUnsupportedLifecycle(w, r, "capability.install") })
+	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/enable", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostEnable(w, r, true) })
+	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/disable", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostEnable(w, r, false) })
+	mux.HandleFunc("GET /v1/bifrost/approvals", d.handleBifrostApprovals)
+	mux.HandleFunc("GET /v1/bifrost/invocations", d.handleBifrostInvocations)
+	mux.HandleFunc("GET /v1/bifrost/mail/status", d.handleBifrostMailStatus)
+	mux.HandleFunc("POST /v1/bifrost/mail/intake", d.handleBifrostMailIntake)
 	mux.HandleFunc("POST /v1/vault/connections", d.handleVaultConnections)
 	mux.HandleFunc("POST /v1/weave/retrieve", d.handleWeaveRetrieve)
 	mux.HandleFunc("POST /v1/weave/review", d.handleWeaveReview)

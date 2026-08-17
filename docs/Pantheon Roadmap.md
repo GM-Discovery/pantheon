@@ -749,9 +749,24 @@ audio extraction, if ever needed, belongs upstream.
 
 Kernel 18 does not interpret, summarize, prioritize, grant authority, or
 invoke Apollo. Its output is durable evidence that enters the existing Intake
-→ Present → Past / Weave → Apollo path. Kernel 19 remains unstarted.
+→ Present → Past / Weave → Apollo path.
 
-## 8.17 Aphrodite — post-core software construction
+## 8.17 Bifrost — external capability bridge
+
+Kernel 19 establishes Bifrost as the governed bridge between Pantheon and
+external software, services, protocols, plugins, APIs, models, and filesystem
+tools. Presence is not permission, and research is not permission. Download,
+installation, registration, initial use, enablement, invocation, update, and
+revocation remain inspectable boundaries under Prometheus control.
+
+The first adapter is a bounded read-only Himalaya/Gmail mail crossing. It
+preserves the provider source, writes provenance-bearing Intake artifacts,
+uses a processed-source ledger, blocks unallowlisted attachments, and does not
+send, reply, forward, delete, archive, unsubscribe, or alter account settings.
+Hermes remains the rollback path until a later cutover proof retires routine
+mail ingestion jobs.
+
+## 8.18 Aphrodite — post-core software construction
 
 Aphrodite is a proposed software-construction intelligence. She may eventually
 work in an isolated branch or worktree to write code, tests, documentation,
@@ -1347,6 +1362,8 @@ Kernel 16 — Future
 Kernel 17 — whole-animal integration and usable-work proof
         ↓
 Kernel 18 — Rumor local audio intake
+        ↓
+Kernel 19 — Bifrost external capability bridge and bounded mail intake
         ↓
 OPERATE PANTHEON
         ↓

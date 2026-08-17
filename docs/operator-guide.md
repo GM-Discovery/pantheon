@@ -25,7 +25,40 @@ pantheon prometheus protocol --status
 pantheon prometheus protocol --resume
 ```
 
-Pause blocks new Intake, Present, authority, and Mercury activity. Resume does not replay a blocked round; run the desired round explicitly after inspection.
+Pause blocks new Intake, Present, authority, Mercury, and Bifrost activity. Resume does not replay a blocked round; run the desired round explicitly after inspection.
+
+## Bifrost external capabilities
+
+Bifrost is the governed bridge between Pantheon and external software or
+services. Presence is not permission, and research is not permission. Register
+metadata, download, installation, and use are separate approval facts; a
+registered capability is not invokable until it is installed, fully approved,
+and explicitly enabled.
+
+The first crossing is read-only Gmail mail intake through the existing local
+Himalaya configuration:
+
+```text
+pantheon bifrost register --id gmail-mail --name "Gmail read-only mail" \
+  --source himalaya --version local-configured --type command \
+  --description "Bounded read-only mail intake" \
+  --operation mail.read --resource gmail:INBOX --component Bifrost \
+  --network --authentication-required \
+  --prohibited-operation send --prohibited-operation reply \
+  --prohibited-operation delete --prohibited-operation archive \
+  --download-approved --installation-approved --use-approved
+pantheon bifrost enable gmail-mail
+pantheon bifrost mail intake
+```
+
+The first ordinary intake establishes a baseline and excludes historical mail.
+An explicit `--bootstrap` may process one bounded batch of at most the
+configured limit. The adapter reads messages, writes provenance-bearing
+Markdown under Intake, preserves the provider source, and never sends,
+replies, forwards, deletes, archives, or changes account settings. Allowed
+attachments are copied under the bounded Intake artifact; other attachments
+remain metadata-only and blocked. Hermes remains available until a separate
+cutover proof retires its routine mail jobs.
 
 ## Inspect the organism
 
@@ -44,6 +77,10 @@ pantheon grants
 pantheon help --codes
 pantheon show plugins
 pantheon show packages
+pantheon bifrost status
+pantheon bifrost list
+pantheon bifrost approvals
+pantheon bifrost mail status
 ```
 
 Apollo reports are durable Markdown files with citations. Future proposals show whether work is awaiting a person, referred to Prometheus, temporally blocked, sealed, or complete. Mercury orders and attempts provide the execution evidence.

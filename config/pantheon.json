@@ -66,5 +66,15 @@
     "binary": "",
     "deterministic_fallback": true,
     "round_on_cron_wake": true
+  },
+  "bifrost": {
+    "enabled": true,
+    "mail": {
+      "account": "gmail",
+      "mailbox": "INBOX",
+      "capability": "gmail-mail",
+      "schedule": "hourly",
+      "max_messages": 50
+    }
   }
 }

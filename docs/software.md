@@ -12,7 +12,7 @@ Configuration is local per user at `~/pantheon-runtime/config/pantheon.json`. It
 
 ```text
 audio -> Rumor -> Intake -> Present -> Past / Weave -> Apollo -> Seshat -> Janus when relevant
-                                                       -> Future -> seal -> Mercury -> tool/plugin -> result/evidence
+                                                       -> Future -> seal -> Mercury -> Bifrost -> external capability -> result/evidence
 ```
 
 Rumor establishes durable audio transcript evidence but does not interpret it. Present establishes the current source. Past and Weave provide cited continuity before Apollo reasons locally. Apollo writes a durable cited report and a Future-ready structured result. Seshat owns the deterministic package contract and adapter-facing formatting, so Apollo does not need to know external API encodings. A registered package describes form, not authority; Kernel 13 grants remain authoritative.
@@ -24,6 +24,23 @@ Father Time owns chronology. Janus applies only the temporal threshold rules dec
 Future is currently a deterministic authority-signing boundary, not a planning or reasoning engine. The Kernel 17 integration handoff supplies it with Seshat package identity, capability, scope, adapter, payload, provenance, and any Janus subject reference. Future consumes existing Kernel 13 grants, creates no new grant registry or cryptography, refers insufficient authority to Prometheus or the person, and seals an exact order only when an active Future grant and temporal eligibility are present. Mercury transports and records that order; Future does not issue Go, invoke tools, or interpret Apollo’s conclusions. Future’s later active-state consumer remains a subsequent kernel boundary.
 
 The frontier model is an optional reasoning escalation. It receives an intentionally curated brief, never an automatic Vault dump.
+
+## Bifrost
+
+Bifrost is the external-capability bridge. It stores human-readable capability
+metadata, distinct download/installation/registration/use approval events,
+enablement state, invocation receipts, failure kinds, and non-secret access
+descriptions. Prometheus remains the overarching pause/control plane. Bifrost
+does not decide that work should occur and does not turn a configured binary,
+an installed plugin, or software research into permission.
+
+Kernel 19’s first adapter is a bounded read-only Himalaya mail crossing. It
+uses a baseline and processed-source ledger, keeps mailbox IDs bounded, writes
+normalized provenance-bearing mail artifacts to Intake, and preserves the
+original provider message. The adapter has an explicit attachment allowlist;
+blocked attachments do not prevent the email itself from entering Intake.
+Outgoing mail, deletion, archive, unsubscribe, account configuration, and
+autonomous software acquisition remain outside this boundary.
 
 ## Past retrieval contract
 

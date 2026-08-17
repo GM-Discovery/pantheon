@@ -194,6 +194,31 @@ Validation does not invoke a model. It checks JSON shape, schema version, requir
 
 `show config` displays the resolved effective configuration and identifies user values versus defaults. It does not display control tokens, passwords, API keys, or other secret values.
 
+## Bifrost mail defaults
+
+The optional `bifrost` configuration describes the first external crossing; it
+does not authorize it. The current shape is:
+
+```json
+{
+  "bifrost": {
+    "enabled": true,
+    "mail": {
+      "account": "gmail",
+      "mailbox": "INBOX",
+      "capability": "gmail-mail",
+      "schedule": "hourly",
+      "max_messages": 50
+    }
+  }
+}
+```
+
+The first normal mail intake establishes a safe baseline. `--bootstrap` is an
+explicit bounded historical batch, never an unlimited mailbox discovery. The
+configured capability still must be registered, fully approved, and enabled
+through Bifrost before any connector invocation.
+
 Unknown future schema versions are rejected. Pantheon does not guess how to interpret them.
 
 ## Configuration is not authority

@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -133,7 +134,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
 		}
 		switch args[1] {
 		case "config":
@@ -160,12 +161,14 @@ func runClient(args []string) error {
 			return clientGET("/v1/apollo")
 		case "future":
 			return clientGET("/v1/future")
+		case "bifrost":
+			return clientGET("/v1/bifrost")
 		case "plugins":
 			return clientGET("/v1/seshat/plugins")
 		case "packages":
 			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -176,6 +179,8 @@ func runClient(args []string) error {
 		return runConfigCommand(args[1:])
 	case "plugin":
 		return runPluginCommand(args[1:])
+	case "bifrost":
+		return runBifrostCommand(args[1:])
 	case "present":
 		return runPresentCommand(args[1:])
 	case "rumor":
@@ -241,6 +246,152 @@ func runClient(args []string) error {
 	default:
 		return clientPOST("/v1/input", inputRequest{Input: strings.Join(args, " ")})
 	}
+}
+
+func runBifrostCommand(args []string) error {
+	if len(args) == 0 || args[0] == "status" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon bifrost [status|list|show <capability>|approvals|invocations|register ...|enable <capability>|disable <capability>|mail status|mail intake]")
+		}
+		return clientGET("/v1/bifrost/status")
+	}
+	switch args[0] {
+	case "list":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon bifrost list")
+		}
+		return clientGET("/v1/bifrost/capabilities")
+	case "show":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: pantheon bifrost show <capability>")
+		}
+		return clientGET("/v1/bifrost/capabilities/" + url.PathEscape(args[1]))
+	case "approvals":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon bifrost approvals")
+		}
+		return clientGET("/v1/bifrost/approvals")
+	case "invocations":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon bifrost invocations")
+		}
+		return clientGET("/v1/bifrost/invocations")
+	case "enable", "disable":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: pantheon bifrost %s <capability>", args[0])
+		}
+		path := "/v1/bifrost/capabilities/" + url.PathEscape(args[1]) + "/" + args[0]
+		return clientPOSTWithControl(path, nil)
+	case "register":
+		return runBifrostRegisterCommand(args[1:])
+	case "mail":
+		if len(args) == 2 && args[1] == "status" {
+			return clientGET("/v1/bifrost/mail/status")
+		}
+		if len(args) < 2 || args[1] != "intake" {
+			return fmt.Errorf("usage: pantheon bifrost mail [status|intake [--capability <id>] [--account <name>] [--mailbox <name>] [--max <n>] [--bootstrap]]")
+		}
+		request := bifrostMailIntakeRequest{}
+		for i := 2; i < len(args); i++ {
+			if args[i] == "--bootstrap" {
+				request.Bootstrap = true
+				continue
+			}
+			if i+1 >= len(args) {
+				return fmt.Errorf("missing value for %s", args[i])
+			}
+			value := args[i+1]
+			switch args[i] {
+			case "--capability":
+				request.CapabilityID = value
+			case "--account":
+				request.Account = value
+			case "--mailbox":
+				request.Mailbox = value
+			case "--max":
+				parsed, err := strconv.Atoi(value)
+				if err != nil {
+					return fmt.Errorf("invalid --max: %w", err)
+				}
+				request.MaxMessages = parsed
+			default:
+				return fmt.Errorf("unknown Bifrost mail option %q", args[i])
+			}
+			i++
+		}
+		return clientPOSTWithControl("/v1/bifrost/mail/intake", request)
+	default:
+		return fmt.Errorf("usage: pantheon bifrost [status|list|show <capability>|approvals|invocations|register ...|enable <capability>|disable <capability>|mail status|mail intake]")
+	}
+}
+
+func runBifrostRegisterCommand(args []string) error {
+	request := bifrostRegistrationRequest{Type: bifrostCapabilityTypeCommand, Installed: true}
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--download-approved" {
+			request.DownloadApproved = true
+			continue
+		}
+		if args[i] == "--installation-approved" {
+			request.InstallationApproved = true
+			continue
+		}
+		if args[i] == "--use-approved" {
+			request.UseApproved = true
+			continue
+		}
+		if args[i] == "--auto-update-approved" {
+			request.AutoUpdateApproved = true
+			continue
+		}
+		if args[i] == "--network" {
+			request.NetworkAccess = true
+			continue
+		}
+		if args[i] == "--sends-data-off-machine" {
+			request.SendsDataOffMachine = true
+			continue
+		}
+		if args[i] == "--authentication-required" {
+			request.AuthenticationRequired = true
+			continue
+		}
+		if i+1 >= len(args) {
+			return fmt.Errorf("missing value for %s", args[i])
+		}
+		value := args[i+1]
+		switch args[i] {
+		case "--id":
+			request.CapabilityID = value
+		case "--name":
+			request.Name = value
+		case "--type":
+			request.Type = value
+		case "--source":
+			request.Source = value
+		case "--version":
+			request.Version = value
+		case "--description":
+			request.Description = value
+		case "--invocation":
+			request.Invocation = value
+		case "--operation":
+			request.Operations = append(request.Operations, value)
+		case "--resource":
+			request.Resources = append(request.Resources, value)
+		case "--component":
+			request.PantheonComponents = append(request.PantheonComponents, value)
+		case "--prohibited-operation":
+			request.ProhibitedOperations = append(request.ProhibitedOperations, value)
+		default:
+			return fmt.Errorf("unknown Bifrost register option %q", args[i])
+		}
+		i++
+	}
+	if request.Name == "" || request.Source == "" || request.Version == "" {
+		return fmt.Errorf("usage: pantheon bifrost register --name <name> --source <source> --version <version> [--id <id>] [--type <type>] [--description <text>] [--invocation <text>] [--operation <name>] [--prohibited-operation <name>] [--resource <scope>] [--component <name>] [--network] [--sends-data-off-machine] [--authentication-required] [--download-approved] [--installation-approved] [--use-approved] [--auto-update-approved]")
+	}
+	return clientPOSTWithControl("/v1/bifrost/capabilities", request)
 }
 
 func runOrganismCommand(args []string) error {
