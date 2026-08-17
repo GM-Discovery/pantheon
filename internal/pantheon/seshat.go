@@ -97,6 +97,7 @@ type seshatRegistry struct {
 var seshatAvailableAdapters = map[string]bool{
 	"local-notify": true,
 	"noop":         true,
+	"present":      true,
 }
 
 func newSeshatRegistry(dir string) (*seshatRegistry, error) {

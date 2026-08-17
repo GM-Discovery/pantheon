@@ -18,5 +18,7 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Kernel 10 reportback](reportbacks/kernel-10-present-normalization.md): implementation and verification status for Present.
 - [Seshat plugin extension](seshat-plugin-extension.md): the local manifest workflow for adding package contracts without changing Seshat core.
 - [Kernel 15 reportback](reportbacks/kernel-15-janus-temporal-thresholds.md): deterministic temporal transitions and deferred-work evidence.
+- [Future authority administration](future-authority.md): the Kernel 16 authority-administration boundary.
+- [Kernel 16 reportback](reportbacks/kernel-16-future-authority.md): repository and live Future verification.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.

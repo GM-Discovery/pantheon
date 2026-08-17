@@ -212,6 +212,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeFutureSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -271,6 +275,11 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/janus", d.handleShowJanus)
 	mux.HandleFunc("GET /v1/janus/transitions", d.handleShowJanusTransitions)
 	mux.HandleFunc("GET /v1/janus/transitions/{id}", d.handleShowJanusTransition)
+	mux.HandleFunc("POST /v1/future/round", d.handleFutureRound)
+	mux.HandleFunc("POST /v1/future/proposals", d.handleCreateFutureProposal)
+	mux.HandleFunc("GET /v1/future", d.handleShowFuture)
+	mux.HandleFunc("GET /v1/future/proposals", d.handleShowFutureProposals)
+	mux.HandleFunc("GET /v1/future/proposals/{id}", d.handleShowFutureProposal)
 	mux.HandleFunc("GET /v1/apollo", d.handleShowApollo)
 	mux.HandleFunc("GET /v1/apollo/reports", d.handleShowApolloReports)
 	mux.HandleFunc("GET /v1/apollo/reports/{id}", d.handleShowApolloReport)

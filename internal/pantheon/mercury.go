@@ -19,6 +19,7 @@ const (
 	orderOriginParent       = "parent_order"
 	orderOriginStanding     = "standing_authority"
 	orderOriginPresent      = "present"
+	orderOriginFuture       = "future"
 	orderStatusPending      = "pending"
 	orderStatusInterpret    = "needs_interpretation"
 	orderStatusRuling       = "needs_ruling"
@@ -51,6 +52,7 @@ type orderRequest struct {
 	Purpose          string          `json:"purpose,omitempty"`
 	ExpiresAt        string          `json:"expires_at,omitempty"`
 	SupersedesID     string          `json:"supersedes_order_id,omitempty"`
+	AuthorityGrantID string          `json:"-"`
 }
 
 type mercuryOrder struct {
@@ -167,6 +169,10 @@ func validJSONOrEmpty(value json.RawMessage) (string, error) {
 }
 
 func (d *daemon) createOrder(input orderRequest, trustedPerson bool) (mercuryOrder, error) {
+	return d.createOrderWithOrigin(input, trustedPerson, "", "")
+}
+
+func (d *daemon) createOrderWithOrigin(input orderRequest, trustedPerson bool, origin, requestedBy string) (mercuryOrder, error) {
 	if err := d.ensureMercury(); err != nil {
 		return mercuryOrder{}, err
 	}
@@ -212,10 +218,12 @@ func (d *daemon) createOrder(input orderRequest, trustedPerson bool) (mercuryOrd
 	order := mercuryOrder{OrderID: orderID, CreatedAt: createdAt, Origin: "system", RequestText: requestText, Recipient: input.Recipient, Capability: input.Capability, Scope: input.Scope, Payload: json.RawMessage(payload), Constraints: json.RawMessage(constraints), ParentOrderID: strings.TrimSpace(input.ParentOrderID), ParentSealDigest: strings.TrimSpace(input.ParentSealDigest), Purpose: strings.TrimSpace(input.Purpose), ExpiresAt: strings.TrimSpace(input.ExpiresAt), SupersedesID: strings.TrimSpace(input.SupersedesID), Status: orderStatusPending}
 	if trustedPerson {
 		order.Origin, order.RequestedBy = orderOriginPersonDirect, "local-person"
+	} else if strings.TrimSpace(origin) != "" {
+		order.Origin, order.RequestedBy = strings.TrimSpace(origin), strings.TrimSpace(requestedBy)
 	}
 	if order.Recipient != "" {
 		order.Status = orderStatusReady
-		basis, ref, authorityErr := d.authorityForOrder(order, trustedPerson)
+		basis, ref, authorityErr := d.authorityForOrderWithGrant(order, trustedPerson, input.AuthorityGrantID)
 		if authorityErr != nil {
 			order.Status = orderStatusRuling
 			order.LastError = authorityErr.Error()
@@ -274,8 +282,23 @@ func nullableJSON(value json.RawMessage) any {
 }
 
 func (d *daemon) authorityForOrder(order mercuryOrder, trustedPerson bool) (string, string, error) {
+	return d.authorityForOrderWithGrant(order, trustedPerson, "")
+}
+
+func (d *daemon) authorityForOrderWithGrant(order mercuryOrder, trustedPerson bool, requestedGrantID string) (string, string, error) {
 	if trustedPerson {
 		return orderOriginPersonDirect, order.RequestedBy, nil
+	}
+	if strings.TrimSpace(requestedGrantID) != "" {
+		grant, err := d.loadCapabilityGrant(strings.TrimSpace(requestedGrantID))
+		if err != nil {
+			return "", "", errors.New("requested authority grant is unavailable")
+		}
+		grant = d.refreshGrantState(grant, time.Now())
+		if grant.Holder != "future" || !grantTimeValid(grant, time.Now()) || !capabilityWithin(grant.Capability, order.Capability) || !scopeWithin(grant.Scope, order.Scope) {
+			return "", "", errors.New("requested authority grant does not cover this Future operation")
+		}
+		return orderOriginStanding, grant.ID, nil
 	}
 	if order.ParentOrderID != "" {
 		if err := d.validateChildOrder(order); err != nil {
@@ -412,7 +435,9 @@ func (d *daemon) orderSealValid(order mercuryOrder) bool {
 }
 
 func (d *daemon) mercuryCapabilityAvailable(recipient, capability string) bool {
-	return (recipient == "present" && capability == "present.process") || (recipient == "apollo" && capability == apolloCapability)
+	return (recipient == "present" && capability == "present.process") ||
+		(recipient == "apollo" && capability == apolloCapability) ||
+		(recipient == "local-notify" && capability == "notify.send")
 }
 
 func (d *daemon) recordOrderEvent(orderID, eventType, detail string) {
@@ -683,6 +708,25 @@ func (d *daemon) dispatchOrder(ctx context.Context, order mercuryOrder, command 
 		} else {
 			resultSummaryBytes, _ := json.Marshal(apolloResult)
 			resultSummary, evidence = string(resultSummaryBytes), apolloResult.ReportPath
+		}
+	} else if order.Recipient == "local-notify" && order.Capability == "notify.send" {
+		var payload struct {
+			Message string `json:"message"`
+			Title   string `json:"title"`
+		}
+		if err := json.Unmarshal(order.Payload, &payload); err != nil || strings.TrimSpace(payload.Message) == "" {
+			dispatchErr = "notify.send requires payload message"
+		} else {
+			title := strings.TrimSpace(payload.Title)
+			if title == "" {
+				title = "Pantheon"
+			}
+			output, notifyErr := exec.Command(notifyCommand, "pantheon-alerts", title, payload.Message).CombinedOutput()
+			if notifyErr != nil {
+				dispatchErr = fmt.Sprintf("%v: %s", notifyErr, strings.TrimSpace(string(output)))
+			} else {
+				resultSummary = "local notification delivered"
+			}
 		}
 	} else {
 		dispatchErr = "no exact dispatcher for order"

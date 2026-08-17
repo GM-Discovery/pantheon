@@ -47,11 +47,13 @@ Available commands:
   pantheon order "request"                record a trusted durable order
   pantheon mercury round                  run one deterministic Mercury round
   pantheon janus round                    apply deterministic temporal transitions
+  pantheon future round                   administer bounded authority proposals
   pantheon show orders                    inspect durable orders
   pantheon show mercury                   inspect Mercury readiness and backlog
   pantheon show janus                     inspect Janus temporal state
   pantheon show transitions               inspect Janus transition evidence
   pantheon show apollo                    inspect Apollo readiness and reports
+  pantheon show future                    inspect Future authority administration
   pantheon show plugins                   inspect registered Seshat plugins
   pantheon show packages                  inspect package vocabulary
   pantheon plugin help                    learn the local plugin extension workflow
