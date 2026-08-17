@@ -1,8 +1,8 @@
 # Daemon Milestone
 
-## Status
+## Historical milestone
 
-Implemented as the smallest persistent Pantheon executive service. This record describes implemented behavior, not a claim that the complete policy harness or the Fates are complete.
+This record preserves the first daemon milestone. Its scope statements are historical; the active architecture is maintained in [the architecture brief](pantheon-architecture-brief.md), [Software](software.md), and [the operator guide](operator-guide.md).
 
 ## Process boundary
 
@@ -14,7 +14,7 @@ systemd --user
         -> Ollama / Apollo for authorized local reasoning
 ```
 
-The CLI is now a localhost API client for ordinary input, `status`, and `route`. It does not duplicate local reasoning logic.
+The original milestone CLI was a localhost API client for ordinary input, `status`, and `route`. The current CLI additionally provides local help/code discovery and inspection commands without changing this historical record.
 
 ## Implemented API
 
@@ -46,6 +46,6 @@ systemctl --user status pantheon
 journalctl --user -u pantheon -f
 ```
 
-## Next safe increment
+## Historical next safe increment
 
 Define the policy-harness data model for capability grants and human approval, then move deterministic `notify` through that path with audit evidence. Do not attach Omi/Whisper ingestion until Present's durable observation contract and the audio/transcript retention policy are reviewed.

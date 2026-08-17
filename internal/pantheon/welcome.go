@@ -1,71 +1,113 @@
 package pantheon
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"regexp"
+	"strings"
+	"time"
 )
 
-func printWelcome() {
-	cyan := "\033[1;96m"
-	red := "\033[1;91m"
-	green := "\033[1;92m"
-	white := "\033[1;97m"
-	dim := "\033[2m"
-	reset := "\033[0m"
+const welcomeWidth = 78
 
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
+
+type welcomeState struct {
+	Runtime string
+	Model   string
+	Vault   string
+	Paused  bool
+}
+
+func printWelcome() {
+	state := welcomeState{Runtime: "daemon unavailable; metadata help remains available", Model: "local model configured by runtime", Vault: "Vault path available through `pantheon status`"}
+	client := &http.Client{Timeout: 300 * time.Millisecond}
+	resp, err := client.Get(daemonURL + "/v1/status")
+	if err == nil {
+		defer resp.Body.Close()
+		if resp.StatusCode < 300 {
+			var status statusResponse
+			if json.NewDecoder(resp.Body).Decode(&status) == nil {
+				state.Runtime = "daemon alive at " + status.ListenAddress
+				state.Model = status.LocalModel
+				state.Vault = status.VaultPath
+				state.Paused = status.Paused
+			}
+		}
+	}
+	fmt.Println(renderWelcome(state))
+}
+
+func renderWelcome(state welcomeState) string {
+	cyan, red, green, white, dim, reset := "\033[1;96m", "\033[1;91m", "\033[1;92m", "\033[1;97m", "\033[2m", "\033[0m"
 	if os.Getenv("NO_COLOR") != "" {
 		cyan, red, green, white, dim, reset = "", "", "", "", "", ""
 	}
+	stop := "STOP"
+	if state.Paused {
+		stop = "PAUSED"
+	}
+	lines := []string{
+		"",
+		centerWelcome(cyan + "P A N T H E O N" + reset),
+		centerWelcome(dim + "LOCAL INTELLIGENCE · BOUND IN SERVICE" + reset),
+		"",
+		centerWelcome("╭────────────╮"),
+		centerWelcome("│  " + red + "■ " + stop + reset + "    │"),
+		centerWelcome("╰────────────╯"),
+		"",
+		centerWelcome(white + "IN CASE OF EMERGENCY" + reset),
+		"",
+		"  " + dim + "Prometheus Protocol" + reset,
+		"  " + green + "pantheon prometheus protocol --pause" + reset,
+		"  Pauses Pantheon and autonomous activity for inspection.",
+		"  Need commands?  pantheon help --commands",
+		"",
+		"  Runtime: " + state.Runtime,
+		"  Model:   " + state.Model,
+		"  Vault:   " + state.Vault,
+		"",
+		"  Start with: pantheon help",
+		"",
+	}
+	var b strings.Builder
+	b.WriteString("╭" + strings.Repeat("─", welcomeWidth-2) + "╮\n")
+	for _, line := range lines {
+		b.WriteString(welcomeBoxLine(line))
+		b.WriteByte('\n')
+	}
+	b.WriteString("╰" + strings.Repeat("─", welcomeWidth-2) + "╯")
+	return b.String()
+}
 
-	fmt.Printf(`
-╭──────────────────────────────────────────────────────────────────────────────╮
-│                                                                              │
-│                          %sP A N T H E O N%s                                 │
-│                   %sLOCAL INTELLIGENCE · BOUND IN SERVICE%s                  │
-│                                                                              │
-│                              ╭────────────╮                                  │
-│                              │  %s■ STOP%s    │                                  │
-│                              ╰────────────╯                                  │
-│                                                                              │
-│                         %sIN CASE OF EMERGENCY%s                              │
-│                                                                              │
-│  %sbash%s                                                                        │
-│  %spantheon prometheus protocol --pause%s                                    │
-│                                                                              │
-│        Pauses Pantheon and autonomous activity for inspection.               │
-│                   You do not need to run it now.                             │
-│                                                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
+func centerWelcome(value string) string {
+	max := welcomeWidth - 4
+	value = fitWelcome(value, max)
+	padding := max - visibleWidth(value)
+	left := padding / 2
+	return strings.Repeat(" ", left) + value + strings.Repeat(" ", padding-left)
+}
 
-Available commands:
-  pantheon status                         inspect daemon state
-  pantheon intake scan                    inventory Intake locally
-  pantheon present "request"              prepare and verify an Intake source
-  pantheon show intake                    inspect current Intake ledger
-  pantheon show present                   inspect Present missives
-  pantheon show processors                inspect local processor readiness
-  pantheon order "request"                record a trusted durable order
-  pantheon mercury round                  run one deterministic Mercury round
-  pantheon janus round                    apply deterministic temporal transitions
-  pantheon future round                   administer bounded authority proposals
-  pantheon show orders                    inspect durable orders
-  pantheon show mercury                   inspect Mercury readiness and backlog
-  pantheon show janus                     inspect Janus temporal state
-  pantheon show transitions               inspect Janus transition evidence
-  pantheon show apollo                    inspect Apollo readiness and reports
-  pantheon show future                    inspect Future authority administration
-  pantheon show plugins                   inspect registered Seshat plugins
-  pantheon show packages                  inspect package vocabulary
-  pantheon plugin help                    learn the local plugin extension workflow
-  pantheon show father-time               inspect Father Time chronology
-  pantheon prometheus protocol --pause    pause Pantheon for inspection
+func welcomeBoxLine(value string) string {
+	inner := welcomeWidth - 4
+	value = fitWelcome(value, inner)
+	return "│ " + value + strings.Repeat(" ", inner-visibleWidth(value)) + " │"
+}
 
-`,
-		cyan, reset,
-		dim, reset,
-		red, reset,
-		white, reset,
-		dim, reset,
-		green, reset,
-	)
+func visibleWidth(value string) int {
+	return len([]rune(ansiEscape.ReplaceAllString(value, "")))
+}
+
+func fitWelcome(value string, max int) string {
+	if visibleWidth(value) <= max {
+		return value
+	}
+	plain := ansiEscape.ReplaceAllString(value, "")
+	runes := []rune(plain)
+	if max <= 1 {
+		return string(runes[:max])
+	}
+	return string(runes[:max-1]) + "…"
 }

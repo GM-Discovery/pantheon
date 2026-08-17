@@ -216,6 +216,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeOrganismSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -280,6 +284,8 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/future", d.handleShowFuture)
 	mux.HandleFunc("GET /v1/future/proposals", d.handleShowFutureProposals)
 	mux.HandleFunc("GET /v1/future/proposals/{id}", d.handleShowFutureProposal)
+	mux.HandleFunc("POST /v1/organism/run", d.handleOrganismRun)
+	mux.HandleFunc("GET /v1/organism", d.handleShowOrganism)
 	mux.HandleFunc("GET /v1/apollo", d.handleShowApollo)
 	mux.HandleFunc("GET /v1/apollo/reports", d.handleShowApolloReports)
 	mux.HandleFunc("GET /v1/apollo/reports/{id}", d.handleShowApolloReport)
@@ -1129,6 +1135,17 @@ func (d *daemon) hasCapability(name string) bool {
 	for _, capability := range d.capabilities.Capabilities {
 		if capability.Name == name {
 			return true
+		}
+	}
+	// A registered, enabled Seshat package with a locally available adapter is
+	// also a known capability boundary. This makes it possible for a person to
+	// grant that exact package capability without treating registration itself
+	// as authority. Future still requires the resulting grant before sealing.
+	if d.seshat != nil {
+		for _, pkg := range d.seshat.packagesInspection() {
+			if packageEnabled(pkg) && pkg.AdapterAvailable && pkg.Capability == name {
+				return true
+			}
 		}
 	}
 	return false

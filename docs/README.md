@@ -6,6 +6,7 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Foundations](foundations.md): the enduring distinctions the runtime must preserve.
 - [Software](software.md): the system's software shape and information boundaries.
 - [Pantheon architecture brief](pantheon-architecture-brief.md): the concise active organism map and responsibility boundaries.
+- [Operator guide](operator-guide.md): commands for starting, inspecting, pausing, and extending Pantheon.
 - [Pantheon Roadmap](Pantheon%20Roadmap.md): active direction, current kernel status, and post-core concepts.
 - [Kernel 6 Apollo Vault-connection reportback](reportbacks/kernel-6-apollo-vault-connections.md): read-only local connection evidence and proposal spike.
 - [Kernel 5 Gmail envelope-pilot reportback](reportbacks/kernel-5-gmail-envelope-pilot.md): grant-scoped read-only 50-envelope inventory.
@@ -22,5 +23,6 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Kernel 15 reportback](reportbacks/kernel-15-janus-temporal-thresholds.md): deterministic temporal transitions and deferred-work evidence.
 - [Future authority administration](future-authority.md): the Kernel 16 authority-administration boundary.
 - [Kernel 16 reportback](reportbacks/kernel-16-future-authority.md): repository and live Future verification.
+- [Kernel 17 reportback](reportbacks/kernel-17-whole-animal-integration.md): whole-animal integration, documentation, and usability proof.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.

@@ -982,7 +982,7 @@ whole-animal integration and operator-discoverability work belongs to Kernel 17.
 Future seals already-authorized work and escalates insufficient authority.
 
 ### Kernel 17 — Whole-Animal Integration / Usability
-**Committed checkpoint**
+**PASS / repository and live backend verified August 17, 2026**
 
 Do not add another major conceptual organ merely because one is available.
 
@@ -1013,7 +1013,9 @@ and:
 correct refusal/escalation when authority is insufficient
 ```
 
-The goal is a usable Pantheon, not merely a complete diagram.
+The implementation provides the bounded whole-animal run trace, operator help
+and code discovery, repaired welcome surface, and refusal/pause evidence. The
+goal is a usable Pantheon, not merely a complete diagram.
 
 ---
 
@@ -1030,7 +1032,7 @@ Temporal thresholds and deferred work.
 ### Kernel 16 — Future — complete
 Authority administration.
 
-### Kernel 17 — Integration and useful work — current checkpoint
+### Kernel 17 — Integration and useful work — complete
 Exercise the complete organism against real bounded workflows.
 
 ---

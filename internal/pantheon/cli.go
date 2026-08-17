@@ -91,7 +91,15 @@ func runDaemon() {
 func runClient(args []string) error {
 	command := args[0]
 	switch command {
+	case "help":
+		return runHelpCommand(args[1:])
 	case "show":
+		if len(args) == 2 && args[1] == "codes" {
+			return printLocalCodeHelp()
+		}
+		if len(args) == 2 && args[1] == "organism" {
+			return clientGET("/v1/organism")
+		}
 		if len(args) == 3 && args[1] == "order" {
 			return clientGET("/v1/orders/" + url.PathEscape(args[2]))
 		}
@@ -117,7 +125,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
 		}
 		switch args[1] {
 		case "config":
@@ -147,7 +155,7 @@ func runClient(args []string) error {
 		case "packages":
 			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -177,6 +185,8 @@ func runClient(args []string) error {
 			return fmt.Errorf("usage: pantheon future round")
 		}
 		return clientPOSTWithControl("/v1/future/round", nil)
+	case "organism":
+		return runOrganismCommand(args[1:])
 	case "prometheus":
 		return runPrometheusCommand(args[1:])
 	case "status":
@@ -198,10 +208,10 @@ func runClient(args []string) error {
 	case "grants":
 		return clientGET("/v1/grants")
 	case "authority":
-		if len(args) != 3 || args[0] != "check" {
+		if len(args) != 4 || args[1] != "check" {
 			return fmt.Errorf("usage: pantheon authority check <capability> <scope>")
 		}
-		return clientGET("/v1/authority/check?capability=" + url.QueryEscape(args[1]) + "&scope=" + url.QueryEscape(args[2]))
+		return clientGET("/v1/authority/check?capability=" + url.QueryEscape(args[2]) + "&scope=" + url.QueryEscape(args[3]))
 	case "grant":
 		if len(args) != 4 {
 			return fmt.Errorf("usage: pantheon grant <capability> <scope> <intent-summary>")
@@ -219,6 +229,39 @@ func runClient(args []string) error {
 	default:
 		return clientPOST("/v1/input", inputRequest{Input: strings.Join(args, " ")})
 	}
+}
+
+func runOrganismCommand(args []string) error {
+	if len(args) == 0 || args[0] != "run" {
+		return fmt.Errorf("usage: pantheon organism run --request <text> --package <subject-code> --scope <scope> --missive <Seshat missive> [--occurrence <id>] [--janus-subject <id>]")
+	}
+	request := organismRunRequest{}
+	for i := 1; i < len(args); i++ {
+		if !strings.HasPrefix(args[i], "--") || i+1 >= len(args) {
+			return fmt.Errorf("usage: pantheon organism run --request <text> --package <subject-code> --scope <scope> --missive <Seshat missive> [--occurrence <id>] [--janus-subject <id>]")
+		}
+		value := args[i+1]
+		switch args[i] {
+		case "--request":
+			request.RequestText = value
+		case "--package":
+			request.PackageCode = value
+		case "--scope":
+			request.Scope = value
+		case "--missive":
+			request.Missive = value
+		case "--occurrence":
+			request.OccurrenceID = value
+		case "--janus-subject":
+			request.JanusSubject = value
+		case "--purpose":
+			request.Purpose = value
+		default:
+			return fmt.Errorf("unknown organism option %q", args[i])
+		}
+		i++
+	}
+	return clientPOSTWithControl("/v1/organism/run", request)
 }
 
 func runPluginCommand(args []string) error {
@@ -405,7 +448,10 @@ func clientPOSTWithControl(path string, value any) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(controlTokenHeader, strings.TrimSpace(string(token)))
-	resp, err := (&http.Client{Timeout: 90 * time.Second}).Do(req)
+	// Control-boundary operations may include a bounded local Apollo run. Keep
+	// the client deadline aligned with the daemon's 30-minute integration
+	// bound so a slow local model is not canceled by the CLI first.
+	resp, err := (&http.Client{Timeout: 30 * time.Minute}).Do(req)
 	if err != nil {
 		return fmt.Errorf("Pantheon daemon unavailable at %s: %w", daemonURL, err)
 	}
