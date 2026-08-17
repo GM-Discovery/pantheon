@@ -4,6 +4,17 @@
 
 Repository implementation and automated verification are complete at the reconciled Kernel 8–10 commit. The installed runtime is not being claimed as Kernel 10-live-verified in this report; the local Whisper path is implemented but not live-verified because no Whisper binary is currently available on PATH.
 
+### Later reconciliation — Kernel 18
+
+The statement above is historical Kernel 10 status, not a current claim that
+Whisper is unavailable. Kernel 18 later verified the local installation at
+`/home/brick/whisper.cpp/build/bin/whisper-cli` with
+`/home/brick/whisper.cpp/models/ggml-large-v3.bin`; the exact live candidate
+hash and evidence are recorded in
+`docs/reportbacks/kernel-18-rumor-whisper-audio-intake.md`. Kernel 10 remains
+repository-only as originally reported, while its local Whisper debt is now
+closed by the later Rumor live proof.
+
 ## A. Actual predecessor
 
 - Branch: `trunk`.

@@ -11,11 +11,11 @@ Configuration is local per user at `~/pantheon-runtime/config/pantheon.json`. It
 ## Information flow
 
 ```text
-Intake -> Present -> Past / Weave -> Apollo -> Seshat -> Janus when relevant
+audio -> Rumor -> Intake -> Present -> Past / Weave -> Apollo -> Seshat -> Janus when relevant
                                                        -> Future -> seal -> Mercury -> tool/plugin -> result/evidence
 ```
 
-Present establishes the current source. Past and Weave provide cited continuity before Apollo reasons locally. Apollo writes a durable cited report and a Future-ready structured result. Seshat owns the deterministic package contract and adapter-facing formatting, so Apollo does not need to know external API encodings. A registered package describes form, not authority; Kernel 13 grants remain authoritative.
+Rumor establishes durable audio transcript evidence but does not interpret it. Present establishes the current source. Past and Weave provide cited continuity before Apollo reasons locally. Apollo writes a durable cited report and a Future-ready structured result. Seshat owns the deterministic package contract and adapter-facing formatting, so Apollo does not need to know external API encodings. A registered package describes form, not authority; Kernel 13 grants remain authoritative.
 
 Hermes moves approved messages and actions between nodes. Hermes does not establish policy. Mercury carries the normalized package after authority has been resolved.
 

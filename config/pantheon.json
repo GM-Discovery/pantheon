@@ -1,6 +1,70 @@
 {
-  "model": "mistral-small3.1:latest",
-  "ollama_url": "http://172.17.0.1:11434/api/chat",
-  "vault_path": "/home/brick/Documents/Obsidian Vault",
-  "roadmap_path": "/home/brick/Documents/Obsidian Vault/00 Pantheon Core/Pantheon Roadmap.md"
+  "schema_version": 1,
+  "runtime": {
+    "listen": "127.0.0.1:8765"
+  },
+  "paths": {
+    "vault": "/home/brick/Documents/Obsidian Vault",
+    "roadmap": "/home/brick/Documents/Obsidian Vault/00 Pantheon Core/Pantheon Roadmap.md",
+    "intake": "/home/brick/Pantheon Intake",
+    "father_time_chronicles": "",
+    "raw": "/home/brick/Documents/Obsidian Vault/80 Pantheon Raw",
+    "apollo_reports": ""
+  },
+  "models": {
+    "apollo": {
+      "model": "mistral-small3.1:latest",
+      "endpoint": "http://172.17.0.1:11434/api/chat"
+    },
+    "archimedes": {
+      "model": ""
+    }
+  },
+  "apollo": {
+    "max_retrieval_rounds": 12,
+    "max_sources": 64,
+    "max_context_bytes": 200000,
+    "max_reasoning_duration_seconds": 900,
+    "require_citations": true,
+    "external_research": {
+      "enabled": false
+    }
+  },
+  "time": {
+    "timezone": ""
+  },
+  "retention": {
+    "raw_input_days": 30
+  },
+  "ingestion": {
+    "whisper": {
+      "enabled": true,
+      "binary": "/home/brick/whisper.cpp/build/bin/whisper-cli",
+      "model": "/home/brick/whisper.cpp/models/ggml-large-v3.bin",
+      "language": "auto"
+    },
+    "media": {
+      "converter": ""
+    }
+  },
+  "rumor": {
+    "enabled": true,
+    "watch_paths": [
+      "/home/brick/Pantheon Audio"
+    ],
+    "whisper_model": "/home/brick/whisper.cpp/models/ggml-large-v3.bin",
+    "language": "auto",
+    "retry_limit": 3,
+    "transcript_destination": "/home/brick/Documents/Obsidian Vault/80 Pantheon Raw/Audio Transcripts",
+    "on_complete": "intake",
+    "stability_seconds": 1,
+    "poll_seconds": 2
+  },
+  "mercury": {
+    "mode": "hermes",
+    "agent": "Terra",
+    "binary": "",
+    "deterministic_fallback": true,
+    "round_on_cron_wake": true
+  }
 }

@@ -735,9 +735,9 @@ Nostalgia should be considered only after Pantheon’s core organism has proven 
 
 ---
 
-# 8.16 Rumor — planned Kernel 18 audio intake
+# 8.16 Rumor — Kernel 18 audio intake
 
-Rumor is the deterministic local audio-transcription daemon planned for
+Rumor is the deterministic local audio-transcription daemon implemented in
 Kernel 18. It watches or explicitly receives eligible audio, invokes the
 configured local Whisper pipeline, writes a durable transcript with source and
 model provenance, and hands the transcript to the existing Intake process.
@@ -747,8 +747,9 @@ Apollo directly. Its successful result is textual evidence that can proceed
 through Intake, Present, Past, and Apollo. Video is outside Rumor’s scope;
 audio extraction, if ever needed, belongs upstream.
 
-Kernel 18 remains a later specification. Its inclusion here records the
-concept and intended boundary, not permission to begin it during Kernel 17.
+Kernel 18 does not interpret, summarize, prioritize, grant authority, or
+invoke Apollo. Its output is durable evidence that enters the existing Intake
+→ Present → Past / Weave → Apollo path. Kernel 19 remains unstarted.
 
 ## 8.17 Aphrodite — post-core software construction
 
@@ -1035,6 +1036,13 @@ Authority administration.
 ### Kernel 17 — Integration and useful work — complete
 Exercise the complete organism against real bounded workflows.
 
+### Kernel 18 — Rumor audio intake — complete
+
+Rumor now provides stable local audio arrival, explicit manual transcription,
+source hashing, bounded retries, paper-jam inspection, safe alert deduplication,
+durable Markdown/JSON artifacts, raw-source preservation, and explicit Intake
+handoff. Repository and live evidence are recorded in the Kernel 18 reportback.
+
 ---
 
 ## Milestone B — Operate Pantheon
@@ -1063,7 +1071,7 @@ Measure:
 - usefulness of autonomous preparation;
 - reliability after pause/resume.
 
-The next kernel after 17 should be selected from actual operating friction.
+The next kernel after 18 should be selected from actual operating friction.
 
 ---
 
@@ -1337,6 +1345,8 @@ Kernel 15 — Janus
 Kernel 16 — Future
         ↓
 Kernel 17 — whole-animal integration and usable-work proof
+        ↓
+Kernel 18 — Rumor local audio intake
         ↓
 OPERATE PANTHEON
         ↓

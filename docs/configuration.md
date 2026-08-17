@@ -1,6 +1,6 @@
 # Pantheon Configuration
 
-This paper describes the configuration architecture established by Kernel 8 and extended by Kernels 9–10. It documents implemented behavior and distinguishes it from configuration reserved for later Kernels.
+This paper describes the configuration architecture established by Kernel 8 and extended by Kernels 9–10 and 18. It documents implemented behavior and distinguishes it from configuration reserved for later Kernels.
 
 ## Canonical file
 
@@ -77,6 +77,34 @@ Legacy flat configuration remains readable and receives these Kernel 9 defaults 
 ## Kernel 10 active fields
 
 Kernel 10 activates `paths.raw` with the default `<paths.vault>/80 Pantheon Raw`. It also activates local processor configuration under `ingestion.whisper` and `ingestion.media.converter`. Missing optional processors make only the corresponding source type unavailable; they do not invalidate the entire configuration. No cloud or frontier processor is used.
+
+## Kernel 18 active fields
+
+Rumor is enabled only when a user explicitly configures it and supplies one or
+more absolute watch paths. An empty or disabled watcher is inert. The local
+Whisper binary/model are inherited from `ingestion.whisper` unless
+`rumor.whisper_model` overrides the model.
+
+```json
+"rumor": {
+  "enabled": true,
+  "watch_paths": ["/home/example/Pantheon Audio"],
+  "whisper_model": "/home/example/whisper.cpp/models/ggml-large-v3.bin",
+  "language": "auto",
+  "retry_limit": 3,
+  "transcript_destination": "/home/example/Vault/80 Pantheon Raw/Audio Transcripts",
+  "on_complete": "intake",
+  "stability_seconds": 2,
+  "poll_seconds": 5
+}
+```
+
+`watch_paths` is inspected recursively without following hidden/system or
+symbolic-link entries. The installed local Whisper interface supports FLAC,
+MP3, OGG, and WAV. Rumor writes a durable Markdown transcript and JSON
+metadata under the configured Vault destination, never deletes the raw audio,
+and hands the transcript to the existing folder-based Intake process. Failed
+transcription and failed Intake handoff remain distinct durable states.
 
 ## Reserved namespaces
 

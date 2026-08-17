@@ -42,18 +42,20 @@ type daemon struct {
 	controlToken string
 	seshat       *seshatRegistry
 	mu           sync.Mutex
+	rumorMu      sync.Mutex
 }
 
 type statusResponse struct {
-	LocalModel    string       `json:"local_model"`
-	FrontierModel string       `json:"frontier_model,omitempty"`
-	OllamaURL     string       `json:"ollama_url"`
-	VaultPath     string       `json:"vault_path,omitempty"`
-	RoadmapPath   string       `json:"roadmap_path,omitempty"`
-	Capabilities  []capability `json:"capabilities"`
-	ListenAddress string       `json:"listen_address"`
-	AuditRequests int          `json:"audit_requests"`
-	Paused        bool         `json:"paused"`
+	LocalModel    string         `json:"local_model"`
+	FrontierModel string         `json:"frontier_model,omitempty"`
+	OllamaURL     string         `json:"ollama_url"`
+	VaultPath     string         `json:"vault_path,omitempty"`
+	RoadmapPath   string         `json:"roadmap_path,omitempty"`
+	Capabilities  []capability   `json:"capabilities"`
+	ListenAddress string         `json:"listen_address"`
+	AuditRequests int            `json:"audit_requests"`
+	Paused        bool           `json:"paused"`
+	Rumor         map[string]any `json:"rumor"`
 }
 
 type inputRequest struct {
@@ -220,6 +222,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeRumorSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -268,6 +274,14 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/present", d.handlePresent)
 	mux.HandleFunc("GET /v1/present", d.handleShowPresent)
 	mux.HandleFunc("GET /v1/processors", d.handleShowProcessors)
+	mux.HandleFunc("GET /v1/rumor", d.handleShowRumor)
+	mux.HandleFunc("GET /v1/rumor/queue", d.handleShowRumorQueue)
+	mux.HandleFunc("GET /v1/rumor/sources/{id}", d.handleShowRumorSource)
+	mux.HandleFunc("GET /v1/rumor/sources/{id}/attempts", d.handleRumorAttempts)
+	mux.HandleFunc("POST /v1/rumor/scan", d.handleRumorScan)
+	mux.HandleFunc("POST /v1/rumor/transcribe", d.handleRumorTranscribe)
+	mux.HandleFunc("POST /v1/rumor/sources/{id}/retry", d.handleRumorRetry)
+	mux.HandleFunc("POST /v1/rumor/sources/{id}/ignore", d.handleRumorIgnore)
 	mux.HandleFunc("POST /v1/orders", d.handleCreateOrder)
 	mux.HandleFunc("GET /v1/orders", d.handleShowOrders)
 	mux.HandleFunc("GET /v1/orders/{id}", d.handleShowOrder)
@@ -617,7 +631,7 @@ func (d *daemon) handleStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, statusResponse{d.cfg.LocalModel, d.cfg.FrontierModel, d.cfg.OllamaURL, d.cfg.VaultPath, d.cfg.RoadmapPath, d.capabilities.Capabilities, "127.0.0.1", requests, paused})
+	writeJSON(w, http.StatusOK, statusResponse{LocalModel: d.cfg.LocalModel, FrontierModel: d.cfg.FrontierModel, OllamaURL: d.cfg.OllamaURL, VaultPath: d.cfg.VaultPath, RoadmapPath: d.cfg.RoadmapPath, Capabilities: d.capabilities.Capabilities, ListenAddress: "127.0.0.1", AuditRequests: requests, Paused: paused, Rumor: d.rumorStatusSummary()})
 }
 
 func (d *daemon) handleInput(w http.ResponseWriter, r *http.Request) {

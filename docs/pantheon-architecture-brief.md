@@ -1,7 +1,7 @@
 ---
 type: active-architecture-brief
 status: active
-updated: 2026-08-16
+updated: 2026-08-17
 ---
 
 # Pantheon Architecture Brief
@@ -26,7 +26,11 @@ No persuasive model output is a grant, seal, Go command, or human approval.
 ## Canonical organism
 
 ```text
-occurrence / direct request
+audio arrival
+        ↓
+      Rumor
+        ↓
+transcript occurrence / direct request
         ↓
       Intake
         ↓
@@ -71,6 +75,7 @@ authority or provenance decision.
 | --- | --- | --- | --- |
 | Pantheon kernel | deterministic daemon | configuration, orchestration, policy, audit, control surfaces | replace human authority or become a reasoning engine |
 | Intake | deterministic process | receive and identity-track occurrences | decide semantic importance |
+| Rumor | deterministic local audio process | stable-file detection, source hashing, local Whisper transcription, durable transcript/metadata, explicit Intake handoff | interpret, summarize, prioritize, authorize, delete raw audio, or call Apollo |
 | Present | deterministic daemon | faithful source normalization, provenance, retention boundaries | invent continuity or decide what matters |
 | Past | bounded retrieval role | return cited local continuity from Vault/Weave | rewrite sources or authorize work |
 | Apollo | local reasoning deity | analyze, connect evidence, explain, recommend, cite | grant authority, seal, issue Go, invoke tools |
@@ -99,9 +104,10 @@ and result evidence.
 ## Current implementation boundary
 
 Kernels 13–16 established the authority, Seshat, Janus, and Future foundations
-individually. Kernel 17 is the integration and usability checkpoint: it must
-connect the existing stages where the runtime still requires manual handoff,
-reconcile active documentation, and prove both lawful action and refusal.
+individually. Kernel 17 integrated the existing stages and usability surface.
+Kernel 18 adds Rumor as a bounded local audio-to-evidence boundary. It does
+not add semantic reasoning or authority; successful transcripts enter the
+existing Intake → Present → Past / Weave → Apollo path.
 
 Future currently administers authority deterministically. A later active-state
 engine may organize longer-lived obligations and dependencies, but that does
@@ -109,9 +115,9 @@ not turn Future into a second Apollo.
 
 ## Concept horizon
 
-- **Rumor** — planned Kernel 18 deterministic local Whisper orchestration. Rumor
-  makes audio into durable, provenance-bearing transcript evidence and hands
-  it to Intake. Rumor does not interpret, summarize, prioritize, or authorize.
+- **Rumor** — Kernel 18 deterministic local Whisper orchestration. Rumor makes
+  audio into durable, provenance-bearing transcript evidence and hands it to
+  Intake. Rumor does not interpret, summarize, prioritize, or authorize.
 - **Orion** — later recurring-schedule owner. Father Time answers what time it
   is; Janus applies thresholds; Orion owns recurring declarations and due
   instances.
@@ -129,8 +135,7 @@ not turn Future into a second Apollo.
   tests. Promotion remains outside the proposing intelligence.
 
 These concepts are named responsibility boundaries, not permission to begin
-their implementation automatically. After Kernel 17, Pantheon should operate
-long enough for the next kernel to be chosen from demonstrated friction.
+their implementation automatically. Kernel 19 and later remain unstarted.
 
 ## Documentation entry points
 

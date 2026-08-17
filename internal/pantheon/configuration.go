@@ -33,6 +33,7 @@ type canonicalConfig struct {
 	Time          *canonicalTime           `json:"time,omitempty"`
 	Retention     *canonicalRetention      `json:"retention,omitempty"`
 	Ingestion     *canonicalIngestion      `json:"ingestion,omitempty"`
+	Rumor         *canonicalRumor          `json:"rumor,omitempty"`
 	Present       map[string]any           `json:"present,omitempty"`
 	Past          map[string]any           `json:"past,omitempty"`
 	Weave         map[string]any           `json:"weave,omitempty"`
@@ -76,6 +77,18 @@ type canonicalWhisper struct {
 
 type canonicalMedia struct {
 	Converter *string `json:"converter,omitempty"`
+}
+
+type canonicalRumor struct {
+	Enabled               *bool    `json:"enabled,omitempty"`
+	WatchPaths            []string `json:"watch_paths,omitempty"`
+	WhisperModel          *string  `json:"whisper_model,omitempty"`
+	Language              *string  `json:"language,omitempty"`
+	RetryLimit            *int     `json:"retry_limit,omitempty"`
+	TranscriptDestination *string  `json:"transcript_destination,omitempty"`
+	OnComplete            *string  `json:"on_complete,omitempty"`
+	StabilitySeconds      *int     `json:"stability_seconds,omitempty"`
+	PollSeconds           *int     `json:"poll_seconds,omitempty"`
 }
 
 type canonicalTime struct {
@@ -138,38 +151,47 @@ type configResolution struct {
 }
 
 type config struct {
-	Model                             string `json:"model,omitempty"`
-	OllamaURL                         string `json:"ollama_url,omitempty"`
-	LocalModel                        string `json:"local_model,omitempty"`
-	FrontierModel                     string `json:"frontier_model,omitempty"`
-	VaultPath                         string `json:"vault_path,omitempty"`
-	RoadmapPath                       string `json:"roadmap_path,omitempty"`
-	IntakePath                        string `json:"intake_path,omitempty"`
-	FatherTimeChroniclesPath          string `json:"father_time_chronicles_path,omitempty"`
-	RawPath                           string `json:"raw_path,omitempty"`
-	ApolloReportsPath                 string `json:"apollo_reports_path,omitempty"`
-	RawInputDays                      int    `json:"raw_input_days,omitempty"`
-	Timezone                          string `json:"timezone,omitempty"`
-	WhisperEnabled                    bool   `json:"whisper_enabled,omitempty"`
-	WhisperBinary                     string `json:"whisper_binary,omitempty"`
-	WhisperModel                      string `json:"whisper_model,omitempty"`
-	WhisperLanguage                   string `json:"whisper_language,omitempty"`
-	MediaConverter                    string `json:"media_converter,omitempty"`
-	MercuryMode                       string `json:"mercury_mode,omitempty"`
-	MercuryAgent                      string `json:"mercury_agent,omitempty"`
-	MercuryBinary                     string `json:"mercury_binary,omitempty"`
-	MercuryDeterministicFallback      bool   `json:"mercury_deterministic_fallback,omitempty"`
-	MercuryRoundOnCronWake            bool   `json:"mercury_round_on_cron_wake,omitempty"`
-	ApolloMaxRetrievalRounds          int    `json:"apollo_max_retrieval_rounds,omitempty"`
-	ApolloMaxSources                  int    `json:"apollo_max_sources,omitempty"`
-	ApolloMaxContextBytes             int    `json:"apollo_max_context_bytes,omitempty"`
-	ApolloMaxReasoningDurationSeconds int    `json:"apollo_max_reasoning_duration_seconds,omitempty"`
-	ApolloRequireCitations            bool   `json:"apollo_require_citations,omitempty"`
-	ApolloExternalResearchEnabled     bool   `json:"apollo_external_research_enabled,omitempty"`
-	IntakeConfigured                  bool   `json:"-"`
-	FatherTimeConfigured              bool   `json:"-"`
-	SchemaVersion                     int    `json:"schema_version,omitempty"`
-	ListenAddress                     string `json:"listen_address,omitempty"`
+	Model                             string   `json:"model,omitempty"`
+	OllamaURL                         string   `json:"ollama_url,omitempty"`
+	LocalModel                        string   `json:"local_model,omitempty"`
+	FrontierModel                     string   `json:"frontier_model,omitempty"`
+	VaultPath                         string   `json:"vault_path,omitempty"`
+	RoadmapPath                       string   `json:"roadmap_path,omitempty"`
+	IntakePath                        string   `json:"intake_path,omitempty"`
+	FatherTimeChroniclesPath          string   `json:"father_time_chronicles_path,omitempty"`
+	RawPath                           string   `json:"raw_path,omitempty"`
+	ApolloReportsPath                 string   `json:"apollo_reports_path,omitempty"`
+	RawInputDays                      int      `json:"raw_input_days,omitempty"`
+	Timezone                          string   `json:"timezone,omitempty"`
+	WhisperEnabled                    bool     `json:"whisper_enabled,omitempty"`
+	WhisperBinary                     string   `json:"whisper_binary,omitempty"`
+	WhisperModel                      string   `json:"whisper_model,omitempty"`
+	WhisperLanguage                   string   `json:"whisper_language,omitempty"`
+	MediaConverter                    string   `json:"media_converter,omitempty"`
+	RumorEnabled                      bool     `json:"rumor_enabled,omitempty"`
+	RumorWatchPaths                   []string `json:"rumor_watch_paths,omitempty"`
+	RumorWhisperModel                 string   `json:"rumor_whisper_model,omitempty"`
+	RumorLanguage                     string   `json:"rumor_language,omitempty"`
+	RumorRetryLimit                   int      `json:"rumor_retry_limit,omitempty"`
+	RumorTranscriptDestination        string   `json:"rumor_transcript_destination,omitempty"`
+	RumorOnComplete                   string   `json:"rumor_on_complete,omitempty"`
+	RumorStabilitySeconds             int      `json:"rumor_stability_seconds,omitempty"`
+	RumorPollSeconds                  int      `json:"rumor_poll_seconds,omitempty"`
+	MercuryMode                       string   `json:"mercury_mode,omitempty"`
+	MercuryAgent                      string   `json:"mercury_agent,omitempty"`
+	MercuryBinary                     string   `json:"mercury_binary,omitempty"`
+	MercuryDeterministicFallback      bool     `json:"mercury_deterministic_fallback,omitempty"`
+	MercuryRoundOnCronWake            bool     `json:"mercury_round_on_cron_wake,omitempty"`
+	ApolloMaxRetrievalRounds          int      `json:"apollo_max_retrieval_rounds,omitempty"`
+	ApolloMaxSources                  int      `json:"apollo_max_sources,omitempty"`
+	ApolloMaxContextBytes             int      `json:"apollo_max_context_bytes,omitempty"`
+	ApolloMaxReasoningDurationSeconds int      `json:"apollo_max_reasoning_duration_seconds,omitempty"`
+	ApolloRequireCitations            bool     `json:"apollo_require_citations,omitempty"`
+	ApolloExternalResearchEnabled     bool     `json:"apollo_external_research_enabled,omitempty"`
+	IntakeConfigured                  bool     `json:"-"`
+	FatherTimeConfigured              bool     `json:"-"`
+	SchemaVersion                     int      `json:"schema_version,omitempty"`
+	ListenAddress                     string   `json:"listen_address,omitempty"`
 }
 
 type migrationResult struct {
@@ -240,7 +262,8 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 		RawInputDays:    30,
 		WhisperEnabled:  true,
 		WhisperLanguage: "auto",
-		MercuryMode:     "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
+		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
+		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 	}
 	sources := map[string]string{
@@ -377,6 +400,35 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 			resolved.MediaConverter = strings.TrimSpace(*canonical.Ingestion.Media.Converter)
 		}
 	}
+	if canonical.Rumor != nil {
+		if canonical.Rumor.Enabled != nil {
+			resolved.RumorEnabled = *canonical.Rumor.Enabled
+		}
+		if canonical.Rumor.WatchPaths != nil {
+			resolved.RumorWatchPaths = append([]string(nil), canonical.Rumor.WatchPaths...)
+		}
+		if canonical.Rumor.WhisperModel != nil {
+			resolved.RumorWhisperModel = strings.TrimSpace(*canonical.Rumor.WhisperModel)
+		}
+		if canonical.Rumor.Language != nil {
+			resolved.RumorLanguage = strings.TrimSpace(*canonical.Rumor.Language)
+		}
+		if canonical.Rumor.RetryLimit != nil {
+			resolved.RumorRetryLimit = *canonical.Rumor.RetryLimit
+		}
+		if canonical.Rumor.TranscriptDestination != nil {
+			resolved.RumorTranscriptDestination = strings.TrimSpace(*canonical.Rumor.TranscriptDestination)
+		}
+		if canonical.Rumor.OnComplete != nil {
+			resolved.RumorOnComplete = strings.TrimSpace(*canonical.Rumor.OnComplete)
+		}
+		if canonical.Rumor.StabilitySeconds != nil {
+			resolved.RumorStabilitySeconds = *canonical.Rumor.StabilitySeconds
+		}
+		if canonical.Rumor.PollSeconds != nil {
+			resolved.RumorPollSeconds = *canonical.Rumor.PollSeconds
+		}
+	}
 	if canonical.Mercury != nil {
 		if canonical.Mercury.Mode != nil {
 			resolved.MercuryMode = strings.TrimSpace(*canonical.Mercury.Mode)
@@ -421,6 +473,15 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	if resolved.WhisperLanguage == "" {
 		resolved.WhisperLanguage = "auto"
 	}
+	if resolved.RumorLanguage == "" {
+		resolved.RumorLanguage = resolved.WhisperLanguage
+	}
+	if resolved.RumorOnComplete == "" {
+		resolved.RumorOnComplete = "intake"
+	}
+	if resolved.RumorTranscriptDestination == "" && resolved.VaultPath != "" {
+		resolved.RumorTranscriptDestination = filepath.Join(resolved.VaultPath, "80 Pantheon Raw", "Audio Transcripts")
+	}
 	if err := validateResolvedConfig(resolved); err != nil {
 		return configResolution{}, fmt.Errorf("configuration %s is invalid: %w", path, err)
 	}
@@ -458,7 +519,8 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		RawInputDays:    30,
 		WhisperEnabled:  true,
 		WhisperLanguage: "auto",
-		MercuryMode:     "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
+		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
+		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 		SchemaVersion: 0,
 		ListenAddress: defaultListenAddress,
@@ -558,6 +620,29 @@ func validateResolvedConfig(cfg config) error {
 			return errors.New("paths.apollo_reports must remain beneath paths.vault")
 		}
 	}
+	for _, watchPath := range cfg.RumorWatchPaths {
+		if strings.TrimSpace(watchPath) == "" {
+			return errors.New("rumor.watch_paths must not contain empty paths")
+		}
+		if !filepath.IsAbs(watchPath) {
+			return errors.New("rumor.watch_paths must contain absolute paths")
+		}
+	}
+	if cfg.RumorTranscriptDestination != "" && !filepath.IsAbs(cfg.RumorTranscriptDestination) {
+		return errors.New("rumor.transcript_destination must be an absolute path when configured")
+	}
+	if cfg.RumorRetryLimit <= 0 || cfg.RumorRetryLimit > 100 {
+		return errors.New("rumor.retry_limit must be between 1 and 100")
+	}
+	if cfg.RumorStabilitySeconds < 0 || cfg.RumorStabilitySeconds > 86400 {
+		return errors.New("rumor.stability_seconds must be between 0 and 86400")
+	}
+	if cfg.RumorPollSeconds <= 0 || cfg.RumorPollSeconds > 86400 {
+		return errors.New("rumor.poll_seconds must be between 1 and 86400")
+	}
+	if cfg.RumorOnComplete != "intake" && cfg.RumorOnComplete != "none" && cfg.RumorOnComplete != "" {
+		return errors.New("rumor.on_complete must be intake or none")
+	}
 	if cfg.ApolloMaxRetrievalRounds <= 0 || cfg.ApolloMaxSources <= 0 || cfg.ApolloMaxContextBytes <= 0 || cfg.ApolloMaxReasoningDurationSeconds <= 0 {
 		return errors.New("apollo retrieval and reasoning budgets must be positive")
 	}
@@ -589,6 +674,7 @@ func canonicalConfigFor(cfg config) canonicalConfig {
 			Whisper: &canonicalWhisper{Enabled: &cfg.WhisperEnabled, Binary: &cfg.WhisperBinary, Model: &cfg.WhisperModel, Language: &cfg.WhisperLanguage},
 			Media:   &canonicalMedia{Converter: &cfg.MediaConverter},
 		},
+		Rumor:   &canonicalRumor{Enabled: &cfg.RumorEnabled, WatchPaths: append([]string(nil), cfg.RumorWatchPaths...), WhisperModel: &cfg.RumorWhisperModel, Language: &cfg.RumorLanguage, RetryLimit: &cfg.RumorRetryLimit, TranscriptDestination: &cfg.RumorTranscriptDestination, OnComplete: &cfg.RumorOnComplete, StabilitySeconds: &cfg.RumorStabilitySeconds, PollSeconds: &cfg.RumorPollSeconds},
 		Mercury: &canonicalMercury{Mode: &cfg.MercuryMode, Agent: &cfg.MercuryAgent, Binary: &cfg.MercuryBinary, DeterministicFallback: &cfg.MercuryDeterministicFallback, RoundOnCronWake: &cfg.MercuryRoundOnCronWake},
 		Apollo:  &canonicalApolloSettings{MaxRetrievalRounds: &cfg.ApolloMaxRetrievalRounds, MaxSources: &cfg.ApolloMaxSources, MaxContextBytes: &cfg.ApolloMaxContextBytes, MaxReasoningDurationSecs: &cfg.ApolloMaxReasoningDurationSeconds, RequireCitations: &cfg.ApolloRequireCitations, ExternalResearch: &canonicalExternalResearch{Enabled: &cfg.ApolloExternalResearchEnabled}},
 	}
@@ -727,13 +813,18 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 	fmt.Fprintf(&b, "models.archimedes.model: %s (%s; reserved/inactive)\n", displayConfigValue(cfg.FrontierModel), sourceOrOptional(resolution.Sources, "models.archimedes.model"))
 	fmt.Fprintf(&b, "ingestion.whisper: %s (binary=%s, model=%s, language=%s)\n", readinessConfigBool(cfg.WhisperEnabled), displayConfigValue(cfg.WhisperBinary), displayConfigValue(cfg.WhisperModel), cfg.WhisperLanguage)
 	fmt.Fprintf(&b, "ingestion.media.converter: %s\n", displayConfigValue(cfg.MediaConverter))
+	rumorModel := cfg.RumorWhisperModel
+	if rumorModel == "" {
+		rumorModel = cfg.WhisperModel
+	}
+	fmt.Fprintf(&b, "rumor: %s (watch_paths=%s, model=%s, language=%s, retry_limit=%d, stability_seconds=%d, poll_seconds=%d, on_complete=%s)\n", readinessConfigBool(cfg.RumorEnabled), displayConfigValue(strings.Join(cfg.RumorWatchPaths, ",")), displayConfigValue(rumorModel), cfg.RumorLanguage, cfg.RumorRetryLimit, cfg.RumorStabilitySeconds, cfg.RumorPollSeconds, cfg.RumorOnComplete)
 	fmt.Fprintf(&b, "mercury.mode: %s\n", displayConfigValue(cfg.MercuryMode))
 	fmt.Fprintf(&b, "mercury.agent: %s\n", displayConfigValue(cfg.MercuryAgent))
 	fmt.Fprintf(&b, "mercury.binary: %s\n", displayConfigValue(cfg.MercuryBinary))
 	fmt.Fprintf(&b, "mercury.deterministic_fallback: %t\n", cfg.MercuryDeterministicFallback)
 	fmt.Fprintf(&b, "mercury.round_on_cron_wake: %t\n", cfg.MercuryRoundOnCronWake)
 	fmt.Fprintf(&b, "apollo.budgets: rounds=%d sources=%d context_bytes=%d duration_seconds=%d citations=%t external_research=%t\n", cfg.ApolloMaxRetrievalRounds, cfg.ApolloMaxSources, cfg.ApolloMaxContextBytes, cfg.ApolloMaxReasoningDurationSeconds, cfg.ApolloRequireCitations, cfg.ApolloExternalResearchEnabled)
-	b.WriteString("active Kernel 10 behavior: local Present normalization; no semantic reasoning or deletion\n")
+	b.WriteString("active Kernel 18 behavior: local Present normalization and Rumor audio intake; no semantic reasoning or deletion\n")
 	b.WriteString("secrets: omitted from resolved output\n")
 	return b.String()
 }

@@ -80,6 +80,8 @@ func runDaemon() {
 		os.Exit(1)
 	}
 	defer d.Close()
+	stopRumor := d.startRumorWatcher()
+	defer stopRumor()
 	server := &http.Server{Addr: defaultListenAddress, Handler: d.Handler(), ReadHeaderTimeout: 5 * time.Second}
 	fmt.Println("Pantheon daemon listening on", defaultListenAddress)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -99,6 +101,12 @@ func runClient(args []string) error {
 		}
 		if len(args) == 2 && args[1] == "organism" {
 			return clientGET("/v1/organism")
+		}
+		if len(args) == 3 && args[1] == "rumor" && args[2] == "queue" {
+			return clientGET("/v1/rumor/queue")
+		}
+		if len(args) == 4 && args[1] == "rumor" && args[2] == "source" {
+			return clientGET("/v1/rumor/sources/" + url.PathEscape(args[3]))
 		}
 		if len(args) == 3 && args[1] == "order" {
 			return clientGET("/v1/orders/" + url.PathEscape(args[2]))
@@ -125,7 +133,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
 		}
 		switch args[1] {
 		case "config":
@@ -138,6 +146,8 @@ func runClient(args []string) error {
 			return clientGET("/v1/present")
 		case "processors":
 			return clientGET("/v1/processors")
+		case "rumor":
+			return clientGET("/v1/rumor")
 		case "orders":
 			return clientGET("/v1/orders")
 		case "mercury":
@@ -155,7 +165,7 @@ func runClient(args []string) error {
 		case "packages":
 			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|future proposals|future proposal <id>]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -168,6 +178,8 @@ func runClient(args []string) error {
 		return runPluginCommand(args[1:])
 	case "present":
 		return runPresentCommand(args[1:])
+	case "rumor":
+		return runRumorCommand(args[1:])
 	case "order":
 		return runOrderCommand(args[1:])
 	case "mercury":
@@ -278,6 +290,22 @@ func runPluginCommand(args []string) error {
 		return clientPOSTWithControl("/v1/seshat/plugins/register", seshatPathRequest{Path: args[1]})
 	}
 	return fmt.Errorf("usage: pantheon plugin [help|schema|validate <path>|register <path>]")
+}
+
+func runRumorCommand(args []string) error {
+	if len(args) == 1 && args[0] == "scan" {
+		return clientPOSTWithControl("/v1/rumor/scan", nil)
+	}
+	if len(args) == 2 && args[0] == "transcribe" {
+		return clientPOSTWithControl("/v1/rumor/transcribe", rumorTranscribeRequest{Path: args[1]})
+	}
+	if len(args) == 2 && args[0] == "retry" {
+		return clientPOSTWithControl("/v1/rumor/sources/"+url.PathEscape(args[1])+"/retry", nil)
+	}
+	if len(args) == 2 && args[0] == "ignore" {
+		return clientPOSTWithControl("/v1/rumor/sources/"+url.PathEscape(args[1])+"/ignore", nil)
+	}
+	return fmt.Errorf("usage: pantheon rumor [scan|transcribe <audio-path>|retry <source-id>|ignore <source-id>]")
 }
 
 func runOrderCommand(args []string) error {

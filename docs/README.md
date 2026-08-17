@@ -24,5 +24,6 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Future authority administration](future-authority.md): the Kernel 16 authority-administration boundary.
 - [Kernel 16 reportback](reportbacks/kernel-16-future-authority.md): repository and live Future verification.
 - [Kernel 17 reportback](reportbacks/kernel-17-whole-animal-integration.md): whole-animal integration, documentation, and usability proof.
+- [Kernel 18 reportback](reportbacks/kernel-18-rumor-whisper-audio-intake.md): local Rumor audio transcription, durable evidence, Intake handoff, and live verification.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.
