@@ -2,6 +2,9 @@
 
 This paper describes the configuration architecture established by Kernel 8 and extended by Kernels 9–10 and 18. It documents implemented behavior and distinguishes it from configuration reserved for later Kernels.
 
+The operator-facing audit of every meaningful setting is maintained in
+[`current/configuration-inventory.md`](current/configuration-inventory.md).
+
 ## Canonical file
 
 The canonical per-user configuration file is:

@@ -25,6 +25,10 @@ Future is currently a deterministic authority-signing boundary, not a planning o
 
 The frontier model is an optional reasoning escalation. It receives an intentionally curated brief, never an automatic Vault dump.
 
+Kernel 20 publishes the secret-free `GET /v1/system/inventory` contract for
+operator and GUI inspection. It is an aggregate read surface over durable
+subsystem state, not a new authority layer or dashboard.
+
 ## Bifrost
 
 Bifrost is the external-capability bridge. It stores human-readable capability

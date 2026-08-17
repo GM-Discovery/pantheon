@@ -272,6 +272,7 @@ func (d *daemon) Close() error { return d.db.Close() }
 func (d *daemon) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/status", d.handleStatus)
+	mux.HandleFunc("GET /v1/system/inventory", d.handleSystemInventory)
 	mux.HandleFunc("POST /v1/intake/scan", d.handleIntakeScan)
 	mux.HandleFunc("GET /v1/intake", d.handleShowIntake)
 	mux.HandleFunc("GET /v1/father-time", d.handleShowFatherTime)
@@ -337,8 +338,12 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/bifrost/capabilities", d.handleBifrostCapabilities)
 	mux.HandleFunc("GET /v1/bifrost/capabilities/{id}", d.handleBifrostCapability)
 	mux.HandleFunc("POST /v1/bifrost/capabilities", d.handleBifrostRegister)
-	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/download", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostUnsupportedLifecycle(w, r, "capability.download") })
-	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/install", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostUnsupportedLifecycle(w, r, "capability.install") })
+	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/download", func(w http.ResponseWriter, r *http.Request) {
+		d.handleBifrostUnsupportedLifecycle(w, r, "capability.download")
+	})
+	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/install", func(w http.ResponseWriter, r *http.Request) {
+		d.handleBifrostUnsupportedLifecycle(w, r, "capability.install")
+	})
 	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/enable", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostEnable(w, r, true) })
 	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/disable", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostEnable(w, r, false) })
 	mux.HandleFunc("GET /v1/bifrost/approvals", d.handleBifrostApprovals)

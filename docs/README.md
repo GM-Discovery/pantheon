@@ -6,6 +6,12 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Foundations](foundations.md): the enduring distinctions the runtime must preserve.
 - [Software](software.md): the system's software shape and information boundaries.
 - [Pantheon architecture brief](pantheon-architecture-brief.md): the concise active organism map and responsibility boundaries.
+- [Current system inventory](current/system-inventory.md): canonical implemented components, truth locations, and deterministic inspection routes.
+- [Configuration inventory](current/configuration-inventory.md): operator-worthy settings, defaults, safety, and GUI exposure.
+- [Operator surface inventory](current/operator-surface.md): current commands and authority classes.
+- [Runtime and service inventory](current/runtime-services.md): systemd units, timers, ownership, and Hermes residuals.
+- [Permission and approval inventory](current/permissions-and-approvals.md): enforced authority boundaries and findings.
+- [GUI readiness contract](gui/GUI-CONTRACT.md): the stable read and control contract for Kernel 21.
 - [Operator guide](operator-guide.md): commands for starting, inspecting, pausing, and extending Pantheon.
 - [Pantheon Roadmap](Pantheon%20Roadmap.md): active direction, current kernel status, and post-core concepts.
 - [Kernel 6 Apollo Vault-connection reportback](reportbacks/kernel-6-apollo-vault-connections.md): read-only local connection evidence and proposal spike.
@@ -26,5 +32,6 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Kernel 17 reportback](reportbacks/kernel-17-whole-animal-integration.md): whole-animal integration, documentation, and usability proof.
 - [Kernel 18 reportback](reportbacks/kernel-18-rumor-whisper-audio-intake.md): local Rumor audio transcription, durable evidence, Intake handoff, and live verification.
 - [Kernel 19 reportback](reportbacks/kernel-19-bifrost-capability-bridge.md): governed external-capability registry, approval lifecycle, receipts, and bounded read-only mail intake.
+- [Kernel 20 reportback](reportbacks/kernel-20-canonical-reconciliation.md): canonical system/configuration/operator inventories and the GUI readiness contract.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.

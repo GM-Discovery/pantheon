@@ -145,7 +145,9 @@ not turn Future into a second Apollo.
   inspectable events.
 
 These concepts are named responsibility boundaries, not permission to begin
-their implementation automatically. Kernel 20 remains unstarted.
+their implementation automatically. Kernel 20 reconciles the current system,
+adds the secret-free `/v1/system/inventory` read surface, and prepares the
+GUI contract; it does not begin Aphrodite, Archimedes, Orion, Zeus, or the GUI.
 
 ## Documentation entry points
 
@@ -156,4 +158,6 @@ their implementation automatically. Kernel 20 remains unstarted.
 - [Seshat plugin extension](seshat-plugin-extension.md) — package contracts.
 - [Janus temporal behavior](janus-temporal.md) — temporal transitions.
 - [Kernel 19 reportback](reportbacks/kernel-19-bifrost-capability-bridge.md) — Bifrost registry and bounded mail crossing.
+- [Current system inventory](current/system-inventory.md) — implemented components and truth locations.
+- [GUI readiness contract](gui/GUI-CONTRACT.md) — stable Kernel 21 read/control contract.
 - [Reportbacks](reportbacks/) — historical implementation and verification.

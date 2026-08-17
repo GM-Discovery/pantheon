@@ -9,6 +9,7 @@ The user service is the normal runtime:
 ```text
 systemctl --user status pantheon.service
 pantheon status
+pantheon system inventory
 pantheon help
 pantheon help --commands
 ```

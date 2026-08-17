@@ -27,6 +27,12 @@ The agent is not Pantheon.
 
 **Pantheon is the system.**
 
+For implemented current state, use the [active architecture brief](docs/pantheon-architecture-brief.md),
+the [current system inventory](docs/current/system-inventory.md), and the
+[GUI readiness contract](docs/gui/GUI-CONTRACT.md). This README remains the
+project overview; kernel reportbacks and older examples are historical context
+when they differ from those canonical documents.
+
 ---
 
 ## Why Pantheon?

@@ -208,6 +208,11 @@ func runClient(args []string) error {
 		return runPrometheusCommand(args[1:])
 	case "status":
 		return clientGET("/v1/status")
+	case "system":
+		if len(args) != 2 || args[1] != "inventory" {
+			return fmt.Errorf("usage: pantheon system inventory")
+		}
+		return clientGET("/v1/system/inventory")
 	case "route":
 		if len(args) < 2 {
 			return fmt.Errorf("usage: pantheon route \"request\"")

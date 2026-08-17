@@ -19,6 +19,7 @@ type commandHelpEntry struct {
 
 var pantheonCommands = []commandHelpEntry{
 	{Group: "STATUS / INSPECTION", Command: "pantheon status", Purpose: "show runtime state and configured local capabilities", Mutates: "no"},
+	{Group: "STATUS / INSPECTION", Command: "pantheon system inventory", Purpose: "show the secret-free Kernel 20 inventory contract for operators and the GUI", Mutates: "no"},
 	{Group: "STATUS / INSPECTION", Command: "pantheon show <area>", Purpose: "inspect Intake, Present, processors, orders, Apollo, Future, Janus, Mercury, or packages", Args: "area", Mutates: "no"},
 	{Group: "STATUS / INSPECTION", Command: "pantheon show janus", Purpose: "inspect temporal subjects and transition readiness", Mutates: "no"},
 	{Group: "STATUS / INSPECTION", Command: "pantheon show order <id>", Purpose: "inspect one durable order and its evidence", Args: "id", Mutates: "no"},

@@ -2,7 +2,7 @@
 type: governing-document
 status: active
 owner: Grant A. Murray
-updated: 2026-08-16
+updated: 2026-08-17
 ---
 
 # Pantheon Roadmap
@@ -766,7 +766,26 @@ send, reply, forward, delete, archive, unsubscribe, or alter account settings.
 Hermes remains the rollback path until a later cutover proof retires routine
 mail ingestion jobs.
 
-## 8.18 Aphrodite — post-core software construction
+## 8.18 Kernel 20 — canonical reconciliation and GUI preparation
+
+Kernel 20 reconciles the implemented organism through Bifrost, audits the
+configuration and operator surfaces, inventories systemd ownership and
+Hermes residuals, and establishes a secret-free deterministic system
+inventory. It also publishes the GUI readiness contract for Kernel 21.
+
+Kernel 20 does not build a GUI, install plugins, add major integrations,
+implement Aphrodite, activate Archimedes, or retire Hermes automation without
+cutover proof.
+
+## 8.19 Kernel 21 — GUI
+
+Kernel 21 may build the first serious GUI against
+[`docs/gui/GUI-CONTRACT.md`](gui/GUI-CONTRACT.md) and the versioned
+`GET /v1/system/inventory` read surface. It should expose meaningful control,
+status, evidence, and authority boundaries without scraping implementation
+details or weakening Prometheus.
+
+## 8.20 Aphrodite — post-core software construction
 
 Aphrodite is a proposed software-construction intelligence. She may eventually
 work in an isolated branch or worktree to write code, tests, documentation,
@@ -1057,6 +1076,18 @@ Rumor now provides stable local audio arrival, explicit manual transcription,
 source hashing, bounded retries, paper-jam inspection, safe alert deduplication,
 durable Markdown/JSON artifacts, raw-source preservation, and explicit Intake
 handoff. Repository and live evidence are recorded in the Kernel 18 reportback.
+
+### Kernel 19 — Bifrost external capability bridge — complete
+
+Bifrost provides governed external-capability metadata, approval separation,
+receipts, and bounded read-only mail intake. Repository evidence is recorded
+in the Kernel 19 reportback; Hermes remains retained pending cutover proof.
+
+### Kernel 20 — reconciliation and GUI preparation — repository pass
+
+Kernel 20 publishes current inventories, approval classifications, runtime
+ownership, and the GUI readiness contract. The live systemd activation state
+was not claimed from the restricted audit environment.
 
 ---
 
@@ -1365,12 +1396,17 @@ Kernel 18 — Rumor local audio intake
         ↓
 Kernel 19 — Bifrost external capability bridge and bounded mail intake
         ↓
-OPERATE PANTHEON
+Kernel 20 — canonical reconciliation, configuration audit, and GUI preparation
         ↓
-choose next kernel from demonstrated friction
+Kernel 21 — GUI
+        ↓
+Aphrodite / Archimedes / post-build organism reconciliation as later horizons
 ```
 
-Likely later candidates include Orion, external adapters, improved operator surfaces, Archimedes, Zeus, and Nostalgia.
+Likely later candidates include Aphrodite (Project Fame first, Project Purity
+later), Archimedes, Orion, additional external adapters, Zeus, Nostalgia, and
+post-build organism reconciliation. Kernel 21 must not be forced to infer
+these boundaries from historical kernel documents.
 
 They are not permission to build them automatically.
 
