@@ -5,6 +5,8 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Construction](construction.md): how Pantheon is assembled.
 - [Foundations](foundations.md): the enduring distinctions the runtime must preserve.
 - [Software](software.md): the system's software shape and information boundaries.
+- [Pantheon architecture brief](pantheon-architecture-brief.md): the concise active organism map and responsibility boundaries.
+- [Pantheon Roadmap](Pantheon%20Roadmap.md): active direction, current kernel status, and post-core concepts.
 - [Kernel 6 Apollo Vault-connection reportback](reportbacks/kernel-6-apollo-vault-connections.md): read-only local connection evidence and proposal spike.
 - [Kernel 5 Gmail envelope-pilot reportback](reportbacks/kernel-5-gmail-envelope-pilot.md): grant-scoped read-only 50-envelope inventory.
 - [Kernel 4 capability-grant reportback](reportbacks/kernel-4-capability-grants.md): persisted grants and the declared Mercury email boundary.
