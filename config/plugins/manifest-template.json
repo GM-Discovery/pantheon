@@ -20,7 +20,12 @@
       },
       "returns": ["result_id", "status"],
       "permission_class": "bounded_external_action",
-      "permission_shapes": ["once", "bounded_uses"]
+      "permission_shapes": ["once", "bounded_uses"],
+      "temporal": {
+        "mode": "scheduled",
+        "missed_policy": "require_review",
+        "pause_policy": "missed"
+      }
     }
   ]
 }

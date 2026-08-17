@@ -46,8 +46,11 @@ Available commands:
   pantheon show processors                inspect local processor readiness
   pantheon order "request"                record a trusted durable order
   pantheon mercury round                  run one deterministic Mercury round
+  pantheon janus round                    apply deterministic temporal transitions
   pantheon show orders                    inspect durable orders
   pantheon show mercury                   inspect Mercury readiness and backlog
+  pantheon show janus                     inspect Janus temporal state
+  pantheon show transitions               inspect Janus transition evidence
   pantheon show apollo                    inspect Apollo readiness and reports
   pantheon show plugins                   inspect registered Seshat plugins
   pantheon show packages                  inspect package vocabulary

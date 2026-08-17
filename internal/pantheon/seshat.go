@@ -56,6 +56,17 @@ type seshatPackageSpec struct {
 	Constraints      map[string]string `json:"constraints,omitempty"`
 	Examples         []string          `json:"examples,omitempty"`
 	Enabled          *bool             `json:"enabled,omitempty"`
+	Temporal         *seshatTemporal   `json:"temporal,omitempty"`
+}
+
+type seshatTemporal struct {
+	Mode         string `json:"mode"`
+	MissedPolicy string `json:"missed_policy"`
+	PausePolicy  string `json:"pause_policy,omitempty"`
+}
+
+var seshatTemporalPolicies = map[string]bool{
+	"expire": true, "resurface": true, "backfill": true, "recompute": true, "require_review": true,
 }
 
 type seshatPackage struct {
@@ -226,6 +237,17 @@ func validateSeshatPackage(spec seshatPackageSpec) error {
 	for _, shape := range spec.PermissionShapes {
 		if !seshatFixedPermission[shape] && !regexp.MustCompile(`^[1-9][0-9]*_uses$`).MatchString(shape) {
 			return fmt.Errorf("unsupported permission shape %q", shape)
+		}
+	}
+	if spec.Temporal != nil {
+		if spec.Temporal.Mode != "scheduled" && spec.Temporal.Mode != "reviewable" && spec.Temporal.Mode != "active" {
+			return fmt.Errorf("unsupported temporal mode %q", spec.Temporal.Mode)
+		}
+		if !seshatTemporalPolicies[spec.Temporal.MissedPolicy] {
+			return fmt.Errorf("unsupported temporal missed_policy %q", spec.Temporal.MissedPolicy)
+		}
+		if spec.Temporal.PausePolicy != "" && spec.Temporal.PausePolicy != "hold" && spec.Temporal.PausePolicy != "missed" && spec.Temporal.PausePolicy != "require_review" {
+			return fmt.Errorf("unsupported temporal pause_policy %q", spec.Temporal.PausePolicy)
 		}
 	}
 	return nil
@@ -571,6 +593,7 @@ func seshatManifestSchema() map[string]any {
 		"required":          map[string]any{"plugin": []string{"name", "version"}, "package": []string{"subject_code", "version", "description", "capability", "adapter", "required_fields", "returns", "permission_class", "permission_shapes"}},
 		"permission_shapes": []string{"once", "project", "this_project", "bounded_uses", "until_revoked", "temporary", "until_timestamp", "N_uses"},
 		"mapping_rules":     "field name to a missive header (for example TO) or the literal body",
+		"temporal":          map[string]any{"mode": "scheduled|reviewable|active", "missed_policy": []string{"expire", "resurface", "backfill", "recompute", "require_review"}, "pause_policy": []string{"hold", "missed", "require_review"}},
 		"authority":         "registration and package construction grant no operational authority",
 	}
 }

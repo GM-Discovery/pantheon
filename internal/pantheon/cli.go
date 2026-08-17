@@ -107,8 +107,11 @@ func runClient(args []string) error {
 		if len(args) == 3 && args[1] == "package" {
 			return clientGET("/v1/seshat/packages/" + url.PathEscape(args[2]))
 		}
+		if len(args) == 3 && args[1] == "transition" {
+			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
+		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|mercury|apollo]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|janus|transitions|transition <id>|mercury|apollo]")
 		}
 		switch args[1] {
 		case "config":
@@ -125,6 +128,10 @@ func runClient(args []string) error {
 			return clientGET("/v1/orders")
 		case "mercury":
 			return clientGET("/v1/mercury")
+		case "janus":
+			return clientGET("/v1/janus")
+		case "transitions":
+			return clientGET("/v1/janus/transitions")
 		case "apollo":
 			return clientGET("/v1/apollo")
 		case "plugins":
@@ -132,7 +139,7 @@ func runClient(args []string) error {
 		case "packages":
 			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|mercury|apollo]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|orders|order <id>|grant <id>|plugins|packages|package <subject-code>|janus|transitions|transition <id>|mercury|apollo]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -152,6 +159,11 @@ func runClient(args []string) error {
 			return fmt.Errorf("usage: pantheon mercury round")
 		}
 		return clientPOSTWithControl("/v1/mercury/round", nil)
+	case "janus":
+		if len(args) != 2 || args[1] != "round" {
+			return fmt.Errorf("usage: pantheon janus round")
+		}
+		return clientPOSTWithControl("/v1/janus/round", nil)
 	case "prometheus":
 		return runPrometheusCommand(args[1:])
 	case "status":

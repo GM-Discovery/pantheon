@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "plugin": {"name": "janus-temporal-examples", "version": "1.0.0"},
+  "packages": [
+    {
+      "subject_code": "EXAMPLE:REMINDER",
+      "version": "1.0.0",
+      "description": "Harmless bounded reminder that expires after its threshold.",
+      "capability": "example.reminder",
+      "adapter": "noop",
+      "required_fields": ["body"],
+      "payload_rules": {"body": "body"},
+      "returns": ["status"],
+      "permission_class": "bounded_local_output",
+      "permission_shapes": ["once"],
+      "temporal": {"mode": "scheduled", "missed_policy": "expire"}
+    },
+    {
+      "subject_code": "EXAMPLE:RESURFACE",
+      "version": "1.0.0",
+      "description": "Harmless bounded work that resurfaces a new Intake occurrence when missed.",
+      "capability": "example.resurface",
+      "adapter": "noop",
+      "required_fields": ["body"],
+      "payload_rules": {"body": "body"},
+      "returns": ["status"],
+      "permission_class": "bounded_local_output",
+      "permission_shapes": ["once"],
+      "temporal": {"mode": "scheduled", "missed_policy": "resurface"}
+    },
+    {
+      "subject_code": "EXAMPLE:REVIEW",
+      "version": "1.0.0",
+      "description": "Harmless test shape for work that requires review after a missed threshold.",
+      "capability": "example.review",
+      "adapter": "noop",
+      "required_fields": ["body"],
+      "payload_rules": {"body": "body"},
+      "returns": ["status"],
+      "permission_class": "bounded_local_output",
+      "permission_shapes": ["once"],
+      "temporal": {"mode": "scheduled", "missed_policy": "require_review", "pause_policy": "require_review"}
+    }
+  ]
+}

@@ -37,6 +37,14 @@ mapping, not model interpretation. `returns` lists the fields the adapter is
 expected to return. `permission_class` and `permission_shapes` describe
 sensible authority options for Future; they never create a grant.
 
+If a package has temporal behavior, add the optional `temporal` block. Its
+`mode` is `scheduled`, `reviewable`, or `active`; `missed_policy` must be one
+of `expire`, `resurface`, `backfill`, `recompute`, or `require_review`; and
+`pause_policy` may be `hold`, `missed`, or `require_review`. Seshat validates
+these values and Janus applies them when a bounded subject crosses its
+instance threshold. The manifest declares the rule; it does not schedule an
+instance or grant authority.
+
 Apollo needs only the safe index exposed by `pantheon show packages`: subject
 code, description, and fields. It does not need Gmail JSON, OAuth details,
 HTTP routes, MIME rules, or adapter invocation syntax. A missive begins with a
@@ -60,5 +68,6 @@ that implementation.
 
 The currently included proof packages are in
 `config/plugins/registered/core.json`. Additional structured examples are in
-`config/plugins/examples/`. `pantheon plugin help` and `pantheon plugin schema`
+`config/plugins/examples/`, including `janus-temporal.json`.
+`pantheon plugin help` and `pantheon plugin schema`
 provide the same local workflow without requiring Internet access.
