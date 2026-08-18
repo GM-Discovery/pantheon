@@ -76,5 +76,17 @@
       "schedule": "hourly",
       "max_messages": 50
     }
+  },
+  "mail": {
+    "enabled": true,
+    "adapter": "himalaya",
+    "account": "gmail",
+    "inbox": "INBOX",
+    "backlog_enabled": true,
+    "batch_size": 100,
+    "direction": "newest_to_oldest",
+    "mark_read_policy": "standing_authority_only",
+    "attachment_policy": "approval_required",
+    "action_capability": "gmail-mail-actions"
   }
 }

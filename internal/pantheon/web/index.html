@@ -20,6 +20,7 @@
         <button class="nav-item" data-view="ingestion">Ingestion / Understanding</button>
         <button class="nav-item" data-view="intake">Intake</button>
         <button class="nav-item" data-view="rumor">Rumor</button>
+        <button class="nav-item" data-view="mail">Mail</button>
         <p class="nav-label">Act</p>
         <button class="nav-item" data-view="execution">Execution / Capabilities</button>
         <button class="nav-item" data-view="approvals">Approvals</button>
@@ -45,6 +46,11 @@
           <p id="work-summary-note" class="muted">Counts are derived from live Future, Janus, Mercury, and Intake state. Zero means no known work in that category—not that the system is unhealthy.</p>
           <section id="work-context" class="work-context" hidden aria-live="polite"><div class="panel-title"><div><p class="eyebrow">WORK CONTEXT</p><h3 id="work-context-title">Select a category</h3></div><button id="work-context-close" class="text-button">Close</button></div><p id="work-context-intro" class="muted"></p><div id="work-context-items" class="work-detail-list"></div></section>
         </section>
+        <section class="panel mail-home-panel" aria-labelledby="mail-home-title">
+          <div class="panel-title"><div><p class="eyebrow">MAIL INTELLIGENCE</p><h2 id="mail-home-title">What arrived</h2></div><button class="button quiet" data-view-link="mail">Open Mail →</button></div>
+          <div id="mail-home-summary" class="metric-grid"><div class="metric"><strong>—</strong><span>loading mail state</span></div></div>
+          <p id="mail-home-note" class="muted">Mail state is separate from generic inventory. A message is not an action authorization.</p>
+        </section>
         <div class="grid two home-secondary">
           <section class="panel"><div class="panel-title"><h2>Father Time</h2><span class="tag">watch</span></div><div class="watch"><div id="clock" class="clock">--:--:--</div><div id="date" class="watch-date">—</div></div><p class="muted">A live local-time watch. Father Time records chronology; it is not a scheduler or occupant.</p></section>
           <section class="panel"><div class="panel-title"><h2>Operational pulse</h2><span id="pulse-state" class="state-chip">—</span></div><div id="pulse-summary" class="detail-list"></div></section>
@@ -62,6 +68,14 @@
       <section class="view" data-panel="intake"><div class="page-heading"><div><p class="eyebrow">UNDERSTAND</p><h1>Intake</h1><p class="lede">Each source occurrence has an identity, state, and chronology trail.</p></div></div><section class="panel"><div id="intake-summary" class="metric-grid"></div><p class="muted">Use the terminal for the full deterministic scan and occurrence inspection. This surface reports live state without duplicating forensic output.</p></section></section>
 
       <section class="view" data-panel="rumor"><div class="page-heading"><div><p class="eyebrow">UNDERSTAND</p><h1>Rumor</h1><p class="lede">Local audio boundary: wait for stable files, transcribe through local Whisper, then hand off to Intake.</p></div><button id="rumor-scan" class="button">Scan audio now</button></div><section class="panel"><div class="panel-title"><h2>Audio boundary</h2><span id="rumor-state" class="state-chip">—</span></div><div id="rumor-summary" class="metric-grid"></div><p class="muted">Live transcription is not enabled. No upload, cloud fallback, Project Fame, or Whisper IDE is implied.</p></section><section class="panel"><div class="panel-title"><h2>Sources needing attention</h2><span id="rumor-source-count" class="muted">—</span></div><div id="rumor-sources" class="source-list"></div></section></section>
+
+      <section class="view" data-panel="mail">
+        <div class="page-heading"><div><p class="eyebrow">UNDERSTAND / ACT</p><h1>Mail intelligence</h1><p class="lede">Existing Gmail mail crosses Bifrost into Intake, Present, Past/Weave context, and local Apollo. Understanding produces evidence and governed proposals; it never sends or deletes mail.</p></div><button id="mail-round" class="button">Check mail now</button></div>
+        <section class="panel"><div class="panel-title"><div><h2>Mailbox state</h2><p class="muted">New mail is considered before the bounded newest-to-oldest backlog.</p></div><span id="mail-state" class="state-chip unknown">unknown</span></div><div id="mail-summary" class="metric-grid"></div><p id="mail-note" class="muted"></p></section>
+        <section class="panel"><div class="panel-title"><div><h2>Messages</h2><p class="muted">Select a message to inspect its understanding, evidence, uncertainty, and any merely suggested action.</p></div><span id="mail-message-count" class="muted">—</span></div><div id="mail-messages" class="mail-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Deterministic filters</h2><p class="muted">A rejection rule bypasses Apollo while retaining the message and its provenance.</p></div><span id="mail-rule-count" class="muted">—</span></div><div id="mail-rules" class="mail-rules"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Governed mailbox actions</h2><p class="muted">Receipts show what was proposed or executed. Drafts are non-sent; send and delete are unavailable.</p></div></div><div id="mail-actions" class="mail-actions"></div></section>
+      </section>
 
       <section class="view" data-panel="bifrost"><div class="page-heading"><div><p class="eyebrow">ACT / GOVERNED BRIDGE</p><h1>Bifrost</h1><p class="lede">Capability cards show registration, approval, and enablement as separate states.</p></div></div><section class="panel"><div class="panel-title"><h2>Capabilities</h2><div class="button-row"><span id="capability-state" class="state-chip">unknown</span><span class="tag">no marketplace</span></div></div><div id="capabilities" class="capability-list"></div></section></section>
 

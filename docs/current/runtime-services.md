@@ -49,7 +49,7 @@ restarted by systemd, while a failed Rumor item remains in its durable retry or
 ignored state. A failed timer run is visible to systemd and does not become an
 automatic replay burst. Resume after pause is explicit and non-replaying.
 
-The Kernel 20 inventory endpoint reports live daemon state and durable work
+The Kernel 22 inventory endpoint reports live daemon state and durable work
 counts, but does not pretend to know the systemd activation state when the
 service manager is unavailable.
 
@@ -61,8 +61,9 @@ service manager is unavailable.
 | `hermes-gateway.service` | retained rollback/external integration | no Kernel 19 cutover proof retired it |
 | legacy `hermes` CLI route | compatibility/deferred | current CLI reports it as direct and not daemon-routed |
 | old capability declarations in `config/capabilities.json` | compatibility and operator vocabulary | Bifrost is the governed Kernel 19 path; declarations do not authorize use |
-| Hermes routine mail jobs | not proven superseded | Bifrost mail is bounded/read-only but no live cutover was performed |
+| Hermes routine mail jobs | not proven superseded | Kernel 22 adds a manual Pantheon mail path, but no live cutover proof was performed; existing jobs remain intact |
 | Terra as an architecture role | superseded | Terra is only an external helper label; Mercury is the canonical runtime role |
 
-Kernel 20 does not uninstall Hermes, stop its service, or retire its jobs.
-
+Kernel 22 does not uninstall Hermes, stop its service, or retire its jobs. It
+also does not add a scheduler; mail processing is explicit and manual until
+Zodiac is implemented.

@@ -74,6 +74,26 @@ attachments are copied under the bounded Intake artifact; other attachments
 remain metadata-only and blocked. Hermes remains available until a separate
 cutover proof retires its routine mail jobs.
 
+## Mail intelligence
+
+Kernel 22 adds an explicit, bounded mail-understanding round. It considers new
+messages before the durable newest-to-oldest backlog and sends eligible
+messages through Intake, Present, Past/Weave, and local Apollo. It does not
+create a scheduler.
+
+```text
+pantheon mail status
+pantheon mail check
+pantheon mail messages
+pantheon mail rules
+pantheon mail actions
+```
+
+Apollo suggestions are evidence for Future, not permission. Mark-read, safe
+labels, moves, and non-sent drafts require the separate `gmail-mail-actions`
+Bifrost capability plus exact authority and Mercury sealing. Send, delete,
+archive, filter creation, and attachment download are unavailable.
+
 ## Inspect the organism
 
 ```text

@@ -6,7 +6,7 @@ updated: 2026-08-17
 
 # Current System Inventory
 
-This is the canonical current-state inventory for Kernel 20 and later work.
+This is the canonical current-state inventory for Kernel 22 and later work.
 It describes the repository and runtime as implemented, not the full design
 horizon. Kernel specifications and reportbacks remain historical evidence.
 
@@ -58,9 +58,10 @@ Bifrost governs crossings to external software and services.
 | Prometheus | control plane | running/paused | emergency pause, resume, approval, revocation | no reasoning or replay of skipped work |
 | Rumor | deterministic local audio boundary | enabled when configured | stable-file detection, local Whisper transcription, Intake handoff | no live transcription, interpretation, or Project Fame |
 | Bifrost | governed integration bridge | enabled when configured | capability registry, approvals, enablement, receipts, bounded adapters | no generic installer or autonomous capability acquisition |
+| Mail | bounded workflow | enabled when configured | explicit Gmail intake, durable newest-to-oldest backlog, local Apollo understanding, deterministic filters, and Future/Mercury/Bifrost action proposals | no scheduler, send, delete, archive, filter creation, or implicit authority |
 | Notifications | local adapter | available if helper exists | fixed notification delivery boundary | no arbitrary command execution |
 | Archimedes | future reasoning boundary | deferred | privacy-minimized frontier escalation | not implemented |
-| Orion | future deterministic daemon | deferred | recurring schedules | not implemented |
+| Zodiac | future deterministic daemon | deferred | recurring schedules | not implemented |
 | Zeus | future deterministic daemon | deferred | explicitly identified machine-garbage sanitation | not implemented |
 
 Zeus is not currently implemented. No current component is authorized to
@@ -94,6 +95,7 @@ Other subsystem truth remains at its durable inspection routes:
 | Future | `GET /v1/future`, `GET /v1/future/proposals` |
 | Mercury | `GET /v1/mercury`, `GET /v1/orders` |
 | Bifrost | `GET /v1/bifrost`, `GET /v1/bifrost/approvals`, `GET /v1/bifrost/invocations` |
+| Mail | `GET /v1/mail`, `GET /v1/mail/messages`, `GET /v1/mail/rules`, `GET /v1/mail/actions` |
 | organism trace | `GET /v1/organism` |
 | authority | `GET /v1/grants`, `GET /v1/authority/check` |
 
@@ -112,4 +114,3 @@ Other subsystem truth remains at its durable inspection routes:
   this directory, and `docs/gui/GUI-CONTRACT.md`.
 - Historical implementation evidence: `docs/reportbacks/` and
   `docs/building kernels/`.
-

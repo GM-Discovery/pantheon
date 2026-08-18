@@ -98,6 +98,7 @@ var seshatAvailableAdapters = map[string]bool{
 	"local-notify": true,
 	"noop":         true,
 	"present":      true,
+	"gmail":        true,
 }
 
 func newSeshatRegistry(dir string) (*seshatRegistry, error) {

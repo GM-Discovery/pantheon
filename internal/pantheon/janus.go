@@ -368,7 +368,6 @@ func (d *daemon) janusRound(ctx context.Context) (janusRoundResponse, error) {
 	if err != nil {
 		return response, err
 	}
-	defer rows.Close()
 	var ids []string
 	for rows.Next() {
 		var id string
@@ -378,6 +377,9 @@ func (d *daemon) janusRound(ctx context.Context) (janusRoundResponse, error) {
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
+		return response, err
+	}
+	if err := rows.Close(); err != nil {
 		return response, err
 	}
 	for _, id := range ids {

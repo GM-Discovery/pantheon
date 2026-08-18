@@ -437,7 +437,8 @@ func (d *daemon) orderSealValid(order mercuryOrder) bool {
 func (d *daemon) mercuryCapabilityAvailable(recipient, capability string) bool {
 	return (recipient == "present" && capability == "present.process") ||
 		(recipient == "apollo" && capability == apolloCapability) ||
-		(recipient == "local-notify" && capability == "notify.send")
+		(recipient == "local-notify" && capability == "notify.send") ||
+		(recipient == "gmail" && (capability == "mail.mark_read" || capability == "mail.label" || capability == "mail.move" || capability == "mail.draft"))
 }
 
 func (d *daemon) recordOrderEvent(orderID, eventType, detail string) {
@@ -567,7 +568,6 @@ func (d *daemon) mercuryRound(ctx context.Context) (mercuryRoundResponse, error)
 	if err != nil {
 		return response, err
 	}
-	defer rows.Close()
 	var ids []string
 	for rows.Next() {
 		var id string
@@ -575,6 +575,12 @@ func (d *daemon) mercuryRound(ctx context.Context) (mercuryRoundResponse, error)
 			return response, err
 		}
 		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return response, err
+	}
+	if err := rows.Close(); err != nil {
+		return response, err
 	}
 	for _, id := range ids {
 		response.Examined++
@@ -727,6 +733,12 @@ func (d *daemon) dispatchOrder(ctx context.Context, order mercuryOrder, command 
 			} else {
 				resultSummary = "local notification delivered"
 			}
+		}
+	} else if order.Recipient == "gmail" && strings.HasPrefix(order.Capability, "mail.") {
+		if actionErr := d.executeMailAction(ctx, order, command); actionErr != nil {
+			dispatchErr = actionErr.Error()
+		} else {
+			resultSummary = "bounded Gmail mail operation completed"
 		}
 	} else {
 		dispatchErr = "no exact dispatcher for order"

@@ -48,6 +48,11 @@ configured path from a default.
 | `mercury.round_on_cron_wake` | Existing controlled wake hook | `true` | boolean; no scheduler is created here | yes | informational until a scheduler calls it |
 | `bifrost.enabled` | Governed external-capability bridge | `true` | boolean | yes | significant; capability use still needs approval |
 | `bifrost.mail.*` | Bounded Gmail read crossing | `gmail` / `INBOX` / `gmail-mail` / `hourly` / `50` | non-empty account/mailbox/id; schedule is a contract; max `1..250` | yes | restricted when invoked; read-only adapter |
+| `mail.enabled` / `adapter` | Explicit mail intelligence path | `true` / `himalaya` | `himalaya`, `gmail`, or reserved `mcp` | no | significant; still subject to Prometheus and Bifrost |
+| `mail.account` / `inbox` | Existing personal mail source | `gmail` / `INBOX` | non-empty configured identity and mailbox | no | informational source boundary |
+| `mail.backlog_enabled` / `batch_size` / `direction` | Manual backlog policy | `true` / `100` / `newest_to_oldest` | batch `1..100`; direction fixed | no | routine bounded processing |
+| `mail.mark_read_policy` / `attachment_policy` | Mail safety policy | `standing_authority_only` / `approval_required` | mark-read `standing_authority_only` or `never`; attachments approval-required | no | restricted; understanding never implies authority |
+| `mail.action_capability` | Separate Bifrost write-capability identity | `gmail-mail-actions` | non-empty capability ID; separately registered and approved | no | restricted; presence is not permission |
 
 ## Reserved or informational namespaces
 
@@ -55,7 +60,7 @@ The typed schema preserves `meta`, `present`, `past`, `weave`, `future`,
 `prometheus`, `notifications`, `zeus`, `panopticon`, `setup`, and `organs` so
 future kernels have stable names. Their presence does not activate behavior.
 There is no active operator setting for live transcription, plugins as an
-autonomous installer, Archimedes network access, Zeus sanitation, or Orion
+autonomous installer, Archimedes network access, Zeus sanitation, or Zodiac
 recurring schedules.
 
 ## Safe configuration contract
@@ -67,4 +72,3 @@ recurring schedules.
   separate mechanism and are never included in resolved output.
 - Configuration changes do not create grants. Actions with external effects
   still pass Prometheus, authority, Future, Mercury, and/or Bifrost.
-

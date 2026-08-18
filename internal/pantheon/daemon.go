@@ -234,6 +234,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeMailSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -290,6 +294,13 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/gui/rumor/scan", d.handleGUIRumorScan)
 	mux.HandleFunc("POST /v1/gui/rumor/sources/{id}/retry", func(w http.ResponseWriter, r *http.Request) { d.handleGUIRumorSource(w, r, true) })
 	mux.HandleFunc("POST /v1/gui/rumor/sources/{id}/ignore", func(w http.ResponseWriter, r *http.Request) { d.handleGUIRumorSource(w, r, false) })
+	mux.HandleFunc("GET /v1/gui/mail", d.handleShowMail)
+	mux.HandleFunc("GET /v1/gui/mail/messages", d.handleShowMailMessages)
+	mux.HandleFunc("GET /v1/gui/mail/messages/{id}", d.handleShowMailMessage)
+	mux.HandleFunc("GET /v1/gui/mail/rules", d.handleShowMailRules)
+	mux.HandleFunc("GET /v1/gui/mail/actions", d.handleMailActionReceipts)
+	mux.HandleFunc("POST /v1/gui/mail/round", d.handleGUIMailRound)
+	mux.HandleFunc("POST /v1/gui/mail/rules/{id}/disable", d.handleGUIDisableMailRule)
 	mux.HandleFunc("GET /v1/status", d.handleStatus)
 	mux.HandleFunc("GET /v1/system/inventory", d.handleSystemInventory)
 	mux.HandleFunc("POST /v1/intake/scan", d.handleIntakeScan)
@@ -369,6 +380,13 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/bifrost/invocations", d.handleBifrostInvocations)
 	mux.HandleFunc("GET /v1/bifrost/mail/status", d.handleBifrostMailStatus)
 	mux.HandleFunc("POST /v1/bifrost/mail/intake", d.handleBifrostMailIntake)
+	mux.HandleFunc("POST /v1/mail/round", d.handleMailRound)
+	mux.HandleFunc("GET /v1/mail", d.handleShowMail)
+	mux.HandleFunc("GET /v1/mail/messages", d.handleShowMailMessages)
+	mux.HandleFunc("GET /v1/mail/messages/{id}", d.handleShowMailMessage)
+	mux.HandleFunc("GET /v1/mail/rules", d.handleShowMailRules)
+	mux.HandleFunc("POST /v1/mail/rules/{id}/disable", d.handleDisableMailRule)
+	mux.HandleFunc("GET /v1/mail/actions", d.handleMailActionReceipts)
 	mux.HandleFunc("POST /v1/vault/connections", d.handleVaultConnections)
 	mux.HandleFunc("POST /v1/weave/retrieve", d.handleWeaveRetrieve)
 	mux.HandleFunc("POST /v1/weave/review", d.handleWeaveReview)

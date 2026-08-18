@@ -32,7 +32,7 @@ grant, a grant is not a seal, and a seal is not a completed result.
 | Mercury execution | Future seal + local control + Prometheus | exact order, valid authority and adapter required | `pantheon show order <id>` |
 | Future authority | existing grants and Prometheus/person referral | Future cannot create authority from reasoning | `pantheon show future`, grants |
 | notifications | local control/policy/audit | pause blocks delivery; fixed helper only | audit and `/v1/notify` |
-| email destructive actions | no current Kernel 19 adapter authority | send/reply/forward/delete/archive/account mutation are prohibited by first adapter | Bifrost capability metadata |
+| email actions | separate Kernel 22 capability identity | mark-read, safe label, move, and non-sent draft require exact Future/Mercury order plus `gmail-mail-actions` Bifrost approval; send/delete/archive/filter creation/download remain unavailable | `pantheon show mail`, Bifrost capabilities/invocations |
 | frontier model access | configuration placeholder only | disabled; Archimedes is not implemented | `pantheon show config`, inventory |
 | self-change | policy declaration | human-readable intent, diff, and explicit human approval required | `config/policy.yaml` |
 
@@ -57,11 +57,10 @@ pantheon prometheus protocol --pause
   handlers enforce control tokens, Prometheus, grants, seals, and adapter
   restrictions.
 - The old flat capability file contains historical/compatibility capabilities
-  such as `email.archive` and `email.tag`; the Kernel 19 Bifrost adapter does
+  such as `email.archive` and `email.tag`; the Kernel 19 read-only Bifrost adapter does
   not expose those operations. They must not be presented by the GUI as
   currently enabled actions merely because the declarations remain.
 - No credentials were found in the tracked canonical configuration, status
   output, Bifrost descriptions, or reportback files inspected for this kernel.
   The local control token is stored under ignored runtime state and is omitted
   from inspection. Kernel 20 does not rotate credentials.
-

@@ -40,6 +40,7 @@ type canonicalConfig struct {
 	Future        map[string]any           `json:"future,omitempty"`
 	Mercury       *canonicalMercury        `json:"mercury,omitempty"`
 	Bifrost       *canonicalBifrost        `json:"bifrost,omitempty"`
+	Mail          *canonicalMail           `json:"mail,omitempty"`
 	Prometheus    map[string]any           `json:"prometheus,omitempty"`
 	Notifications map[string]any           `json:"notifications,omitempty"`
 	Zeus          map[string]any           `json:"zeus,omitempty"`
@@ -119,6 +120,19 @@ type canonicalBifrostMail struct {
 	Capability  *string `json:"capability,omitempty"`
 	Schedule    *string `json:"schedule,omitempty"`
 	MaxMessages *int    `json:"max_messages,omitempty"`
+}
+
+type canonicalMail struct {
+	Enabled          *bool   `json:"enabled,omitempty"`
+	Adapter          *string `json:"adapter,omitempty"`
+	Account          *string `json:"account,omitempty"`
+	Inbox            *string `json:"inbox,omitempty"`
+	BacklogEnabled   *bool   `json:"backlog_enabled,omitempty"`
+	BatchSize        *int    `json:"batch_size,omitempty"`
+	Direction        *string `json:"direction,omitempty"`
+	MarkReadPolicy   *string `json:"mark_read_policy,omitempty"`
+	AttachmentPolicy *string `json:"attachment_policy,omitempty"`
+	ActionCapability *string `json:"action_capability,omitempty"`
 }
 
 type canonicalModels struct {
@@ -202,6 +216,16 @@ type config struct {
 	BifrostMailCapabilityID           string   `json:"bifrost_mail_capability_id,omitempty"`
 	BifrostMailSchedule               string   `json:"bifrost_mail_schedule,omitempty"`
 	BifrostMailMaxMessages            int      `json:"bifrost_mail_max_messages,omitempty"`
+	MailEnabled                       bool     `json:"mail_enabled,omitempty"`
+	MailAdapter                       string   `json:"mail_adapter,omitempty"`
+	MailAccount                       string   `json:"mail_account,omitempty"`
+	MailInbox                         string   `json:"mail_inbox,omitempty"`
+	MailBacklogEnabled                bool     `json:"mail_backlog_enabled,omitempty"`
+	MailBatchSize                     int      `json:"mail_batch_size,omitempty"`
+	MailDirection                     string   `json:"mail_direction,omitempty"`
+	MailMarkReadPolicy                string   `json:"mail_mark_read_policy,omitempty"`
+	MailAttachmentPolicy              string   `json:"mail_attachment_policy,omitempty"`
+	MailActionCapabilityID            string   `json:"mail_action_capability_id,omitempty"`
 	ApolloMaxRetrievalRounds          int      `json:"apollo_max_retrieval_rounds,omitempty"`
 	ApolloMaxSources                  int      `json:"apollo_max_sources,omitempty"`
 	ApolloMaxContextBytes             int      `json:"apollo_max_context_bytes,omitempty"`
@@ -285,6 +309,7 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
+		MailEnabled: true, MailAdapter: "himalaya", MailAccount: "gmail", MailInbox: "INBOX", MailBacklogEnabled: true, MailBatchSize: 100, MailDirection: "newest_to_oldest", MailMarkReadPolicy: "standing_authority_only", MailAttachmentPolicy: "approval_required", MailActionCapabilityID: "gmail-mail-actions",
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 	}
 	sources := map[string]string{
@@ -489,6 +514,38 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 			}
 		}
 	}
+	if canonical.Mail != nil {
+		if canonical.Mail.Enabled != nil {
+			resolved.MailEnabled = *canonical.Mail.Enabled
+		}
+		if canonical.Mail.Adapter != nil {
+			resolved.MailAdapter = strings.TrimSpace(*canonical.Mail.Adapter)
+		}
+		if canonical.Mail.Account != nil {
+			resolved.MailAccount = strings.TrimSpace(*canonical.Mail.Account)
+		}
+		if canonical.Mail.Inbox != nil {
+			resolved.MailInbox = strings.TrimSpace(*canonical.Mail.Inbox)
+		}
+		if canonical.Mail.BacklogEnabled != nil {
+			resolved.MailBacklogEnabled = *canonical.Mail.BacklogEnabled
+		}
+		if canonical.Mail.BatchSize != nil {
+			resolved.MailBatchSize = *canonical.Mail.BatchSize
+		}
+		if canonical.Mail.Direction != nil {
+			resolved.MailDirection = strings.TrimSpace(*canonical.Mail.Direction)
+		}
+		if canonical.Mail.MarkReadPolicy != nil {
+			resolved.MailMarkReadPolicy = strings.TrimSpace(*canonical.Mail.MarkReadPolicy)
+		}
+		if canonical.Mail.AttachmentPolicy != nil {
+			resolved.MailAttachmentPolicy = strings.TrimSpace(*canonical.Mail.AttachmentPolicy)
+		}
+		if canonical.Mail.ActionCapability != nil {
+			resolved.MailActionCapabilityID = strings.TrimSpace(*canonical.Mail.ActionCapability)
+		}
+	}
 	if resolved.MercuryMode == "" {
 		resolved.MercuryMode = "hermes"
 	}
@@ -537,8 +594,32 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	if resolved.BifrostMailSchedule == "" {
 		resolved.BifrostMailSchedule = "hourly"
 	}
+	if resolved.MailActionCapabilityID == "" {
+		resolved.MailActionCapabilityID = "gmail-mail-actions"
+	}
 	if resolved.BifrostMailMaxMessages == 0 {
 		resolved.BifrostMailMaxMessages = 50
+	}
+	if resolved.MailAdapter == "" {
+		resolved.MailAdapter = "himalaya"
+	}
+	if resolved.MailAccount == "" {
+		resolved.MailAccount = resolved.BifrostMailAccount
+	}
+	if resolved.MailInbox == "" {
+		resolved.MailInbox = resolved.BifrostMailMailbox
+	}
+	if resolved.MailBatchSize == 0 {
+		resolved.MailBatchSize = 100
+	}
+	if resolved.MailDirection == "" {
+		resolved.MailDirection = "newest_to_oldest"
+	}
+	if resolved.MailMarkReadPolicy == "" {
+		resolved.MailMarkReadPolicy = "standing_authority_only"
+	}
+	if resolved.MailAttachmentPolicy == "" {
+		resolved.MailAttachmentPolicy = "approval_required"
 	}
 	if err := validateResolvedConfig(resolved); err != nil {
 		return configResolution{}, fmt.Errorf("configuration %s is invalid: %w", path, err)
@@ -580,6 +661,7 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
+		MailEnabled: true, MailAdapter: "himalaya", MailAccount: "gmail", MailInbox: "INBOX", MailBacklogEnabled: true, MailBatchSize: 100, MailDirection: "newest_to_oldest", MailMarkReadPolicy: "standing_authority_only", MailAttachmentPolicy: "approval_required", MailActionCapabilityID: "gmail-mail-actions",
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 		SchemaVersion: 0,
 		ListenAddress: defaultListenAddress,
@@ -699,6 +781,27 @@ func validateResolvedConfig(cfg config) error {
 	if cfg.BifrostMailMaxMessages <= 0 || cfg.BifrostMailMaxMessages > 250 {
 		return errors.New("bifrost.mail.max_messages must be between 1 and 250")
 	}
+	if cfg.MailAdapter != "himalaya" && cfg.MailAdapter != "gmail" && cfg.MailAdapter != "mcp" {
+		return errors.New("mail.adapter must be himalaya, gmail, or mcp")
+	}
+	if strings.TrimSpace(cfg.MailAccount) == "" || strings.TrimSpace(cfg.MailInbox) == "" {
+		return errors.New("mail.account and mail.inbox must be configured")
+	}
+	if cfg.MailBatchSize <= 0 || cfg.MailBatchSize > 100 {
+		return errors.New("mail.backlog.batch_size must be between 1 and 100")
+	}
+	if cfg.MailDirection != "newest_to_oldest" {
+		return errors.New("mail.backlog.direction must be newest_to_oldest")
+	}
+	if cfg.MailMarkReadPolicy != "standing_authority_only" && cfg.MailMarkReadPolicy != "never" {
+		return errors.New("mail.mark_read_policy must be standing_authority_only or never")
+	}
+	if cfg.MailAttachmentPolicy != "approval_required" {
+		return errors.New("mail.attachment_policy must be approval_required")
+	}
+	if strings.TrimSpace(cfg.MailActionCapabilityID) == "" {
+		return errors.New("mail.action_capability must be configured")
+	}
 	if cfg.RumorStabilitySeconds < 0 || cfg.RumorStabilitySeconds > 86400 {
 		return errors.New("rumor.stability_seconds must be between 0 and 86400")
 	}
@@ -742,6 +845,7 @@ func canonicalConfigFor(cfg config) canonicalConfig {
 		Rumor:   &canonicalRumor{Enabled: &cfg.RumorEnabled, WatchPaths: append([]string(nil), cfg.RumorWatchPaths...), WhisperModel: &cfg.RumorWhisperModel, Language: &cfg.RumorLanguage, RetryLimit: &cfg.RumorRetryLimit, TranscriptDestination: &cfg.RumorTranscriptDestination, OnComplete: &cfg.RumorOnComplete, StabilitySeconds: &cfg.RumorStabilitySeconds, PollSeconds: &cfg.RumorPollSeconds},
 		Mercury: &canonicalMercury{Mode: &cfg.MercuryMode, Agent: &cfg.MercuryAgent, Binary: &cfg.MercuryBinary, DeterministicFallback: &cfg.MercuryDeterministicFallback, RoundOnCronWake: &cfg.MercuryRoundOnCronWake},
 		Bifrost: &canonicalBifrost{Enabled: &cfg.BifrostEnabled, Mail: &canonicalBifrostMail{Account: &cfg.BifrostMailAccount, Mailbox: &cfg.BifrostMailMailbox, Capability: &cfg.BifrostMailCapabilityID, Schedule: &cfg.BifrostMailSchedule, MaxMessages: &cfg.BifrostMailMaxMessages}},
+		Mail:    &canonicalMail{Enabled: &cfg.MailEnabled, Adapter: &cfg.MailAdapter, Account: &cfg.MailAccount, Inbox: &cfg.MailInbox, BacklogEnabled: &cfg.MailBacklogEnabled, BatchSize: &cfg.MailBatchSize, Direction: &cfg.MailDirection, MarkReadPolicy: &cfg.MailMarkReadPolicy, AttachmentPolicy: &cfg.MailAttachmentPolicy, ActionCapability: &cfg.MailActionCapabilityID},
 		Apollo:  &canonicalApolloSettings{MaxRetrievalRounds: &cfg.ApolloMaxRetrievalRounds, MaxSources: &cfg.ApolloMaxSources, MaxContextBytes: &cfg.ApolloMaxContextBytes, MaxReasoningDurationSecs: &cfg.ApolloMaxReasoningDurationSeconds, RequireCitations: &cfg.ApolloRequireCitations, ExternalResearch: &canonicalExternalResearch{Enabled: &cfg.ApolloExternalResearchEnabled}},
 	}
 }
@@ -881,6 +985,7 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 	fmt.Fprintf(&b, "ingestion.media.converter: %s\n", displayConfigValue(cfg.MediaConverter))
 	fmt.Fprintf(&b, "bifrost.enabled: %t\n", cfg.BifrostEnabled)
 	fmt.Fprintf(&b, "bifrost.mail: account=%s mailbox=%s capability=%s schedule=%s max_messages=%d\n", cfg.BifrostMailAccount, cfg.BifrostMailMailbox, cfg.BifrostMailCapabilityID, cfg.BifrostMailSchedule, cfg.BifrostMailMaxMessages)
+	fmt.Fprintf(&b, "mail: enabled=%t adapter=%s account=%s inbox=%s backlog=%t batch_size=%d direction=%s mark_read=%s attachments=%s\n", cfg.MailEnabled, cfg.MailAdapter, cfg.MailAccount, cfg.MailInbox, cfg.MailBacklogEnabled, cfg.MailBatchSize, cfg.MailDirection, cfg.MailMarkReadPolicy, cfg.MailAttachmentPolicy)
 	rumorModel := cfg.RumorWhisperModel
 	if rumorModel == "" {
 		rumorModel = cfg.WhisperModel

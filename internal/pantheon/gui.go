@@ -192,6 +192,38 @@ func (d *daemon) guiWorkSnapshot() (guiWorkResponse, error) {
 	}
 	janusRows.Close()
 
+	mailRows, err := d.db.Query(`SELECT source_id, state, COALESCE(sender, ''), COALESCE(subject, ''), COALESCE(last_error, '') FROM mail_messages WHERE state IN (?, ?, ?, ?) ORDER BY received_at DESC, source_id DESC LIMIT 30`, mailStateUnclassified, mailStateAwaitingApollo, mailStateBlocked, mailStateFailed)
+	if err != nil {
+		return guiWorkResponse{}, err
+	}
+	for mailRows.Next() {
+		var id, state, sender, subject, lastError string
+		if err := mailRows.Scan(&id, &state, &sender, &subject, &lastError); err != nil {
+			mailRows.Close()
+			return guiWorkResponse{}, err
+		}
+		category, explanation, nextAction := "waiting", "Mail is recorded but is waiting for its explicit understanding boundary.", "Open Mail and run Check mail now when you want this message considered."
+		if state == mailStateAwaitingApollo {
+			explanation, nextAction = "Present has verified this message; local Apollo processing is pending.", "Open Mail to inspect the message and its cited Apollo result."
+		}
+		if state == mailStateBlocked || state == mailStateFailed {
+			category, explanation, nextAction = "blocked", "Mail processing retained a safety or adapter boundary: "+lastError, "Inspect Mail and the Bifrost boundary before deciding whether to retry."
+		}
+		title := strings.TrimSpace(subject)
+		if title == "" {
+			title = "Mail message " + id
+		}
+		if sender != "" {
+			title += " · from " + sender
+		}
+		appendItem(guiWorkItem{ID: id, Category: category, Title: guiBoundedText(title, 180), State: state, Explanation: guiBoundedText(explanation, 300), NextAction: nextAction, View: "mail"})
+	}
+	if err := mailRows.Err(); err != nil {
+		mailRows.Close()
+		return guiWorkResponse{}, err
+	}
+	mailRows.Close()
+
 	return guiWorkResponse{GeneratedAt: time.Now().UTC().Format(time.RFC3339Nano), Counts: counts, Items: items, Note: "These are bounded live work records. A count is only shown when Pantheon can identify the underlying proposal, order, or temporal subject."}, nil
 }
 
@@ -358,6 +390,7 @@ func (d *daemon) handleGUIConfiguration(w http.ResponseWriter, r *http.Request) 
 
 func guiConfigurationFor(cfg config, path string) guiConfigurationResponse {
 	minZero, minOne, maxOneDay, maxRetention := 0, 1, 86400, 36500
+	maxMailBatch := 100
 	return guiConfigurationResponse{
 		SchemaVersion: cfg.SchemaVersion,
 		Path:          path,
@@ -370,6 +403,14 @@ func guiConfigurationFor(cfg config, path string) guiConfigurationResponse {
 			{Key: "apollo.require_citations", Label: "Require Apollo citations", Description: "Keep material Apollo claims tied to cited evidence.", Value: cfg.ApolloRequireCitations, Default: true, Editable: true, RestartRequired: false, Safety: "significant"},
 			{Key: "mercury.deterministic_fallback", Label: "Local execution fallback", Description: "Allow exact local order execution when no optional external Mercury helper is available.", Value: cfg.MercuryDeterministicFallback, Default: true, Editable: true, RestartRequired: false, Safety: "significant"},
 			{Key: "bifrost.enabled", Label: "Bifrost capability bridge", Description: "Enable governed external-capability surfaces; individual capabilities still require their own approvals.", Value: cfg.BifrostEnabled, Default: true, Editable: true, RestartRequired: true, Safety: "restricted"},
+			{Key: "mail.enabled", Label: "Mail intelligence pipeline", Description: "Enable explicit local Gmail intake, bounded Apollo understanding, and governed proposals. No send or delete operation is implemented.", Value: cfg.MailEnabled, Default: true, Editable: true, RestartRequired: false, Safety: "significant"},
+			{Key: "mail.backlog_enabled", Label: "Mail backlog review", Description: "Allow manual Check mail now rounds to advance the durable newest-to-oldest backlog cursor.", Value: cfg.MailBacklogEnabled, Default: true, Editable: true, RestartRequired: false, Safety: "routine"},
+			{Key: "mail.batch_size", Label: "Mail backlog batch size", Description: "Maximum older messages considered per explicit round; bounded to 100.", Value: cfg.MailBatchSize, Default: 100, Min: &minOne, Max: &maxMailBatch, Editable: true, RestartRequired: false, Safety: "routine"},
+			{Key: "mail.mark_read_policy", Label: "Mail mark-read policy", Description: "Mark-read remains governed and is never implied by understanding alone.", Value: cfg.MailMarkReadPolicy, Default: "standing_authority_only", Options: []string{"standing_authority_only", "never"}, Editable: true, RestartRequired: false, Safety: "restricted"},
+			{Key: "mail.adapter", Label: "Mail adapter", Description: "Existing local Himalaya/Gmail boundary. Adapter presence does not grant permission.", Value: cfg.MailAdapter, Editable: false, RestartRequired: false, Safety: "informational"},
+			{Key: "mail.account", Label: "Mail account", Description: "Configured personal account name; credentials are omitted.", Value: cfg.MailAccount, Editable: false, RestartRequired: false, Safety: "informational"},
+			{Key: "mail.inbox", Label: "Mail inbox", Description: "Configured source mailbox for bounded intake.", Value: cfg.MailInbox, Editable: false, RestartRequired: false, Safety: "informational"},
+			{Key: "mail.action_capability", Label: "Mail action capability", Description: "Separate Bifrost capability identity for governed mark-read, label, move, and draft operations; registration and use approval remain distinct.", Value: cfg.MailActionCapabilityID, Editable: false, RestartRequired: false, Safety: "restricted"},
 			{Key: "retention.raw_input_days", Label: "Raw input retention policy", Description: "Policy duration after verified Markdown; this setting does not silently delete source material.", Value: cfg.RawInputDays, Default: 30, Min: &minOne, Max: &maxRetention, Editable: true, RestartRequired: false, Safety: "significant"},
 			{Key: "paths.vault", Label: "Vault location", Description: "Configured local continuity root used by Past and Weave.", Value: cfg.VaultPath, Editable: false, RestartRequired: true, Safety: "informational"},
 			{Key: "paths.intake", Label: "Intake location", Description: "Folder Pantheon identity-tracks for incoming occurrences.", Value: cfg.IntakePath, Editable: false, RestartRequired: true, Safety: "informational"},
@@ -500,6 +541,42 @@ func applyGUIConfigurationChange(canonical *canonicalConfig, key string, raw jso
 			canonical.Bifrost = &canonicalBifrost{}
 		}
 		canonical.Bifrost.Enabled = &value
+	case "mail.enabled":
+		value, err := decodeBool()
+		if err != nil {
+			return err
+		}
+		if canonical.Mail == nil {
+			canonical.Mail = &canonicalMail{}
+		}
+		canonical.Mail.Enabled = &value
+	case "mail.backlog_enabled":
+		value, err := decodeBool()
+		if err != nil {
+			return err
+		}
+		if canonical.Mail == nil {
+			canonical.Mail = &canonicalMail{}
+		}
+		canonical.Mail.BacklogEnabled = &value
+	case "mail.batch_size":
+		value, err := decodeInt()
+		if err != nil {
+			return err
+		}
+		if canonical.Mail == nil {
+			canonical.Mail = &canonicalMail{}
+		}
+		canonical.Mail.BatchSize = &value
+	case "mail.mark_read_policy":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Mail == nil {
+			canonical.Mail = &canonicalMail{}
+		}
+		canonical.Mail.MarkReadPolicy = &value
 	case "retention.raw_input_days":
 		value, err := decodeInt()
 		if err != nil {

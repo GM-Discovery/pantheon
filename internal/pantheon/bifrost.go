@@ -142,6 +142,7 @@ type bifrostMailIntakeRequest struct {
 	Mailbox      string `json:"mailbox,omitempty"`
 	MaxMessages  int    `json:"max_messages,omitempty"`
 	Bootstrap    bool   `json:"bootstrap,omitempty"`
+	Query        string `json:"query,omitempty"`
 }
 
 type bifrostMailIntakeResult struct {
@@ -158,6 +159,8 @@ type bifrostMailIntakeResult struct {
 	Failed              int               `json:"failed"`
 	Truncated           bool              `json:"truncated"`
 	Warnings            []string          `json:"warnings,omitempty"`
+	OldestReceivedAt    string            `json:"oldest_received_at,omitempty"`
+	NewestReceivedAt    string            `json:"newest_received_at,omitempty"`
 	IntakeScan          *intakeScanResult `json:"intake_scan,omitempty"`
 	ReceiptID           string            `json:"receipt_id,omitempty"`
 }
@@ -639,8 +642,21 @@ func (d *daemon) runHimalaya(ctx context.Context, args ...string) ([]byte, strin
 	return output, bifrostSafeError(errText), err
 }
 
-func (d *daemon) searchBifrostMail(ctx context.Context, account, mailbox string, max int, since string, bootstrap bool) ([]bifrostMailEnvelope, bool, string, error) {
+func (d *daemon) searchBifrostMail(ctx context.Context, account, mailbox string, max int, since string, bootstrap bool, requestedQuery string) ([]bifrostMailEnvelope, bool, string, error) {
 	args := []string{"--account", account, "envelope", "search", "--mailbox", mailbox, "--page", "1", "--page-size", fmt.Sprint(max), "--json"}
+	if strings.TrimSpace(requestedQuery) != "" {
+		output, errText, err := d.runHimalaya(ctx, append(args, requestedQuery)...)
+		if err != nil {
+			return nil, false, errText, err
+		}
+		var document struct {
+			Envelopes []bifrostMailEnvelope `json:"envelopes"`
+		}
+		if err := json.Unmarshal(output, &document); err != nil {
+			return nil, false, bifrostSafeError(err.Error()), bifrostGateError{Kind: bifrostFailureMalformed, Message: "Himalaya returned invalid envelope JSON"}
+		}
+		return document.Envelopes, len(document.Envelopes) >= max, "", nil
+	}
 	query := "order by date asc"
 	if !bootstrap && since != "" {
 		parsed, err := time.Parse(time.RFC3339Nano, since)
@@ -939,7 +955,7 @@ func (d *daemon) bifrostMailIntake(ctx context.Context, request bifrostMailIntak
 		return result, stateErr
 	}
 	since := state.LastSuccessAt
-	envelopes, truncated, searchError, err := d.searchBifrostMail(ctx, account, mailbox, max, since, request.Bootstrap)
+	envelopes, truncated, searchError, err := d.searchBifrostMail(ctx, account, mailbox, max, since, request.Bootstrap, request.Query)
 	if err != nil {
 		kind := bifrostFailureKind(err, searchError)
 		receipt, receiptErr := d.recordBifrostInvocation(capability.CapabilityID, "bifrost.mail.intake", capability.CapabilityID, "mail.search", bifrostOutcomeFailed, kind, "bounded mailbox search failed", searchError+" "+err.Error(), "", true)
@@ -967,6 +983,16 @@ func (d *daemon) bifrostMailIntake(ctx context.Context, request bifrostMailIntak
 			result.Warnings = append(result.Warnings, "mail envelope without a stable source identifier was blocked")
 			continue
 		}
+		received, dateErr := parseBifrostMailDate(envelope.Date)
+		if dateErr == nil {
+			receivedText := received.UTC().Format(time.RFC3339Nano)
+			if result.NewestReceivedAt == "" || receivedText > result.NewestReceivedAt {
+				result.NewestReceivedAt = receivedText
+			}
+			if result.OldestReceivedAt == "" || receivedText < result.OldestReceivedAt {
+				result.OldestReceivedAt = receivedText
+			}
+		}
 		var knownStatus, knownArtifact, knownHash string
 		if err := d.db.QueryRow(`SELECT status, COALESCE(artifact_path, ''), COALESCE(artifact_sha256, '') FROM bifrost_mail_messages WHERE source_id = ?`, sourceID).Scan(&knownStatus, &knownArtifact, &knownHash); err == nil {
 			if knownStatus == "artifact_modified" {
@@ -993,7 +1019,6 @@ func (d *daemon) bifrostMailIntake(ctx context.Context, request bifrostMailIntak
 				continue
 			}
 		}
-		received, dateErr := parseBifrostMailDate(envelope.Date)
 		if dateErr != nil {
 			result.Blocked++
 			allSucceeded = false
@@ -1075,7 +1100,7 @@ func (d *daemon) bifrostMailIntake(ctx context.Context, request bifrostMailIntak
 			return result, err
 		}
 	}
-	if allSucceeded && result.Failed == 0 && result.Blocked == 0 {
+	if strings.TrimSpace(request.Query) == "" && allSucceeded && result.Failed == 0 && result.Blocked == 0 {
 		if _, err := d.db.Exec(`UPDATE bifrost_mail_state SET last_success_at = ? WHERE account = ? AND mailbox = ?`, newest, account, mailbox); err != nil {
 			return result, err
 		}

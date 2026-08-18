@@ -253,7 +253,7 @@ Prometheus
 Father Time
     chronology
 
-Orion
+Zodiac
     recurring schedules
 
 Archimedes
@@ -623,14 +623,14 @@ One Go must not silently become unlimited execution.
 
 ---
 
-## 8.12 Orion
+## 8.12 Zodiac
 
-Orion owns recurring schedules.
+Zodiac owns recurring schedules.
 
-Orion is distinct from Father Time and Janus.
+Zodiac is distinct from Father Time and Janus.
 
 ```text
-Orion:
+Zodiac:
 "This recurring operation is due."
 
 Father Time:
@@ -648,7 +648,7 @@ Mercury:
 
 Do not turn Janus into the recurring scheduler.
 
-Orion is planned after the core usability checkpoint unless actual use demonstrates that recurring schedules are the immediate blocker.
+Zodiac is planned after the core usability checkpoint unless actual use demonstrates that recurring schedules are the immediate blocker.
 
 ---
 
@@ -785,7 +785,23 @@ Kernel 21 may build the first serious GUI against
 status, evidence, and authority boundaries without scraping implementation
 details or weakening Prometheus.
 
-## 8.20 Aphrodite — post-core software construction
+## 8.20 Kernel 22 — mail intelligence and governed action pipeline
+
+Kernel 22 is the repository-verified mail workflow. It uses the existing
+personal Gmail/Himalaya crossing through Bifrost, preserves new mail as
+`unclassified`, runs explicit new-before-backlog rounds through Intake,
+Present, Past/Weave, and local Apollo, and persists cited understanding for
+Future consumption. Mail suggestions are not authorization. Mark-read, safe
+labels, move, and non-sent drafts require the existing authority and seal
+chain plus a separate `gmail-mail-actions` Bifrost capability; send, delete,
+archive, filter creation, and attachment download remain unavailable.
+
+Kernel 22 adds no scheduler. Hermes jobs remain intact pending a separate
+human-reviewed cutover proof. The Panopticon Mail surface exposes explicit
+Check mail now, message evidence, deterministic filters, backlog state, and
+action receipts. See the [Kernel 22 reportback](reportbacks/kernel-22-mail-intelligence.md).
+
+## 8.21 Aphrodite — post-core software construction
 
 Aphrodite is a proposed software-construction intelligence. She may eventually
 work in an isolated branch or worktree to write code, tests, documentation,
@@ -1125,11 +1141,11 @@ The next kernel after 18 should be selected from actual operating friction.
 
 These are **provisional**, not automatically committed.
 
-### Orion — recurring schedules
+### Zodiac — recurring schedules
 
 Build when recurring work is the demonstrated next constraint.
 
-Orion owns recurring schedule declarations and due instances.
+Zodiac owns recurring schedule declarations and due instances.
 
 ### External plugin/provider integration
 
@@ -1303,7 +1319,7 @@ If Pantheon creates more work than it removes, simplify it.
 - Do not duplicate an existing authority system.
 - Do not make Apollo encode what a daemon can encode deterministically.
 - Do not make Future reason about what Apollo already reasoned about.
-- Do not make Janus schedule what belongs to Orion.
+- Do not make Janus schedule what belongs to Zodiac.
 - Do not make Seshat authorize what belongs to Future.
 - Do not make Mercury judge what belongs to authority.
 - Do not make Nostalgia decide what belongs to Apollo.
@@ -1400,12 +1416,14 @@ Kernel 20 — canonical reconciliation, configuration audit, and GUI preparation
         ↓
 Kernel 21 — GUI
         ↓
+Kernel 22 — manual mail intelligence and governed action proposals
+        ↓
 Aphrodite / Archimedes / post-build organism reconciliation as later horizons
 ```
 
 Likely later candidates include Aphrodite (Project Fame first, Project Purity
-later), Archimedes, Orion, additional external adapters, Zeus, Nostalgia, and
-post-build organism reconciliation. Kernel 21 must not be forced to infer
+later), Archimedes, Zodiac, additional external adapters, Zeus, Nostalgia, and
+post-build organism reconciliation. Kernel 22 must not begin Zodiac or infer
 these boundaries from historical kernel documents.
 
 They are not permission to build them automatically.

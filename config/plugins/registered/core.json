@@ -41,6 +41,62 @@
       "permission_class": "nonpublic_composed_output",
       "permission_shapes": ["once", "project", "bounded_uses"],
       "enabled": true
+    },
+    {
+      "subject_code": "MAIL:MARK_READ",
+      "version": "1.0.0",
+      "description": "Mark one exact mail message read through the configured adapter.",
+      "capability": "mail.mark_read",
+      "adapter": "gmail",
+      "required_fields": ["message_id", "mailbox"],
+      "optional_fields": [],
+      "payload_rules": {"message_id": "MESSAGE-ID", "mailbox": "MAILBOX"},
+      "returns": ["status"],
+      "permission_class": "bounded_external_action",
+      "permission_shapes": ["once", "bounded_uses", "until_revoked"],
+      "enabled": true
+    },
+    {
+      "subject_code": "MAIL:LABEL",
+      "version": "1.0.0",
+      "description": "Apply one explicit safe mail flag to one exact message.",
+      "capability": "mail.label",
+      "adapter": "gmail",
+      "required_fields": ["message_id", "mailbox", "flag"],
+      "optional_fields": [],
+      "payload_rules": {"message_id": "MESSAGE-ID", "mailbox": "MAILBOX", "flag": "FLAG"},
+      "returns": ["status"],
+      "permission_class": "bounded_external_action",
+      "permission_shapes": ["once", "bounded_uses", "until_revoked"],
+      "enabled": true
+    },
+    {
+      "subject_code": "MAIL:MOVE",
+      "version": "1.0.0",
+      "description": "Move one exact message between explicitly named mailboxes.",
+      "capability": "mail.move",
+      "adapter": "gmail",
+      "required_fields": ["message_id", "from", "to"],
+      "optional_fields": [],
+      "payload_rules": {"message_id": "MESSAGE-ID", "from": "FROM", "to": "TO"},
+      "returns": ["status"],
+      "permission_class": "bounded_external_action",
+      "permission_shapes": ["once"],
+      "enabled": true
+    },
+    {
+      "subject_code": "MAIL:DRAFT",
+      "version": "1.0.0",
+      "description": "Create a non-sent draft associated with one exact source message.",
+      "capability": "mail.draft",
+      "adapter": "gmail",
+      "required_fields": ["message_id", "mailbox", "to", "subject", "body"],
+      "optional_fields": [],
+      "payload_rules": {"message_id": "MESSAGE-ID", "mailbox": "MAILBOX", "to": "TO", "subject": "SUBJECT", "body": "body"},
+      "returns": ["status"],
+      "permission_class": "nonpublic_composed_output",
+      "permission_shapes": ["once", "bounded_uses", "until_revoked"],
+      "enabled": true
     }
   ]
 }

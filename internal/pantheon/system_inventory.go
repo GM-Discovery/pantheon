@@ -27,6 +27,7 @@ type systemWorkSummary struct {
 	Janus    map[string]any `json:"janus"`
 	Mercury  map[string]any `json:"mercury"`
 	Bifrost  map[string]any `json:"bifrost"`
+	Mail     map[string]any `json:"mail"`
 	Failures map[string]any `json:"failures"`
 }
 
@@ -74,6 +75,10 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 	if err != nil {
 		return systemInventoryResponse{}, err
 	}
+	mailSummary, err := d.systemMailSummary()
+	if err != nil {
+		return systemInventoryResponse{}, err
+	}
 	failures, err := d.systemFailureSummary()
 	if err != nil {
 		return systemInventoryResponse{}, err
@@ -115,9 +120,10 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 		{ID: "prometheus", Label: "Prometheus", Kind: "control", State: map[bool]string{true: "paused", false: "running"}[paused], Role: "emergency pause, resume, approval, and revocation", InspectionRoute: "/v1/status", Controls: []string{"pantheon prometheus protocol --pause", "pantheon prometheus protocol --resume", "pantheon prometheus protocol --hard-stop"}},
 		{ID: "rumor", Label: "Rumor", Kind: "deterministic", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.RumorEnabled], Role: "local audio stability, transcription, and Intake handoff", InspectionRoute: "/v1/rumor", Controls: []string{"POST /v1/rumor/scan", "POST /v1/rumor/transcribe"}},
 		{ID: "bifrost", Label: "Bifrost", Kind: "integration", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.BifrostEnabled], Role: "governed external-capability registry and adapters", InspectionRoute: "/v1/bifrost"},
+		{ID: "mail", Label: "Mail", Kind: "workflow", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.MailEnabled], Role: "manual bounded mail intake, understanding, backlog, and governed actions", InspectionRoute: "/v1/mail", Controls: []string{"POST /v1/mail/round"}},
 		{ID: "notifications", Label: "Notifications", Kind: "integration", State: notifyState, Role: "fixed local notification adapter", InspectionRoute: "/v1/notify", Controls: []string{"POST /v1/notify"}},
 		{ID: "archimedes", Label: "Archimedes", Kind: "reasoning", State: "deferred", Role: "future frontier reasoning boundary"},
-		{ID: "orion", Label: "Orion", Kind: "deterministic", State: "deferred", Role: "future recurring-schedule owner"},
+		{ID: "zodiac", Label: "Zodiac", Kind: "deterministic", State: "deferred", Role: "future recurring-schedule owner"},
 		{ID: "zeus", Label: "Zeus", Kind: "deterministic", State: "deferred", Role: "future explicitly identified machine-garbage sanitation"},
 	}
 
@@ -135,7 +141,7 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 			"archimedes": map[string]any{"model": d.cfg.FrontierModel, "state": "deferred", "enabled": false, "data_egress": false},
 		},
 		Components: components,
-		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Failures: failures},
+		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Mail: mailSummary, Failures: failures},
 		Security: map[string]any{
 			"control_token":          "omitted",
 			"secrets":                "omitted",
@@ -223,6 +229,31 @@ func (d *daemon) systemBifrostSummary() (map[string]any, error) {
 		counts[state]++
 	}
 	return map[string]any{"enabled": d.cfg.BifrostEnabled, "capability_counts": counts, "mail_account": d.cfg.BifrostMailAccount, "mailbox": d.cfg.BifrostMailMailbox, "mail_schedule": d.cfg.BifrostMailSchedule, "mail_max_messages": d.cfg.BifrostMailMaxMessages, "download_install_engine": false}, nil
+}
+
+func (d *daemon) systemMailSummary() (map[string]any, error) {
+	if err := initializeMailSchema(d.db); err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	rows, err := d.db.Query(`SELECT state, COUNT(*) FROM mail_messages GROUP BY state`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var state string
+		var count int
+		if err := rows.Scan(&state, &count); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		counts[state] = count
+	}
+	rowErr := rows.Err()
+	rows.Close()
+	var cursor string
+	_ = d.db.QueryRow(`SELECT COALESCE(cursor_received_at, '') FROM mail_backlog_state WHERE account = ? AND inbox = ?`, d.cfg.MailAccount, d.cfg.MailInbox).Scan(&cursor)
+	return map[string]any{"enabled": d.cfg.MailEnabled, "adapter": d.cfg.MailAdapter, "account": d.cfg.MailAccount, "inbox": d.cfg.MailInbox, "state_counts": counts, "backlog_enabled": d.cfg.MailBacklogEnabled, "backlog_batch_size": d.cfg.MailBatchSize, "backlog_cursor": cursor, "mark_read_policy": d.cfg.MailMarkReadPolicy, "attachment_policy": d.cfg.MailAttachmentPolicy}, rowErr
 }
 
 func (d *daemon) systemFailureSummary() (map[string]any, error) {

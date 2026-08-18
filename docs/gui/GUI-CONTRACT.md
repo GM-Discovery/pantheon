@@ -40,6 +40,7 @@ authorization to mutate anything.
 | Prometheus | **Pause Pantheon**, Resume, blocked activity, approvals | `/v1/status`, grants, Future, audit | Emergency controls with unmistakable confirmation; hard stop remains terminal/service-manager only |
 | Intake | Incoming items, source, identity, processing state, warnings | `/v1/intake`, `/v1/present` | scan/process; never overwrite protected artifacts |
 | Rumor | Audio watch, queue, transcription attempts, failures, raw retention | `/v1/rumor*`, processors | scan, transcribe, retry, ignore; local-only |
+| Mail | recorded messages, Apollo understanding, backlog, deterministic filters, and governed action receipts | `/v1/gui/mail*`, `/v1/mail*` | inspect; explicit Check mail now; disable a deterministic filter |
 | Bifrost | capabilities, installation/presence, approvals, enablement, receipts, mail crossing | `/v1/bifrost*` | inspect/register/enable/disable; external use is Restricted |
 | Models | Apollo local model, endpoint locality, citation policy, future Archimedes state | inventory, `/v1/apollo`, config | inspect/change config; frontier access stays disabled |
 | Notifications | adapter health, destination label, recent failures | inventory, audit | send only through the fixed audited adapter |
@@ -48,8 +49,8 @@ authorization to mutate anything.
 | System | service/runtime health, logs/audit, version/build, diagnostics | systemd + inventory + audit | inspect and diagnostics; no hidden service mutation |
 
 The implemented human-facing navigation is Home, Ingestion / Understanding,
-Execution / Capabilities, Approvals, Notifications, Intake, Rumor, Bifrost,
-Models, Configuration, and System. Home puts the notification banner, Radio
+Execution / Capabilities, Approvals, Notifications, Intake, Rumor, Mail,
+Bifrost, Models, Configuration, and System. Home puts the notification banner, Radio
 Prometheus, current work, component cells, and the live Father Time watch
 first. Father Time is displayed as a watch, not as an occupant or scheduler.
 
@@ -68,6 +69,12 @@ GET  /v1/gui/notifications
 POST /v1/gui/prometheus/pause|resume
 POST /v1/gui/rumor/scan
 POST /v1/gui/rumor/sources/{id}/retry|ignore
+GET  /v1/gui/mail
+GET  /v1/gui/mail/messages[/{id}]
+GET  /v1/gui/mail/rules
+GET  /v1/gui/mail/actions
+POST /v1/gui/mail/round
+POST /v1/gui/mail/rules/{id}/disable
 POST /v1/gui/bifrost/capabilities/{id}/enable|disable
 ```
 
