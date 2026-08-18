@@ -94,6 +94,26 @@ labels, moves, and non-sent drafts require the separate `gmail-mail-actions`
 Bifrost capability plus exact authority and Mercury sealing. Send, delete,
 archive, filter creation, and attachment download are unavailable.
 
+## Zodiac schedules
+
+Kernel 23 adds the deterministic schedule keeper. Zodiac remembers explicit
+obligations and recurring system work; it does not interpret natural language,
+create grants, or silently install calendar connectors.
+
+```text
+pantheon show zodiac
+pantheon zodiac today
+pantheon zodiac upcoming
+pantheon zodiac needs-you
+pantheon zodiac round
+```
+
+Declare an explicit schedule with `pantheon zodiac schedule --name ...
+--kind ... --start ... --action ...`. Due consequential work enters Future and
+then Mercury. Apple/Google projection state is visible through Zodiac, but
+actual provider writes require an approved Bifrost adapter. Human edits are
+preserved and incompatible provider corrections become Needs You.
+
 ## Inspect the organism
 
 ```text

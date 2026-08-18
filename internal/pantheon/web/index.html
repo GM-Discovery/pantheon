@@ -21,6 +21,7 @@
         <button class="nav-item" data-view="intake">Intake</button>
         <button class="nav-item" data-view="rumor">Rumor</button>
         <button class="nav-item" data-view="mail">Mail</button>
+        <button class="nav-item" data-view="zodiac">Zodiac</button>
         <p class="nav-label">Act</p>
         <button class="nav-item" data-view="execution">Execution / Capabilities</button>
         <button class="nav-item" data-view="approvals">Approvals</button>
@@ -75,6 +76,14 @@
         <section class="panel"><div class="panel-title"><div><h2>Messages</h2><p class="muted">Select a message to inspect its understanding, evidence, uncertainty, and any merely suggested action.</p></div><span id="mail-message-count" class="muted">—</span></div><div id="mail-messages" class="mail-list"></div></section>
         <section class="panel"><div class="panel-title"><div><h2>Deterministic filters</h2><p class="muted">A rejection rule bypasses Apollo while retaining the message and its provenance.</p></div><span id="mail-rule-count" class="muted">—</span></div><div id="mail-rules" class="mail-rules"></div></section>
         <section class="panel"><div class="panel-title"><div><h2>Governed mailbox actions</h2><p class="muted">Receipts show what was proposed or executed. Drafts are non-sent; send and delete are unavailable.</p></div></div><div id="mail-actions" class="mail-actions"></div></section>
+      </section>
+
+      <section class="view" data-panel="zodiac">
+        <div class="page-heading"><div><p class="eyebrow">OPERATE / REMEMBER</p><h1>Zodiac</h1><p class="lede">What is supposed to happen when. Zodiac stores explicit schedules, recurrence, due instances, and exceptions; Future still owns authority and Mercury still executes.</p></div><div class="button-row"><button id="zodiac-round" class="button">Evaluate now</button><button id="zodiac-refresh" class="button quiet">Refresh</button></div></div>
+        <section class="panel"><div class="panel-title"><div><h2>Today</h2><p class="muted">A durable view of commitments and internal work. External calendar writes remain behind approved Bifrost adapters.</p></div><span id="zodiac-state" class="state-chip unknown">unknown</span></div><div id="zodiac-today" class="zodiac-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Needs You</h2><p class="muted">Zodiac does not guess through ambiguity, conflict, missing authority, or unavailable providers.</p></div><span id="zodiac-needs-count" class="muted">—</span></div><div id="zodiac-needs" class="zodiac-list"></div></section>
+        <section class="panel"><div class="panel-title"><h2>Recurring declarations</h2><span class="tag">deterministic</span></div><div id="zodiac-recurring" class="zodiac-list"></div></section>
+        <section class="panel"><div class="panel-title"><h2>Calendar projection health</h2><span class="tag">Bifrost</span></div><div id="zodiac-providers" class="zodiac-provider-grid"></div></section>
       </section>
 
       <section class="view" data-panel="bifrost"><div class="page-heading"><div><p class="eyebrow">ACT / GOVERNED BRIDGE</p><h1>Bifrost</h1><p class="lede">Capability cards show registration, approval, and enablement as separate states.</p></div></div><section class="panel"><div class="panel-title"><h2>Capabilities</h2><div class="button-row"><span id="capability-state" class="state-chip">unknown</span><span class="tag">no marketplace</span></div></div><div id="capabilities" class="capability-list"></div></section></section>

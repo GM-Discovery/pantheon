@@ -85,6 +85,34 @@
       "enabled": true
     },
     {
+      "subject_code": "ZODIAC:MAIL_ROUND",
+      "version": "1.0.0",
+      "description": "Run one bounded Pantheon mail round when Zodiac makes an explicit due instance.",
+      "capability": "mail.round",
+      "adapter": "pantheon",
+      "required_fields": ["zodiac_instance_id", "zodiac_schedule_id", "action"],
+      "optional_fields": [],
+      "returns": ["run_id", "status"],
+      "permission_class": "bounded_local_or_external_read",
+      "permission_shapes": ["once", "bounded_uses", "until_revoked"],
+      "temporal": {"mode": "scheduled", "missed_policy": "recompute", "pause_policy": "hold"},
+      "enabled": true
+    },
+    {
+      "subject_code": "ZODIAC:BRIEF",
+      "version": "1.0.0",
+      "description": "Represent the bounded Situation Brief operation owned by the Pantheon briefing pipeline.",
+      "capability": "brief.generate",
+      "adapter": "pantheon",
+      "required_fields": ["zodiac_instance_id", "zodiac_schedule_id", "action"],
+      "optional_fields": [],
+      "returns": ["status"],
+      "permission_class": "bounded_local_output",
+      "permission_shapes": ["once", "bounded_uses"],
+      "temporal": {"mode": "scheduled", "missed_policy": "recompute", "pause_policy": "hold"},
+      "enabled": true
+    },
+    {
       "subject_code": "MAIL:DRAFT",
       "version": "1.0.0",
       "description": "Create a non-sent draft associated with one exact source message.",

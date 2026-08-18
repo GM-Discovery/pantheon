@@ -99,6 +99,7 @@ var seshatAvailableAdapters = map[string]bool{
 	"noop":         true,
 	"present":      true,
 	"gmail":        true,
+	"pantheon":     true,
 }
 
 func newSeshatRegistry(dir string) (*seshatRegistry, error) {

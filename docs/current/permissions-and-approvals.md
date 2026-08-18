@@ -1,7 +1,7 @@
 ---
 type: canonical-permission-inventory
 status: active
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Permission and Approval Inventory
@@ -33,6 +33,8 @@ grant, a grant is not a seal, and a seal is not a completed result.
 | Future authority | existing grants and Prometheus/person referral | Future cannot create authority from reasoning | `pantheon show future`, grants |
 | notifications | local control/policy/audit | pause blocks delivery; fixed helper only | audit and `/v1/notify` |
 | email actions | separate Kernel 22 capability identity | mark-read, safe label, move, and non-sent draft require exact Future/Mercury order plus `gmail-mail-actions` Bifrost approval; send/delete/archive/filter creation/download remain unavailable | `pantheon show mail`, Bifrost capabilities/invocations |
+| Zodiac due work | Zodiac registry plus Future/Mercury | a due instance is not authority; scheduled mail creates a Future proposal, and Prometheus can block it; external calendar writes require an approved provider capability | `pantheon show zodiac`, Future, Mercury, Bifrost |
+| calendar projection | Bifrost capability record and projection registry | Apple/Google presence is not permission; human edits are corrections, conflicts become Needs You, and no connector is installed automatically | `pantheon show zodiac`, `pantheon bifrost list` |
 | frontier model access | configuration placeholder only | disabled; Archimedes is not implemented | `pantheon show config`, inventory |
 | self-change | policy declaration | human-readable intent, diff, and explicit human approval required | `config/policy.yaml` |
 

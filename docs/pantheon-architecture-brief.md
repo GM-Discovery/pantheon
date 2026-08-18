@@ -118,6 +118,12 @@ understanding and governed action proposals while preserving a separate
 read-only capability identity. It does not add autonomous software
 acquisition or outbound mail authority.
 
+Kernel 23 adds Zodiac as the deterministic application scheduler: it stores
+explicit obligations, recurrence, due instances, dependencies, catch-up
+policy, and provider-neutral calendar projections, then hands consequential
+work into Future. It does not install calendar connectors or create outbound
+authority.
+
 Future currently administers authority deterministically. A later active-state
 engine may organize longer-lived obligations and dependencies, but that does
 not turn Future into a second Apollo.
@@ -127,9 +133,9 @@ not turn Future into a second Apollo.
 - **Rumor** — Kernel 18 deterministic local Whisper orchestration. Rumor makes
   audio into durable, provenance-bearing transcript evidence and hands it to
   Intake. Rumor does not interpret, summarize, prioritize, or authorize.
-- **Zodiac** — later recurring-schedule owner. Father Time answers what time it
-  is; Janus applies thresholds; Zodiac owns recurring declarations and due
-  instances.
+- **Zodiac** — Kernel 23 deterministic recurring-schedule owner. Father Time
+  answers what time it is; Janus applies thresholds; Zodiac owns explicit
+  declarations, due instances, catch-up, Needs You, and calendar projections.
 - **Archimedes** — later frontier-reasoning boundary with curated,
   privacy-minimized outbound context. It is not Apollo and receives no direct
   authority or unrestricted Vault access.
@@ -148,9 +154,10 @@ not turn Future into a second Apollo.
   inspectable events.
 
 These concepts are named responsibility boundaries, not permission to begin
-their implementation automatically. Kernel 22 adds no scheduler; Zodiac, the
-recurring-schedule owner, remains deferred. Aphrodite, Archimedes, and Zeus
-remain deferred as well.
+their implementation automatically. Kernel 23 implements Zodiac's local
+deterministic core. Real Apple/Google adapters, Hermes cutover, and the full
+brief delivery path remain explicit acceptance work. Aphrodite, Archimedes,
+and Zeus remain deferred.
 
 ## Documentation entry points
 

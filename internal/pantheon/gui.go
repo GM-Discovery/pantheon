@@ -224,6 +224,37 @@ func (d *daemon) guiWorkSnapshot() (guiWorkResponse, error) {
 	}
 	mailRows.Close()
 
+	zodiacRows, err := d.db.Query(`SELECT i.instance_id, i.state, s.name, i.due_at, COALESCE(i.last_error, '') FROM zodiac_instances i JOIN zodiac_schedules s ON s.id = i.schedule_id WHERE i.state NOT IN (?, ?) ORDER BY i.due_at, i.instance_id LIMIT 30`, zodiacInstanceCompleted, zodiacInstanceSkipped)
+	if err != nil {
+		return guiWorkResponse{}, err
+	}
+	for zodiacRows.Next() {
+		var id, state, name, dueAt, lastError string
+		if err := zodiacRows.Scan(&id, &state, &name, &dueAt, &lastError); err != nil {
+			zodiacRows.Close()
+			return guiWorkResponse{}, err
+		}
+		category, explanation, nextAction := "upcoming", "Zodiac has a durable schedule declaration for this time.", "Open Zodiac to inspect the declaration and due-instance policy."
+		switch state {
+		case zodiacInstanceNeedsYou:
+			category, explanation, nextAction = "needs_attention", "Zodiac will not guess through an ambiguous schedule, missing authority, or provider boundary.", "Open Zodiac Needs You and resolve the stated exception."
+		case zodiacInstanceBlockedPrometheus, zodiacInstanceFailed:
+			category, explanation, nextAction = "blocked", "Zodiac retained a temporal or execution boundary: "+lastError, "Open Zodiac and inspect the boundary before deciding whether to run another round."
+		case zodiacInstanceWaiting:
+			category, explanation, nextAction = "waiting", "This schedule is waiting on its declared dependency.", "Open Zodiac to inspect the dependency state."
+		case zodiacInstanceAwaitingAuthority:
+			category, explanation, nextAction = "needs_grant", "This due schedule is waiting for Future authority; due state is not permission.", "Open Future/Approvals and review the exact authority request."
+		case zodiacInstanceDispatched:
+			category, explanation, nextAction = "active", "Mercury has a bounded order associated with this due instance.", "Inspect the exact order and its result."
+		}
+		appendItem(guiWorkItem{ID: id, Category: category, Title: guiBoundedText(name+" · due "+dueAt, 180), State: state, Explanation: guiBoundedText(explanation, 300), NextAction: nextAction, View: "zodiac"})
+	}
+	if err := zodiacRows.Err(); err != nil {
+		zodiacRows.Close()
+		return guiWorkResponse{}, err
+	}
+	zodiacRows.Close()
+
 	return guiWorkResponse{GeneratedAt: time.Now().UTC().Format(time.RFC3339Nano), Counts: counts, Items: items, Note: "These are bounded live work records. A count is only shown when Pantheon can identify the underlying proposal, order, or temporal subject."}, nil
 }
 
@@ -396,6 +427,15 @@ func guiConfigurationFor(cfg config, path string) guiConfigurationResponse {
 		Path:          path,
 		Secrets:       "omitted",
 		Fields: []guiConfigField{
+			{Key: "zodiac.enabled", Label: "Zodiac schedule keeper", Description: "Run the persisted deterministic schedule keeper. Zodiac evaluates explicit time and recurrence only; it does not reason or create authority.", Value: cfg.ZodiacEnabled, Default: true, Editable: true, RestartRequired: true, Safety: "significant"},
+			{Key: "zodiac.default_timezone", Label: "Zodiac timezone", Description: "Canonical timezone for human schedules and recurrence evaluation.", Value: cfg.ZodiacDefaultTimezone, Default: "America/Los_Angeles", Editable: true, RestartRequired: false, Safety: "significant"},
+			{Key: "zodiac.personal_projection", Label: "Personal calendar projection", Description: "Provider-neutral policy for personal/family obligations. Presence is not permission.", Value: cfg.ZodiacPersonalProjection, Default: "apple", Options: []string{"apple", "google", "both", "none"}, Editable: true, RestartRequired: false, Safety: "restricted"},
+			{Key: "zodiac.work_projection", Label: "Work calendar projection", Description: "Provider-neutral policy for work obligations. Actual writes require an approved Bifrost adapter.", Value: cfg.ZodiacWorkProjection, Default: "google", Options: []string{"apple", "google", "both", "none"}, Editable: true, RestartRequired: false, Safety: "restricted"},
+			{Key: "zodiac.work_hours_start", Label: "Work hours start", Description: "Configurable local boundary used to surface after-hours work impact.", Value: cfg.ZodiacWorkHoursStart, Default: "09:00", Editable: true, RestartRequired: false, Safety: "routine"},
+			{Key: "zodiac.work_hours_end", Label: "Work hours end", Description: "Configurable local boundary used to surface after-hours work impact.", Value: cfg.ZodiacWorkHoursEnd, Default: "17:00", Editable: true, RestartRequired: false, Safety: "routine"},
+			{Key: "zodiac.brief_time", Label: "Situation Brief time", Description: "The local daily time at which Zodiac creates the Situation Brief due instance; Zodiac does not compose it.", Value: cfg.ZodiacBriefTime, Default: "07:00", Editable: true, RestartRequired: false, Safety: "significant"},
+			{Key: "zodiac.brief_catch_up_policy", Label: "Brief catch-up policy", Description: "Explicit recovery policy for a missed daily brief.", Value: cfg.ZodiacBriefCatchUpPolicy, Default: "run_once", Options: []string{"skip", "run_once", "reconcile", "needs_you"}, Editable: true, RestartRequired: false, Safety: "significant"},
+			{Key: "zodiac.wake_seconds", Label: "Zodiac wake interval", Description: "How often Zodiac checks persisted declarations; it never wakes every millisecond.", Value: cfg.ZodiacWakeSeconds, Default: 30, Min: &minOne, Max: &maxOneDay, Editable: true, RestartRequired: true, Safety: "routine"},
 			{Key: "rumor.enabled", Label: "Rumor audio intake", Description: "Allow the local audio boundary to watch configured folders and process due recordings.", Value: cfg.RumorEnabled, Default: false, Editable: true, RestartRequired: true, Safety: "routine"},
 			{Key: "rumor.poll_seconds", Label: "Rumor check interval", Description: "How often Rumor checks configured audio locations.", Value: cfg.RumorPollSeconds, Default: 5, Min: &minOne, Max: &maxOneDay, Editable: true, RestartRequired: true, Safety: "routine"},
 			{Key: "rumor.stability_seconds", Label: "Recording stability wait", Description: "How long a file must remain unchanged before Rumor processes it.", Value: cfg.RumorStabilitySeconds, Default: 2, Min: &minZero, Max: &maxOneDay, Editable: true, RestartRequired: false, Safety: "routine"},
@@ -478,6 +518,87 @@ func applyGUIConfigurationChange(canonical *canonicalConfig, key string, raw jso
 		return strings.TrimSpace(value), nil
 	}
 	switch key {
+	case "zodiac.enabled":
+		value, err := decodeBool()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.Enabled = &value
+	case "zodiac.default_timezone":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.DefaultTimezone = &value
+	case "zodiac.personal_projection":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.PersonalProjection = &value
+	case "zodiac.work_projection":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.WorkProjection = &value
+	case "zodiac.work_hours_start":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.WorkHoursStart = &value
+	case "zodiac.work_hours_end":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.WorkHoursEnd = &value
+	case "zodiac.brief_time":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.BriefTime = &value
+	case "zodiac.brief_catch_up_policy":
+		value, err := decodeString()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.BriefCatchUpPolicy = &value
+	case "zodiac.wake_seconds":
+		value, err := decodeInt()
+		if err != nil {
+			return err
+		}
+		if canonical.Zodiac == nil {
+			canonical.Zodiac = &canonicalZodiac{}
+		}
+		canonical.Zodiac.WakeSeconds = &value
 	case "rumor.enabled":
 		value, err := decodeBool()
 		if err != nil {
@@ -647,7 +768,7 @@ func (d *daemon) handleGUIConfigurationApply(w http.ResponseWriter, r *http.Requ
 
 func guiChangesRequireRestart(changed []string) bool {
 	for _, key := range changed {
-		if key == "rumor.enabled" || key == "rumor.poll_seconds" || key == "rumor.language" || key == "bifrost.enabled" {
+		if key == "rumor.enabled" || key == "rumor.poll_seconds" || key == "rumor.language" || key == "bifrost.enabled" || key == "zodiac.enabled" || key == "zodiac.wake_seconds" {
 			return true
 		}
 	}

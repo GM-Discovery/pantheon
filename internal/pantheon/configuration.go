@@ -41,6 +41,7 @@ type canonicalConfig struct {
 	Mercury       *canonicalMercury        `json:"mercury,omitempty"`
 	Bifrost       *canonicalBifrost        `json:"bifrost,omitempty"`
 	Mail          *canonicalMail           `json:"mail,omitempty"`
+	Zodiac        *canonicalZodiac         `json:"zodiac,omitempty"`
 	Prometheus    map[string]any           `json:"prometheus,omitempty"`
 	Notifications map[string]any           `json:"notifications,omitempty"`
 	Zeus          map[string]any           `json:"zeus,omitempty"`
@@ -135,6 +136,19 @@ type canonicalMail struct {
 	ActionCapability *string `json:"action_capability,omitempty"`
 }
 
+type canonicalZodiac struct {
+	Enabled            *bool   `json:"enabled,omitempty"`
+	DefaultTimezone    *string `json:"default_timezone,omitempty"`
+	PersonalProjection *string `json:"personal_projection,omitempty"`
+	WorkProjection     *string `json:"work_projection,omitempty"`
+	WorkHoursStart     *string `json:"work_hours_start,omitempty"`
+	WorkHoursEnd       *string `json:"work_hours_end,omitempty"`
+	BriefTime          *string `json:"brief_time,omitempty"`
+	BriefCatchUpPolicy *string `json:"brief_catch_up_policy,omitempty"`
+	ConflictPolicy     *string `json:"conflict_policy,omitempty"`
+	WakeSeconds        *int    `json:"wake_seconds,omitempty"`
+}
+
 type canonicalModels struct {
 	Apollo     *canonicalApollo     `json:"apollo,omitempty"`
 	Archimedes *canonicalArchimedes `json:"archimedes,omitempty"`
@@ -226,6 +240,16 @@ type config struct {
 	MailMarkReadPolicy                string   `json:"mail_mark_read_policy,omitempty"`
 	MailAttachmentPolicy              string   `json:"mail_attachment_policy,omitempty"`
 	MailActionCapabilityID            string   `json:"mail_action_capability_id,omitempty"`
+	ZodiacEnabled                     bool     `json:"zodiac_enabled,omitempty"`
+	ZodiacDefaultTimezone             string   `json:"zodiac_default_timezone,omitempty"`
+	ZodiacPersonalProjection          string   `json:"zodiac_personal_projection,omitempty"`
+	ZodiacWorkProjection              string   `json:"zodiac_work_projection,omitempty"`
+	ZodiacWorkHoursStart              string   `json:"zodiac_work_hours_start,omitempty"`
+	ZodiacWorkHoursEnd                string   `json:"zodiac_work_hours_end,omitempty"`
+	ZodiacBriefTime                   string   `json:"zodiac_brief_time,omitempty"`
+	ZodiacBriefCatchUpPolicy          string   `json:"zodiac_brief_catch_up_policy,omitempty"`
+	ZodiacConflictPolicy              string   `json:"zodiac_conflict_policy,omitempty"`
+	ZodiacWakeSeconds                 int      `json:"zodiac_wake_seconds,omitempty"`
 	ApolloMaxRetrievalRounds          int      `json:"apollo_max_retrieval_rounds,omitempty"`
 	ApolloMaxSources                  int      `json:"apollo_max_sources,omitempty"`
 	ApolloMaxContextBytes             int      `json:"apollo_max_context_bytes,omitempty"`
@@ -310,6 +334,7 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
 		MailEnabled: true, MailAdapter: "himalaya", MailAccount: "gmail", MailInbox: "INBOX", MailBacklogEnabled: true, MailBatchSize: 100, MailDirection: "newest_to_oldest", MailMarkReadPolicy: "standing_authority_only", MailAttachmentPolicy: "approval_required", MailActionCapabilityID: "gmail-mail-actions",
+		ZodiacEnabled: true, ZodiacDefaultTimezone: "America/Los_Angeles", ZodiacPersonalProjection: "apple", ZodiacWorkProjection: "google", ZodiacWorkHoursStart: "09:00", ZodiacWorkHoursEnd: "17:00", ZodiacBriefTime: "07:00", ZodiacBriefCatchUpPolicy: "run_once", ZodiacConflictPolicy: "needs_you", ZodiacWakeSeconds: 30,
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 	}
 	sources := map[string]string{
@@ -546,6 +571,38 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 			resolved.MailActionCapabilityID = strings.TrimSpace(*canonical.Mail.ActionCapability)
 		}
 	}
+	if canonical.Zodiac != nil {
+		if canonical.Zodiac.Enabled != nil {
+			resolved.ZodiacEnabled = *canonical.Zodiac.Enabled
+		}
+		if canonical.Zodiac.DefaultTimezone != nil {
+			resolved.ZodiacDefaultTimezone = strings.TrimSpace(*canonical.Zodiac.DefaultTimezone)
+		}
+		if canonical.Zodiac.PersonalProjection != nil {
+			resolved.ZodiacPersonalProjection = strings.TrimSpace(*canonical.Zodiac.PersonalProjection)
+		}
+		if canonical.Zodiac.WorkProjection != nil {
+			resolved.ZodiacWorkProjection = strings.TrimSpace(*canonical.Zodiac.WorkProjection)
+		}
+		if canonical.Zodiac.WorkHoursStart != nil {
+			resolved.ZodiacWorkHoursStart = strings.TrimSpace(*canonical.Zodiac.WorkHoursStart)
+		}
+		if canonical.Zodiac.WorkHoursEnd != nil {
+			resolved.ZodiacWorkHoursEnd = strings.TrimSpace(*canonical.Zodiac.WorkHoursEnd)
+		}
+		if canonical.Zodiac.BriefTime != nil {
+			resolved.ZodiacBriefTime = strings.TrimSpace(*canonical.Zodiac.BriefTime)
+		}
+		if canonical.Zodiac.BriefCatchUpPolicy != nil {
+			resolved.ZodiacBriefCatchUpPolicy = strings.TrimSpace(*canonical.Zodiac.BriefCatchUpPolicy)
+		}
+		if canonical.Zodiac.ConflictPolicy != nil {
+			resolved.ZodiacConflictPolicy = strings.TrimSpace(*canonical.Zodiac.ConflictPolicy)
+		}
+		if canonical.Zodiac.WakeSeconds != nil {
+			resolved.ZodiacWakeSeconds = *canonical.Zodiac.WakeSeconds
+		}
+	}
 	if resolved.MercuryMode == "" {
 		resolved.MercuryMode = "hermes"
 	}
@@ -621,6 +678,33 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	if resolved.MailAttachmentPolicy == "" {
 		resolved.MailAttachmentPolicy = "approval_required"
 	}
+	if resolved.ZodiacDefaultTimezone == "" {
+		resolved.ZodiacDefaultTimezone = "America/Los_Angeles"
+	}
+	if resolved.ZodiacPersonalProjection == "" {
+		resolved.ZodiacPersonalProjection = "apple"
+	}
+	if resolved.ZodiacWorkProjection == "" {
+		resolved.ZodiacWorkProjection = "google"
+	}
+	if resolved.ZodiacWorkHoursStart == "" {
+		resolved.ZodiacWorkHoursStart = "09:00"
+	}
+	if resolved.ZodiacWorkHoursEnd == "" {
+		resolved.ZodiacWorkHoursEnd = "17:00"
+	}
+	if resolved.ZodiacBriefTime == "" {
+		resolved.ZodiacBriefTime = "07:00"
+	}
+	if resolved.ZodiacBriefCatchUpPolicy == "" {
+		resolved.ZodiacBriefCatchUpPolicy = "run_once"
+	}
+	if resolved.ZodiacConflictPolicy == "" {
+		resolved.ZodiacConflictPolicy = "needs_you"
+	}
+	if resolved.ZodiacWakeSeconds == 0 {
+		resolved.ZodiacWakeSeconds = 30
+	}
 	if err := validateResolvedConfig(resolved); err != nil {
 		return configResolution{}, fmt.Errorf("configuration %s is invalid: %w", path, err)
 	}
@@ -662,6 +746,7 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
 		MailEnabled: true, MailAdapter: "himalaya", MailAccount: "gmail", MailInbox: "INBOX", MailBacklogEnabled: true, MailBatchSize: 100, MailDirection: "newest_to_oldest", MailMarkReadPolicy: "standing_authority_only", MailAttachmentPolicy: "approval_required", MailActionCapabilityID: "gmail-mail-actions",
+		ZodiacEnabled: true, ZodiacDefaultTimezone: "America/Los_Angeles", ZodiacPersonalProjection: "apple", ZodiacWorkProjection: "google", ZodiacWorkHoursStart: "09:00", ZodiacWorkHoursEnd: "17:00", ZodiacBriefTime: "07:00", ZodiacBriefCatchUpPolicy: "run_once", ZodiacConflictPolicy: "needs_you", ZodiacWakeSeconds: 30,
 		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 		SchemaVersion: 0,
 		ListenAddress: defaultListenAddress,
@@ -731,6 +816,31 @@ func validateResolvedConfig(cfg config) error {
 		if _, err := time.LoadLocation(strings.TrimSpace(cfg.Timezone)); err != nil {
 			return fmt.Errorf("time.timezone is invalid: %w", err)
 		}
+	}
+	if strings.TrimSpace(cfg.ZodiacDefaultTimezone) == "" {
+		return errors.New("zodiac.default_timezone is required")
+	}
+	if _, err := time.LoadLocation(strings.TrimSpace(cfg.ZodiacDefaultTimezone)); err != nil {
+		return fmt.Errorf("zodiac.default_timezone is invalid: %w", err)
+	}
+	for field, value := range map[string]string{"zodiac.personal_projection": cfg.ZodiacPersonalProjection, "zodiac.work_projection": cfg.ZodiacWorkProjection} {
+		if value != "apple" && value != "google" && value != "both" && value != "none" {
+			return fmt.Errorf("%s must be apple, google, both, or none", field)
+		}
+	}
+	for field, value := range map[string]string{"zodiac.work_hours_start": cfg.ZodiacWorkHoursStart, "zodiac.work_hours_end": cfg.ZodiacWorkHoursEnd, "zodiac.brief_time": cfg.ZodiacBriefTime} {
+		if _, err := time.Parse("15:04", value); err != nil {
+			return fmt.Errorf("%s must use HH:MM: %w", field, err)
+		}
+	}
+	if cfg.ZodiacBriefCatchUpPolicy != "skip" && cfg.ZodiacBriefCatchUpPolicy != "run_once" && cfg.ZodiacBriefCatchUpPolicy != "reconcile" && cfg.ZodiacBriefCatchUpPolicy != "needs_you" {
+		return errors.New("zodiac.brief_catch_up_policy must be skip, run_once, reconcile, or needs_you")
+	}
+	if cfg.ZodiacConflictPolicy != "needs_you" {
+		return errors.New("zodiac.conflict_policy must remain needs_you until an explicit deterministic policy exists")
+	}
+	if cfg.ZodiacWakeSeconds < 5 || cfg.ZodiacWakeSeconds > 86400 {
+		return errors.New("zodiac.wake_seconds must be between 5 and 86400")
 	}
 	for field, value := range map[string]string{"paths.vault": cfg.VaultPath, "paths.roadmap": cfg.RoadmapPath, "paths.intake": cfg.IntakePath, "paths.father_time_chronicles": cfg.FatherTimeChroniclesPath, "paths.raw": cfg.RawPath, "paths.apollo_reports": cfg.ApolloReportsPath, "ingestion.whisper.binary": cfg.WhisperBinary, "ingestion.media.converter": cfg.MediaConverter} {
 		if value == "" {

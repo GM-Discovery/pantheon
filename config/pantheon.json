@@ -88,5 +88,17 @@
     "mark_read_policy": "standing_authority_only",
     "attachment_policy": "approval_required",
     "action_capability": "gmail-mail-actions"
+  },
+  "zodiac": {
+    "enabled": true,
+    "default_timezone": "America/Los_Angeles",
+    "personal_projection": "apple",
+    "work_projection": "google",
+    "work_hours_start": "09:00",
+    "work_hours_end": "17:00",
+    "brief_time": "07:00",
+    "brief_catch_up_policy": "run_once",
+    "conflict_policy": "needs_you",
+    "wake_seconds": 30
   }
 }

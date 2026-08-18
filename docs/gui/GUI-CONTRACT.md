@@ -1,7 +1,7 @@
 ---
 type: gui-readiness-contract
 status: active
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Pantheon GUI Contract
@@ -41,16 +41,17 @@ authorization to mutate anything.
 | Intake | Incoming items, source, identity, processing state, warnings | `/v1/intake`, `/v1/present` | scan/process; never overwrite protected artifacts |
 | Rumor | Audio watch, queue, transcription attempts, failures, raw retention | `/v1/rumor*`, processors | scan, transcribe, retry, ignore; local-only |
 | Mail | recorded messages, Apollo understanding, backlog, deterministic filters, and governed action receipts | `/v1/gui/mail*`, `/v1/mail*` | inspect; explicit Check mail now; disable a deterministic filter |
+| Zodiac | Today, recurring declarations, due instances, Needs You, provider health, projections, and correction state | `/v1/gui/zodiac*`, `/v1/zodiac*` | inspect; evaluate explicitly; declare/disable schedules through the local control boundary; reconcile approved provider results |
 | Bifrost | capabilities, installation/presence, approvals, enablement, receipts, mail crossing | `/v1/bifrost*` | inspect/register/enable/disable; external use is Restricted |
 | Models | Apollo local model, endpoint locality, citation policy, future Archimedes state | inventory, `/v1/apollo`, config | inspect/change config; frontier access stays disabled |
 | Notifications | adapter health, destination label, recent failures | inventory, audit | send only through the fixed audited adapter |
 | Work | proposals, temporal subjects, seals, Go, results | Future, Janus, Mercury, orders | inspect; execute only exact authorized work |
-| Configuration | meaningful paths, models, budgets, Rumor, Mercury, Bifrost, retention | `pantheon show config`, config inventory | edit only typed validated settings; risk class visible |
+| Configuration | meaningful paths, models, budgets, Rumor, Mercury, Bifrost, Zodiac, retention | `pantheon show config`, config inventory | edit only typed validated settings; risk class visible |
 | System | service/runtime health, logs/audit, version/build, diagnostics | systemd + inventory + audit | inspect and diagnostics; no hidden service mutation |
 
 The implemented human-facing navigation is Home, Ingestion / Understanding,
-Execution / Capabilities, Approvals, Notifications, Intake, Rumor, Mail,
-Bifrost, Models, Configuration, and System. Home puts the notification banner, Radio
+Intake, Rumor, Mail, Zodiac, Execution / Capabilities, Approvals,
+Notifications, Bifrost, Models, Configuration, and System. Home puts the notification banner, Radio
 Prometheus, current work, component cells, and the live Father Time watch
 first. Father Time is displayed as a watch, not as an occupant or scheduler.
 
@@ -75,6 +76,13 @@ GET  /v1/gui/mail/rules
 GET  /v1/gui/mail/actions
 POST /v1/gui/mail/round
 POST /v1/gui/mail/rules/{id}/disable
+GET  /v1/gui/zodiac
+GET  /v1/gui/zodiac/today|upcoming|needs-you
+POST /v1/gui/zodiac/round
+POST /v1/gui/zodiac/schedules
+POST /v1/gui/zodiac/schedules/{id}/disable
+POST /v1/gui/zodiac/attestations
+POST /v1/gui/zodiac/projections/{id}/reconcile
 POST /v1/gui/bifrost/capabilities/{id}/enable|disable
 ```
 

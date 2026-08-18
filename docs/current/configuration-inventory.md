@@ -1,7 +1,7 @@
 ---
 type: canonical-configuration-inventory
 status: active
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Configuration Inventory
@@ -53,6 +53,15 @@ configured path from a default.
 | `mail.backlog_enabled` / `batch_size` / `direction` | Manual backlog policy | `true` / `100` / `newest_to_oldest` | batch `1..100`; direction fixed | no | routine bounded processing |
 | `mail.mark_read_policy` / `attachment_policy` | Mail safety policy | `standing_authority_only` / `approval_required` | mark-read `standing_authority_only` or `never`; attachments approval-required | no | restricted; understanding never implies authority |
 | `mail.action_capability` | Separate Bifrost write-capability identity | `gmail-mail-actions` | non-empty capability ID; separately registered and approved | no | restricted; presence is not permission |
+| `zodiac.enabled` | Run the deterministic schedule keeper | `true` | boolean; no language reasoning or authority creation | yes | significant; Prometheus and Future still apply |
+| `zodiac.default_timezone` | Human schedule timezone | `America/Los_Angeles` | valid IANA timezone | no | significant |
+| `zodiac.personal_projection` | Personal/family calendar policy | `apple` | `apple`, `google`, `both`, or `none` | no | restricted policy; adapter approval remains separate |
+| `zodiac.work_projection` | Work calendar policy | `google` | `apple`, `google`, `both`, or `none` | no | restricted policy; adapter approval remains separate |
+| `zodiac.work_hours_start` / `work_hours_end` | Ordinary work-hour boundary | `09:00` / `17:00` | local `HH:MM` | no | routine policy |
+| `zodiac.brief_time` | Situation Brief due time | `07:00` | local `HH:MM`; Zodiac does not compose prose | no | significant schedule policy |
+| `zodiac.brief_catch_up_policy` | Missed daily brief behavior | `run_once` | `skip`, `run_once`, `reconcile`, or `needs_you` | no | significant |
+| `zodiac.conflict_policy` | Calendar conflict behavior | `needs_you` | fixed until an explicit deterministic rule exists | no | restricted safety boundary |
+| `zodiac.wake_seconds` | Internal schedule evaluation interval | `30` | bounded `5..86400` seconds | yes | routine |
 
 ## Reserved or informational namespaces
 
@@ -60,8 +69,9 @@ The typed schema preserves `meta`, `present`, `past`, `weave`, `future`,
 `prometheus`, `notifications`, `zeus`, `panopticon`, `setup`, and `organs` so
 future kernels have stable names. Their presence does not activate behavior.
 There is no active operator setting for live transcription, plugins as an
-autonomous installer, Archimedes network access, Zeus sanitation, or Zodiac
-recurring schedules.
+autonomous installer, Archimedes network access, or Zeus sanitation. Zodiac
+settings activate deterministic scheduling only; they do not install calendar
+connectors or grant external write authority.
 
 ## Safe configuration contract
 

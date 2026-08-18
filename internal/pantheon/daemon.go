@@ -46,6 +46,8 @@ type daemon struct {
 	configMu     sync.Mutex
 	rumorMu      sync.Mutex
 	guiMu        sync.Mutex
+	zodiacMu     sync.Mutex
+	zodiacClock  func() time.Time
 	guiSessions  map[string]time.Time
 }
 
@@ -238,6 +240,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeZodiacSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -248,7 +254,12 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, fmt.Errorf("load Seshat registry: %w", err)
 	}
-	return &daemon{cfg: cfg, capabilities: caps, db: db, databasePath: opts.DatabasePath, configPath: opts.ConfigPath, controlToken: controlToken, seshat: seshat, guiSessions: map[string]time.Time{}}, nil
+	d := &daemon{cfg: cfg, capabilities: caps, db: db, databasePath: opts.DatabasePath, configPath: opts.ConfigPath, controlToken: controlToken, seshat: seshat, guiSessions: map[string]time.Time{}}
+	if err := d.ensureZodiacDefaults(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return d, nil
 }
 
 func loadOrCreateControlToken(path string) (string, error) {
@@ -301,6 +312,15 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/gui/mail/actions", d.handleMailActionReceipts)
 	mux.HandleFunc("POST /v1/gui/mail/round", d.handleGUIMailRound)
 	mux.HandleFunc("POST /v1/gui/mail/rules/{id}/disable", d.handleGUIDisableMailRule)
+	mux.HandleFunc("GET /v1/gui/zodiac", d.handleShowZodiac)
+	mux.HandleFunc("GET /v1/gui/zodiac/today", d.handleZodiacToday)
+	mux.HandleFunc("GET /v1/gui/zodiac/upcoming", d.handleZodiacUpcoming)
+	mux.HandleFunc("GET /v1/gui/zodiac/needs-you", d.handleZodiacNeedsYou)
+	mux.HandleFunc("POST /v1/gui/zodiac/round", d.handleZodiacRound)
+	mux.HandleFunc("POST /v1/gui/zodiac/schedules", d.handleCreateZodiacSchedule)
+	mux.HandleFunc("POST /v1/gui/zodiac/schedules/{id}/disable", d.handleDisableZodiacSchedule)
+	mux.HandleFunc("POST /v1/gui/zodiac/attestations", d.handleZodiacAttestation)
+	mux.HandleFunc("POST /v1/gui/zodiac/projections/{id}/reconcile", d.handleZodiacProjectionReconcile)
 	mux.HandleFunc("GET /v1/status", d.handleStatus)
 	mux.HandleFunc("GET /v1/system/inventory", d.handleSystemInventory)
 	mux.HandleFunc("POST /v1/intake/scan", d.handleIntakeScan)
@@ -386,6 +406,16 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/mail/messages/{id}", d.handleShowMailMessage)
 	mux.HandleFunc("GET /v1/mail/rules", d.handleShowMailRules)
 	mux.HandleFunc("POST /v1/mail/rules/{id}/disable", d.handleDisableMailRule)
+	mux.HandleFunc("GET /v1/zodiac", d.handleShowZodiac)
+	mux.HandleFunc("GET /v1/zodiac/today", d.handleZodiacToday)
+	mux.HandleFunc("GET /v1/zodiac/upcoming", d.handleZodiacUpcoming)
+	mux.HandleFunc("GET /v1/zodiac/needs-you", d.handleZodiacNeedsYou)
+	mux.HandleFunc("POST /v1/zodiac/round", d.handleZodiacRound)
+	mux.HandleFunc("POST /v1/zodiac/schedules", d.handleCreateZodiacSchedule)
+	mux.HandleFunc("GET /v1/zodiac/schedules/{id}", d.handleShowZodiacSchedule)
+	mux.HandleFunc("POST /v1/zodiac/schedules/{id}/disable", d.handleDisableZodiacSchedule)
+	mux.HandleFunc("POST /v1/zodiac/attestations", d.handleZodiacAttestation)
+	mux.HandleFunc("POST /v1/zodiac/projections/{id}/reconcile", d.handleZodiacProjectionReconcile)
 	mux.HandleFunc("GET /v1/mail/actions", d.handleMailActionReceipts)
 	mux.HandleFunc("POST /v1/vault/connections", d.handleVaultConnections)
 	mux.HandleFunc("POST /v1/weave/retrieve", d.handleWeaveRetrieve)

@@ -19,7 +19,7 @@ Rumor establishes durable audio transcript evidence but does not interpret it. P
 
 Hermes moves approved messages and actions between nodes. Hermes does not establish policy. Mercury carries the normalized package after authority has been resolved.
 
-Father Time owns chronology. Janus applies only the temporal threshold rules declared by Seshat; Janus does not schedule recurring work, reason about importance, grant authority, issue Go, or invoke tools. Orion remains the reserved owner of recurring schedules.
+Father Time owns chronology. Janus applies only the temporal threshold rules declared by Seshat; Janus does not schedule recurring work, reason about importance, grant authority, issue Go, or invoke tools. Zodiac owns explicit recurring declarations, due instances, catch-up policy, and provider-neutral calendar projection state.
 
 Future is currently a deterministic authority-signing boundary, not a planning or reasoning engine. The Kernel 17 integration handoff supplies it with Seshat package identity, capability, scope, adapter, payload, provenance, and any Janus subject reference. Future consumes existing Kernel 13 grants, creates no new grant registry or cryptography, refers insufficient authority to Prometheus or the person, and seals an exact order only when an active Future grant and temporal eligibility are present. Mercury transports and records that order; Future does not issue Go, invoke tools, or interpret Apollo’s conclusions. Future’s later active-state consumer remains a subsequent kernel boundary.
 

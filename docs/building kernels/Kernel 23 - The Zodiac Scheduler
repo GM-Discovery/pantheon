@@ -1,0 +1,1919 @@
+Kernel 23 — Zodiac: Deterministic Schedule Keeper
+0. Mandate
+
+Build Zodiac, Pantheon’s deterministic schedule keeper.
+
+Zodiac owns:
+
+What is supposed to happen when.
+
+It does not decide what matters.
+
+It does not interpret natural language.
+
+It does not reason about intent.
+
+It does not replace Father Time, Janus, Apollo, Google Calendar, Apple Calendar, or the operating system.
+
+It receives explicit schedule/obligation declarations, maintains recurrence and due state, reconciles external calendar projections, generates due instances, detects conflicts, and hands consequential work into the existing Pantheon authority path.
+
+Kernel 22 established the mail/intelligence pipeline and prepares temporal proposals.
+
+Kernel 23 makes those proposals durable obligations instead of prose somebody has to remember.
+
+1. Constitutional Status
+
+No constitutional amendment is intended.
+
+Preserve the existing foundational distinction:
+
+Intelligence is not authority.
+
+Models reason. Daemons perform narrow roles. Pantheon authorizes.
+
+Zodiac is deterministic machinery.
+
+It may evaluate explicit rules such as:
+
+every day at 07:00
+every hour
+after event X
+if no reply by Friday
+not before Monday
+due August 31
+
+It must not interpret:
+
+“I should probably get around to that next week.”
+
+That interpretation belongs to Apollo or another appropriate reasoning component before Zodiac receives anything.
+
+2. Responsibility Boundary
+
+Lock the temporal responsibilities as follows:
+
+Father Time
+    What time is it?
+    When did something happen?
+    Chronology / temporal evidence
+
+Janus
+    Has a defined temporal threshold or transition occurred?
+
+Zodiac
+    What is supposed to happen when?
+    What recurring declaration exists?
+    What due instance now exists?
+    What obligation is waiting on another event?
+    What calendar projection corresponds to it?
+
+The active architecture previously reserved a future recurring-schedule owner. Kernel 23 makes that responsibility real under the name Zodiac.
+
+Do not turn Father Time into a scheduler.
+
+Do not turn Janus into a scheduler.
+
+3. Zodiac Is Not a Reasoning Agent
+
+Do not give Zodiac an LLM.
+
+Do not give Zodiac semantic discretion.
+
+Its inputs should already contain normalized declarations such as:
+
+title
+source
+schedule type
+start
+end
+timezone
+recurrence
+deadline
+dependency
+catch-up policy
+projection target
+authority state
+
+When meaning is unclear:
+
+Needs You
+
+is a valid deterministic state.
+
+4. Canonical Schedule Truth
+
+Zodiac maintains Pantheon’s canonical internal representation of obligations and recurring work.
+
+External calendars are projections, not the sole source of truth.
+
+Conceptually:
+
+                Apple Calendar
+                      ↑
+                      |
+source → Apollo → Zodiac ←→ calendar projection registry
+                      |
+                      ↓
+                Google Calendar
+
+A Zodiac item may project to:
+
+Apple Calendar;
+Google Calendar;
+both;
+neither.
+
+Do not require every Zodiac schedule to exist in an external calendar.
+
+System jobs such as hourly mail processing may belong only to Zodiac.
+
+5. Calendar Provider Independence
+
+Do not architect Zodiac around Google Calendar.
+
+Do not architect it around Apple Calendar.
+
+Create a provider-neutral calendar projection contract behind Bifrost.
+
+Semantic operations should be capable of representing:
+
+calendar.list
+calendar.read
+calendar.create
+calendar.update
+calendar.cancel
+calendar.reconcile
+calendar.availability
+
+Use whatever actual adapters are available and approved.
+
+Possible implementations may include:
+
+Google Calendar API/MCP;
+Apple/iCloud CalDAV;
+local calendar bridge;
+another provider/plugin.
+
+Do not install/download any new connector without Grant’s explicit approval.
+
+Bifrost’s established rule remains:
+
+Presence is not permission.
+
+6. Apple Calendar Is the Primary Personal Projection
+
+For Grant’s current operating model:
+
+Personal / Family → Apple Calendar
+Work              → Google Calendar
+
+Apple Calendar is the primary projection for personal/family life because that is the calendar ecosystem used by Grant’s household.
+
+Google Calendar is primarily the work projection.
+
+Do not encode this as an unchangeable universal assumption.
+
+Make it configurable policy.
+
+7. Projection Classification
+
+Apollo may propose a schedule domain such as:
+
+personal
+family
+work
+cross-domain
+unknown
+
+Zodiac applies the configured projection policy.
+
+Initial intended behavior:
+
+personal → Apple
+family   → Apple
+work     → Google
+unknown  → Needs You
+
+A work event outside ordinary work hours that Grant has agreed to attend should receive special attention because it affects personal/family time.
+
+This does not necessarily mean duplicate it automatically.
+
+It means Zodiac should surface the cross-domain consequence and determine whether dual projection is warranted under explicit/learned policy.
+
+8. Dual Projection
+
+A single Zodiac item may project to multiple calendars.
+
+Example:
+
+Work conference
+Tuesday 18:30–21:00
+
+Potential result:
+
+Google Work Calendar → work event
+Apple Family Calendar → household-impact projection
+
+Do not create two independent obligations.
+
+Both external events should reference one Zodiac item.
+
+Persist each provider’s event identifier separately.
+
+9. External Projection Registry
+
+For each external projection preserve at minimum:
+
+zodiac_item_id
+provider
+account/calendar
+external_event_id
+projection_role
+created_at
+last_synced_at
+last_seen_external_revision
+status
+
+This enables reconciliation without duplicate creation.
+
+Do not depend on title/time matching alone once an external event ID is known.
+
+10. Human Calendar Edits Are Corrections
+
+If Grant or another authorized human edits a projected calendar event directly in Apple or Google Calendar, treat that as evidence of a human correction, not as provider drift to overwrite automatically.
+
+Zodiac should ingest and reconcile that edit.
+
+General precedence:
+
+human edit > prior Pantheon-generated projection
+
+Do not automatically “repair” the human’s calendar back to what Pantheon originally wrote.
+
+11. Conflicting Human Corrections
+
+If two external projections of the same Zodiac obligation receive incompatible human edits:
+
+Apple: Thursday 2 PM
+Google: Thursday 4 PM
+
+Zodiac shall not choose a winner based solely on:
+
+latest timestamp;
+provider preference;
+alphabetical order;
+arbitrary synchronization direction.
+
+State:
+
+Needs You
+
+Preserve both revisions and explain the conflict.
+
+12. Calendar Authority by Event Class
+
+Zodiac may learn explicit deterministic policies such as:
+
+family medical → Apple authoritative
+MFPI work meetings → Google authoritative
+work events outside work hours → dual visibility / attention
+
+Learning here means:
+
+a human-approved explicit rule is created from observed corrections.
+
+It does not mean opaque statistical self-modification.
+
+The rule must be inspectable and reversible.
+
+13. Schedule Types
+
+Support at minimum:
+
+one-time event
+one-time reminder
+deadline
+recurring event
+recurring system job
+conditional reminder
+follow-up
+dependency
+date-only obligation
+daypart obligation
+
+Do not force all schedules into calendar-event semantics.
+
+14. Exact Times
+
+Support timezone-aware exact times.
+
+Example:
+
+2026-08-19 14:00 America/Los_Angeles
+
+Store canonical timezone information.
+
+Do not rely solely on UTC display.
+
+15. Date-Only Obligations
+
+Support obligations such as:
+
+“Due Friday.”
+
+Do not invent a clock time unless policy supplies one.
+
+Represent:
+
+date = 2026-08-21
+time = null
+precision = date
+
+Zodiac may later trigger reminders according to explicit notification policy.
+
+16. Dayparts
+
+Support normalized dayparts such as:
+
+morning
+afternoon
+evening
+
+Where Apollo converts natural language into a representative time, preserve the original precision and wording.
+
+Do not silently pretend:
+
+Friday afternoon
+
+means:
+
+Friday at exactly 3:00 PM
+
+even if 3:00 PM is used operationally as a reminder anchor.
+
+17. Recurrence
+
+Support useful recurrence patterns including:
+
+hourly
+daily
+weekdays
+weekly
+every N weeks
+monthly
+specific weekdays
+annual
+bounded recurrence
+until date
+N occurrences
+
+Use a standard recurrence representation where practical.
+
+Do not invent a custom recurrence language if iCalendar RRULE or an equally established format satisfies the contract.
+
+18. Catch-Up Policy
+
+Every recurring schedule owns an explicit catch-up policy.
+
+Do not implement one universal missed-job behavior.
+
+Support at least:
+
+skip
+
+Missed occurrence remains missed.
+
+run_once
+
+After recovery, create one current due instance.
+
+reconcile
+
+Inspect the current source/state and perform enough work to become current.
+
+Examples:
+
+hourly mail intake → reconcile
+daily briefing     → configured policy
+backup              → run_once
+historical reminder → skip or explicit policy
+
+Persist this per schedule.
+
+19. No Replay Avalanche
+
+After Pantheon has been offline:
+
+missed hourly mail × 13 hours
+
+must not automatically become:
+
+13 independent mail runs
+
+when the correct policy is reconciliation.
+
+Generate due work according to the schedule’s catch-up policy.
+
+20. Due Instances
+
+Separate the recurring declaration from individual occurrences.
+
+Example:
+
+Schedule:
+Mail intake every hour
+
+Instances:
+2026-08-18 09:00
+2026-08-18 10:00
+2026-08-18 11:00
+
+Each due instance should have its own lifecycle:
+
+pending
+due
+dispatched
+completed
+failed
+skipped
+blocked
+Needs You
+
+Do not mutate the recurrence declaration into a pseudo-job-history blob.
+
+21. Idempotence
+
+Each due instance needs a stable identity.
+
+Repeated Zodiac evaluation must not generate duplicate work for the same occurrence.
+
+External calendar projection also must not generate duplicate events merely because reconciliation ran twice.
+
+22. Source Provenance
+
+Every schedule/obligation should retain where it came from.
+
+Examples:
+
+human GUI creation
+mail message
+transcript
+calendar import
+Pantheon system declaration
+Apollo recommendation
+legacy Hermes schedule
+configuration migration
+
+Preserve source citations.
+
+23. Request Attestation
+
+When Apollo concludes that Grant requested a scheduled action from a transcript or other source, require a structured attestation packet.
+
+Example:
+
+claim: Grant requested a calendar action
+source_id: transcript-2026-08-18
+speaker: Grant
+citation:
+  start: 00:42:17
+  end: 00:42:29
+quoted_span: "Put that on my calendar for Thursday at two."
+confidence: 0.97
+
+normalized:
+  action: calendar.create
+  title: ...
+  start: ...
+  timezone: America/Los_Angeles
+
+Apollo supplies the semantic judgment.
+
+A deterministic attestation stage verifies source integrity.
+
+24. Deterministic Attestation
+
+The attestation checker may verify:
+
+source exists;
+source fingerprint/version matches;
+cited span exists;
+quotation matches cited source;
+timestamps/line references are valid;
+attributed speaker matches available deterministic diarization/speaker metadata;
+Apollo did not fabricate or materially alter the quoted text;
+normalized temporal values are mechanically consistent where checkable.
+
+The checker does not decide:
+
+Did Grant truly intend this?
+
+That is semantic interpretation.
+
+Do not create another reasoning daemon merely to second-guess Apollo.
+
+25. Elevated Priority for Direct Human Requests
+
+If:
+
+Apollo identifies an explicit Grant request;
+the source citation passes deterministic attestation;
+confidence is sufficient under policy;
+
+then the resulting Zodiac proposal receives elevated priority as:
+
+person_requested
+
+This does not bypass authority.
+
+It does mean the system should treat the obligation as unusually important and surface ambiguity rather than quietly discarding it.
+
+26. Ambiguous Requests
+
+If Apollo finds:
+
+“Maybe remind me about that sometime Friday.”
+
+preserve:
+
+semantic request: likely
+precision: ambiguous
+confidence: ...
+source wording: ...
+
+Zodiac should normally place this in:
+
+Needs You
+
+if executing the wrong interpretation would matter.
+
+Do not force certainty to improve automation statistics.
+
+27. Needs You
+
+Needs You is a first-class Zodiac state.
+
+Use it for:
+
+ambiguous time/date;
+unknown calendar target;
+calendar conflict;
+conflicting external human corrections;
+insufficient authority;
+unclear recurrence;
+uncertain participant;
+consequential schedule interpretation.
+
+This should be visible prominently in Panopticon.
+
+28. Dependencies
+
+Support simple deterministic dependencies.
+
+Examples:
+
+after_event
+after_reply
+if_no_reply_by
+not_before
+not_after
+after_completion
+
+The natural-language interpretation belongs upstream.
+
+Zodiac stores an explicit condition.
+
+29. Conditional Follow-Up Example
+
+Source:
+
+“If Sarah hasn’t replied by Friday, remind me.”
+
+Apollo produces:
+
+type: conditional_reminder
+condition:
+  kind: no_reply
+  correspondence_ref: ...
+deadline:
+  date: ...
+action:
+  kind: reminder
+
+Zodiac evaluates the deterministic condition.
+
+It does not reinterpret the original sentence every hour.
+
+30. Dependency Resolution
+
+A dependency may reference another Pantheon entity using stable identifiers.
+
+Avoid brittle text comparisons such as:
+
+if subject contains "Sarah"
+
+when a stable thread/person/work identifier exists.
+
+If the referenced source cannot be evaluated reliably:
+
+Needs You
+
+rather than guessing.
+
+31. Calendar Availability
+
+Where approved adapters expose availability/free-busy information, Zodiac may use it as deterministic evidence for conflict detection.
+
+It may determine:
+
+candidate time conflicts
+candidate time is free
+
+It must not decide that a conflicting event is expendable.
+
+32. Conflict Detection
+
+Detect:
+
+event overlaps
+deadline collision where policy defines one
+cross-domain work/personal collision
+dual-projection divergence
+
+Do not auto-resolve consequential conflicts.
+
+Use:
+
+Needs You
+
+unless a deterministic human-approved policy already resolves that exact class.
+
+33. Work Outside Work Hours
+
+Create a configurable rule for work events that fall outside ordinary work hours.
+
+When Grant has agreed to attend such an event:
+
+elevate attention;
+recognize personal/family impact;
+consider Apple-family visibility according to projection policy;
+surface the event rather than letting it remain silently work-only.
+
+Do not assume all after-hours work events belong on both calendars.
+
+Learn explicit rules from human decisions.
+
+34. External Calendar Ingestion
+
+Zodiac should ingest relevant external calendar state from both approved providers.
+
+At minimum retrieve enough to:
+
+reconcile Pantheon-created events;
+detect human edits;
+detect external additions;
+detect conflicts;
+preserve external event IDs;
+determine projection health.
+
+Do not ingest unnecessary historical calendar content merely because the API permits it.
+
+35. External Events Not Created by Pantheon
+
+An event created manually in Apple or Google Calendar may become a Zodiac obligation.
+
+Mark provenance:
+
+external_human_created
+
+Do not require Apollo analysis merely to preserve an explicit structured calendar event.
+
+Apollo may be involved later if semantic interpretation is useful.
+
+36. Calendar Deletion
+
+If a human deletes a Pantheon-projected event externally:
+
+do not recreate it automatically on the next sync.
+
+Treat deletion as a human correction unless evidence strongly indicates provider failure.
+
+Update Zodiac state accordingly or place the reconciliation into Needs You if another projection conflicts.
+
+37. Calendar Notifications
+
+External calendar projection should make useful use of the provider/device notification ecosystem.
+
+For Apple Calendar, preserve/configure reminders so household devices behave normally.
+
+For Google Calendar, preserve/configure reminders appropriate to work.
+
+Default to the target calendar’s established reminder behavior unless:
+
+the source explicitly specifies a reminder;
+a human-approved Zodiac rule specifies another behavior.
+
+Do not create duplicate Pantheon notifications for every external calendar reminder.
+
+38. Pantheon Notifications
+
+Zodiac may also route important schedule state through Pantheon’s existing notification system.
+
+Examples:
+
+conflict;
+Needs You;
+failed projection;
+deadline approaching with unresolved approval;
+schedule processing failure.
+
+Zodiac does not create a new notification channel.
+
+39. System Schedules
+
+Zodiac owns recurring Pantheon application-level schedules.
+
+Initial migration candidates:
+
+hourly mail processing
+daily 7:00 AM Situation Brief
+daily transcript processing
+notification/reminder evaluation
+
+Do not blindly migrate OS lifecycle work.
+
+40. Hourly Mail
+
+Create a first-class Zodiac schedule for Kernel 22’s mail round.
+
+Conceptually:
+
+name: Mail Intake
+recurrence: hourly
+catch_up: reconcile
+action: pantheon.mail.round
+
+The exact execution contract should call the bounded Pantheon operation.
+
+Do not invoke Hermes.
+
+41. Situation Brief
+
+Create a flagship Zodiac schedule:
+
+Grant's Situation Brief
+07:00 America/Los_Angeles
+daily
+
+The brief should trigger Pantheon’s briefing pipeline, not Hermes/Terra’s.
+
+Zodiac owns when it becomes due.
+
+It does not write the brief.
+
+Apollo and the appropriate Pantheon information path own reasoning/composition.
+
+Delivery occurs through an authorized external communication capability.
+
+42. Morning Brief Catch-Up
+
+Choose and document an explicit catch-up policy.
+
+Recommended initial behavior:
+
+short delay after 07:00 → run_once
+significantly stale later in day → Needs You or skip according to configured threshold
+
+Do not send three morning briefs after downtime.
+
+Make the stale threshold configurable.
+
+43. Transcript Processing
+
+Create a Zodiac schedule only if the current Rumor workflow has a real scheduled action worth owning.
+
+Do not invent transcript schedules unsupported by actual Rumor behavior.
+
+Potential action:
+
+process accumulated recordings / transcription queue
+
+if Kernel 18/21 surfaces support it.
+
+44. One-Time Reminders
+
+Zodiac owns one-time reminders too.
+
+Do not create a separate reminder engine.
+
+A reminder is a schedule with one due instance.
+
+45. Internal vs External Scheduling
+
+Some Zodiac items should never project to external calendars.
+
+Examples:
+
+mail poll
+backup-like Pantheon operation
+transcript processing
+internal review cycle
+
+Distinguish:
+
+internal schedule
+human calendar obligation
+both
+46. Systemd Boundary
+
+Systemd remains responsible for OS/process lifecycle where appropriate:
+
+start Pantheon
+restart Pantheon after failure
+boot activation
+
+Zodiac should not replace systemd.
+
+The established daemon already runs under the user systemd boundary.
+
+Application-level recurrence belongs to Zodiac.
+
+47. Transition from Cron/Hermes
+
+Do not cut over every schedule simultaneously without evidence.
+
+For applicable legacy Hermes cron jobs:
+
+inventory existing schedule;
+create equivalent Zodiac declaration;
+overlap read-only/non-conflicting observation where safe for approximately 1–2 days;
+compare actual runs/results;
+ensure no duplicate consequential delivery;
+pause the replaced Hermes job;
+verify paused state;
+preserve rollback.
+
+Do not uninstall Hermes yet.
+
+48. Avoid Duplicate Briefs
+
+During overlap, never allow both Hermes and Zodiac/Pantheon to email the same daily brief.
+
+Use shadow execution or disable external delivery on one side.
+
+A double-send is a failed cutover, not harmless duplication.
+
+49. Zodiac Registry
+
+Persist schedules in a deterministic registry/database.
+
+Each declaration should contain at least:
+
+id
+name
+kind
+owner/component
+source/provenance
+enabled
+timezone
+start/date
+duration/end where applicable
+recurrence
+catch_up_policy
+projection_policy
+priority
+authority requirement
+dependency
+created_at
+updated_at
+
+Avoid embedding arbitrary executable shell commands as the schedule action.
+
+Use declared Pantheon operations/capabilities.
+
+50. Schedule Actions
+
+A schedule action should refer to a bounded operation such as:
+
+mail.round
+brief.generate
+rumor.process
+notification.evaluate
+calendar.reminder
+
+Do not store:
+
+rm ...
+curl ...
+python arbitrary-script.py
+
+as a universal Zodiac execution interface.
+
+Zodiac is not cron with better branding.
+
+51. Authority at Due Time
+
+A schedule declaration does not necessarily guarantee the consequential operation is authorized forever.
+
+At due time:
+
+Zodiac due instance
+        ↓
+normal authority path
+        ↓
+Future
+        ↓
+Mercury
+        ↓
+Bifrost/local deterministic capability
+
+Use standing authority where explicitly granted.
+
+If authority is missing:
+
+Needs You
+
+or an approval state.
+
+Do not silently fail and mark complete.
+
+52. Prometheus
+
+Prometheus governs Zodiac-triggered execution.
+
+If Pantheon is paused:
+
+Zodiac may calculate time/state;
+it must not dispatch new consequential autonomous work;
+due instances should become appropriately blocked/deferred according to policy;
+resume must not automatically replay everything.
+
+Apply each schedule’s catch-up policy after resume.
+
+53. Father Time Integration
+
+Use Father Time for authoritative temporal evidence where current architecture supplies it.
+
+Zodiac should not maintain a competing sense of current time.
+
+Father Time may supply:
+
+now
+timezone
+chronological stamps
+
+Zodiac supplies schedule interpretation against that time.
+
+54. Janus Integration
+
+Use Janus where an explicit threshold transition is meaningful.
+
+Example:
+
+waiting → overdue
+
+or:
+
+not_before crossed
+
+Do not route every clock tick through Janus merely for architectural purity.
+
+Use it where its established threshold semantics apply.
+
+55. Apollo Integration
+
+Apollo may propose:
+
+new schedule;
+meeting;
+deadline;
+reminder;
+recurrence;
+dependency;
+calendar domain;
+schedule modification.
+
+Apollo may not directly write Zodiac’s canonical registry unless the normal proposal/authority path authorizes that operation.
+
+56. Correction Learning
+
+When Grant resolves a Needs You item, preserve the resolution as evidence.
+
+Where a repeated deterministic policy becomes clear, propose an explicit rule.
+
+Example:
+
+All MFPI events before 17:00 → Google only
+MFPI events after 17:00 that I accept → Google + Apple family visibility
+
+Do not silently generalize from one correction.
+
+57. Panopticon — Zodiac Surface
+
+Add a Zodiac surface to Panopticon.
+
+The point is not to make Grant become his own calendar clerk through a prettier interface.
+
+The surface should emphasize:
+
+What Zodiac believes I am committed to
+What Zodiac added for me
+What needs my decision
+What conflicts
+What is overdue
+What is waiting on something else
+What it learned from my corrections
+
+Calendar-grid display is optional.
+
+Delegation is primary.
+
+58. Panopticon — Today
+
+Provide a human-readable Today view showing:
+
+commitments;
+reminders;
+due internal Pantheon jobs when relevant;
+conflicts;
+items needing Grant;
+significant after-hours work;
+completed/failed scheduled work.
+
+Do not flood it with hourly background-job noise when everything is healthy.
+
+59. Panopticon — Upcoming
+
+Provide useful upcoming visibility.
+
+Avoid reproducing a full commercial calendar application unless needed.
+
+Show enough to understand near-future obligations and conflicts.
+
+60. Panopticon — Recurring
+
+Show recurring declarations such as:
+
+Mail Intake — hourly
+Situation Brief — daily 7:00 AM
+...
+
+Include:
+
+next due;
+last result;
+catch-up policy;
+enabled state;
+source;
+projection behavior where applicable.
+61. Panopticon — Needs You
+
+Make this a strong operational queue.
+
+Examples:
+
+Which calendar should this use?
+Apple and Google disagree about this event.
+Apollo found a likely request but the time is ambiguous.
+This meeting conflicts with another commitment.
+This schedule needs permission before execution.
+
+Provide consequence-based choices.
+
+62. Panopticon — External Calendar Health
+
+Show simple status for:
+
+Apple Calendar
+Google Calendar
+
+such as:
+
+Connected
+Last synced
+Healthy / degraded
+Account/calendar identity
+Pending conflict
+
+Do not display credentials.
+
+63. Panopticon — Human Corrections
+
+Where useful, show:
+
+Changed by you in Apple Calendar.
+
+or:
+
+Google Calendar differs from Zodiac.
+
+Do not make humans inspect provider revision metadata to understand what happened.
+
+64. Father Time Watch
+
+The existing Father Time watch remains part of Panopticon.
+
+Zodiac should enrich, not replace, it.
+
+Where tasteful, the watch may show:
+
+next scheduled obligation
+temporally blocked count
+
+without turning the watch into a full Zodiac interface.
+
+Father Time remains architecturally distinct.
+
+65. Calendar Creation from Mail
+
+Kernel 22 may emit a meeting proposal.
+
+Kernel 23 should complete the path.
+
+Example:
+
+email
+→ Apollo meeting interpretation
+→ attested evidence
+→ Zodiac proposal
+→ Needs You / standing authority
+→ Future
+→ Mercury
+→ Bifrost
+→ Apple or Google calendar
+→ external event ID returned
+→ Zodiac projection registry
+
+Prove this end-to-end.
+
+66. Calendar Creation from Transcript
+
+Prove at least one controlled or real request path:
+
+Grant speech
+→ Rumor transcript
+→ Present
+→ Apollo
+→ cited request
+→ deterministic attestation
+→ Zodiac
+→ calendar projection
+
+If diarization/speaker attribution is not currently reliable enough to prove “Grant said this,” report the limitation rather than fabricating certainty.
+
+67. Request Citation Visibility
+
+Panopticon must allow Grant to inspect the evidence supporting an automatically proposed calendar item.
+
+At minimum:
+
+source
+timestamp/line
+quoted span
+Apollo confidence
+attestation result
+
+Do not require CLI archaeology to discover why Pantheon scheduled something.
+
+68. Meeting Approval Policy
+
+A direct, clearly attested human request receives elevated priority.
+
+Whether it can automatically create an external event still depends on explicit standing authority.
+
+Initial recommendation:
+
+explicit direct request + attestation + no ambiguity + known calendar rule → eligible for standing-authority auto-projection;
+ambiguous request → Needs You;
+inferred “you probably should schedule this” → Needs You unless separately authorized.
+
+Do not confuse importance with authority.
+
+69. Google Work Notifications
+
+When projecting work events to Google Calendar, preserve/use Google’s existing reminder behavior unless explicit schedule policy overrides it.
+
+The goal is for the normal Google ecosystem to continue notifying Grant about work commitments.
+
+Do not duplicate every Google reminder through Pantheon.
+
+70. Apple Household Notifications
+
+Likewise, Apple Calendar projection should cooperate with the household’s existing Apple reminder behavior.
+
+Do not require a Pantheon mobile app merely to make family calendar notifications function.
+
+Use the calendar provider appropriately.
+
+71. Apple Connector Discovery
+
+Kernel 23 must determine the safest workable Apple Calendar adapter.
+
+Before implementation:
+
+inspect currently available approved local integrations;
+determine whether iCloud/Apple Calendar access is available through CalDAV, local OS interfaces, an approved plugin, or another supported adapter;
+do not download/install new software without Grant’s approval;
+document capability and credential requirements.
+
+If an additional connector is necessary, stop at the approval boundary before download.
+
+Do not silently choose one.
+
+72. Google Connector Discovery
+
+Likewise inspect existing Google Calendar access.
+
+Reuse existing approved capability where possible.
+
+Do not duplicate credentials or create a second redundant integration without a concrete reason.
+
+73. Bifrost Registration
+
+Calendar adapters belong in Bifrost.
+
+Represent each external calendar capability explicitly.
+
+At minimum preserve:
+
+provider
+adapter
+account/calendar
+supported operations
+network use
+authentication state
+approval state
+enabled state
+
+Do not bypass Bifrost because calendar APIs are convenient.
+
+74. No Autonomous Connector Acquisition
+
+Apollo may research missing calendar tooling.
+
+That does not authorize download/install.
+
+Kernel 19’s Bifrost principle remains:
+
+Research is not permission.
+
+75. Situation Brief Pipeline
+
+Kernel 23 shall establish the first Pantheon-owned daily Situation Brief schedule.
+
+Zodiac owns only:
+
+07:00 daily
+
+The briefing pipeline should collect the already-approved current inputs, which may include:
+
+schedule;
+email intelligence;
+upcoming obligations;
+notifications;
+major project state;
+appropriate history/reflection material according to existing policy.
+
+Do not ask Zodiac to compose prose.
+
+76. Situation Brief Delivery
+
+Delivery should use an authorized communication capability.
+
+If email remains the delivery mechanism:
+
+Zodiac
+→ due instance
+→ brief generation
+→ approved mail delivery capability
+
+If mail.send is still intentionally unavailable, do not smuggle sending into Zodiac.
+
+Resolve the required explicit capability/authority as part of this kernel if delivery is in scope and Grant approves it.
+
+The schedule and send authority remain distinct.
+
+77. Exactly-Once Brief Delivery
+
+Avoid duplicate daily sends.
+
+Persist delivery identity/result.
+
+A retry after uncertain provider failure must distinguish:
+
+definitely not sent
+sent
+unknown
+
+Do not blindly retry an unknown send and risk duplicates.
+
+78. Reminder Semantics
+
+Zodiac may create internal reminders that route through Pantheon notifications.
+
+A reminder should retain:
+
+what
+when
+source
+priority
+related obligation
+
+Do not reduce every reminder to a free-form notification string.
+
+79. Completed Obligations
+
+Support completion state.
+
+A completed one-time obligation should not remain perpetually overdue.
+
+For externally represented events, event ending does not automatically imply the obligation was completed unless that semantics is appropriate.
+
+Do not infer too much.
+
+80. Overdue
+
+A due obligation can transition to overdue according to explicit semantics.
+
+Overdue does not automatically mean:
+
+notify repeatedly;
+reschedule;
+create a new calendar event;
+escalate indefinitely.
+
+Escalation policy belongs to the schedule/notification rules.
+
+81. Schedule Mutation History
+
+Preserve correction history for schedule declarations.
+
+The foundational correction rule says earlier records should not simply disappear when corrected.
+
+For consequential changes preserve:
+
+previous value
+new value
+source of correction
+time
+reason where known
+
+Do not keep an unbounded noisy event stream if a compact revision ledger satisfies this.
+
+82. Schedule Disable vs Delete
+
+Prefer disabling/retiring recurring declarations rather than hard deletion where historical traceability matters.
+
+Support an explicit state such as:
+
+disabled
+completed
+retired
+
+Do not keep triggering a retired rule.
+
+83. Configuration
+
+Expose meaningful Zodiac configuration through the existing typed config model.
+
+Potential examples:
+
+zodiac.enabled
+zodiac.default_timezone
+zodiac.personal_projection
+zodiac.work_projection
+zodiac.work_hours
+zodiac.brief_time
+zodiac.brief_catch_up_policy
+zodiac.conflict_policy
+
+Do not expose dozens of internal implementation constants.
+
+Use Panopticon’s existing Edit → Apply model.
+
+84. Timezone
+
+Default human operating timezone:
+
+America/Los_Angeles
+
+Use canonical timezone identifiers.
+
+Do not hard-code PST because California observes daylight saving time.
+
+Store source timezone when supplied.
+
+85. DST
+
+Test recurrence across daylight-saving transitions.
+
+A schedule at:
+
+07:00 America/Los_Angeles
+
+should remain 07:00 local time after DST transitions unless explicitly defined otherwise.
+
+Do not implement fixed UTC offsets for recurring human schedules.
+
+86. System Restart
+
+After Pantheon/Zodiac restart:
+
+declarations survive;
+due-instance identity survives;
+external projection identities survive;
+no duplication occurs;
+catch-up rules are evaluated correctly;
+unknown/partial external operations remain explicit.
+87. Failure Semantics
+
+Distinguish at minimum:
+
+calendar unavailable
+authentication expired
+projection failed
+conflict
+ambiguous schedule
+dependency unresolved
+authority missing
+Prometheus paused
+external event disappeared
+external event edited
+duplicate prevented
+
+Do not flatten all calendar/scheduler failures into:
+
+schedule failed
+88. Partial External Failure
+
+For dual projection:
+
+Google succeeded
+Apple failed
+
+must not become:
+
+schedule failed completely
+
+or:
+
+both succeeded
+
+Represent partial state explicitly and retry/reconcile according to policy.
+
+89. Audit
+
+Consequential Zodiac activity should be inspectable.
+
+For each dispatched due instance preserve:
+
+schedule
+due instance
+trigger time
+catch-up decision
+authority path
+operation
+result
+external projection result
+
+Do not store hidden model chain-of-thought.
+
+90. Security
+
+Calendar data is personal information.
+
+Do not expose:
+
+event details through public listeners;
+calendar credentials in logs;
+tokens in Panopticon;
+Apple/Google credentials in ordinary config;
+private calendar content to frontier models.
+
+The existing local-first boundary remains authoritative.
+
+91. Performance
+
+Zodiac should be computationally cheap.
+
+Do not require Apollo simply to determine:
+
+It is 7:00 and this daily declaration is due.
+
+A deterministic scheduler should be essentially idle between relevant evaluations.
+
+92. Scheduling Mechanism
+
+Implement the simplest robust internal wake mechanism.
+
+Zodiac may use an internal timer/wake loop because Zodiac itself is now the approved scheduler.
+
+This is no longer hidden cron-like behavior accidentally smuggled into another component.
+
+Requirements:
+
+deterministic;
+bounded;
+restart-safe;
+based on persisted schedule state;
+efficient;
+subject to Prometheus;
+testable with injected/fake clocks where practical.
+
+Do not wake every millisecond.
+
+93. Clock Injection for Tests
+
+Avoid tests that wait real hours/days.
+
+Provide deterministic time injection/fake clock seams so tests can prove:
+
+due;
+recurrence;
+DST;
+downtime catch-up;
+dependency;
+overdue;
+conflict transitions.
+94. Required Live Acceptance — Zodiac Registry
+
+Create and inspect real declarations for at least:
+
+hourly mail
+daily Situation Brief
+one one-time reminder
+one calendar event
+
+Show persisted state survives daemon restart.
+
+95. Required Live Acceptance — Apple
+
+With explicit approved access:
+
+create a safe test/personal event through Zodiac;
+verify it appears in Apple Calendar;
+verify external ID is stored;
+edit it manually in Apple Calendar;
+reconcile;
+verify Zodiac recognizes the human correction;
+ensure it does not overwrite the correction.
+
+If connector approval blocks implementation, report PARTIAL rather than faking this proof.
+
+96. Required Live Acceptance — Google
+
+With existing/approved work access:
+
+create a safe test work event;
+verify it appears in Google Calendar;
+preserve external ID;
+edit it externally;
+reconcile;
+verify human edit wins.
+97. Required Live Acceptance — Dual Projection
+
+Create one safe controlled cross-domain event.
+
+Project it to both calendars.
+
+Verify:
+
+one Zodiac item
+two external projection IDs
+
+Then modify one side and create an intentional conflict.
+
+Expected:
+
+Needs You
+
+not silent reconciliation.
+
+98. Required Live Acceptance — Work Outside Hours
+
+Use a safe controlled event classified as work outside configured work hours.
+
+Verify:
+
+elevated attention;
+operator is told it affects personal/family time;
+projection policy behaves as configured;
+no silent dual projection beyond policy.
+99. Required Live Acceptance — Direct Transcript Request
+
+Use a controlled real microphone recording if practical.
+
+Grant says something equivalent to:
+
+Put a test appointment on my calendar tomorrow at 3 PM.
+
+Process:
+
+Rumor
+→ transcript
+→ Apollo
+→ cited request
+→ deterministic attestation
+→ Zodiac
+
+Verify the citation visible in Panopticon.
+
+If policy permits automatic projection for this controlled case, project it.
+
+Otherwise complete the approval flow.
+
+100. Required Live Acceptance — Ambiguity
+
+Use:
+
+Remind me about that Friday afternoon.
+
+Expected:
+
+Needs You
+
+with source evidence.
+
+No arbitrary certainty.
+
+101. Required Live Acceptance — Dependency
+
+Create a controlled:
+
+If no reply by Friday, remind me.
+
+Verify Zodiac:
+
+stores the explicit condition;
+evaluates it;
+does not remind if a qualifying reply arrives;
+produces due reminder if no reply exists at the threshold.
+
+Fixtures may be used to avoid waiting days.
+
+102. Required Live Acceptance — Downtime
+
+Simulate missing:
+
+several hourly mail runs;
+one daily job.
+
+Verify catch-up policies independently.
+
+No replay avalanche.
+
+103. Required Live Acceptance — Situation Brief
+
+Zodiac must successfully generate a real due instance for the Situation Brief schedule.
+
+If the full Pantheon briefing pipeline is ready:
+
+execute it;
+verify one delivery;
+record result.
+
+If composition/delivery still has an independent capability gap:
+
+Zodiac may still PASS its scheduling portion only if that gap is clearly outside Zodiac and the due instance reaches the correct bounded operation;
+however, the overall kernel should report PARTIAL if the stated goal of replacing Hermes’ scheduled brief cannot yet be achieved.
+
+Do not fake delivery.
+
+104. Hermes Overlap
+
+Run Zodiac alongside remaining Hermes scheduling for approximately 1–2 days where safe.
+
+For mutating/delivery work, use shadow mode to avoid duplicate consequences.
+
+Compare:
+
+expected run
+actual run
+timing
+result
+failure
+
+Once stable, pause replaced Hermes jobs.
+
+Do not delete them yet.
+
+105. Panopticon Verification
+
+Demonstrate:
+
+Zodiac overview;
+Today;
+Needs You;
+recurring schedules;
+calendar-provider health;
+direct source citation;
+external correction;
+conflict;
+one-time reminder;
+catch-up state.
+
+The interface must not require Grant to manage all these schedules manually through forms.
+
+Show the results of delegation.
+
+106. Do Not Build
+
+Do not build:
+
+Aphrodite;
+Project Fame;
+Project Purity;
+Archimedes;
+Zeus;
+Nostalgia;
+mobile calendar app;
+biometric approvals;
+remote Panopticon;
+generic workflow automation platform;
+replacement operating system scheduler;
+travel-planning intelligence;
+autonomous meeting negotiation;
+autonomous acceptance/decline of invitations unless explicitly separately authorized;
+arbitrary shell-command cron;
+opaque calendar-learning model.
+107. Stop Conditions
+
+Stop and report rather than weakening boundaries if:
+
+Apple Calendar requires a new download/install that has not been approved;
+calendar credentials would need to be stored insecurely;
+external edits cannot be distinguished safely from Pantheon projections;
+event duplication cannot be prevented reliably;
+Zodiac must reason semantically to function;
+Google/Apple writes cannot be bound to exact events;
+direct transcript-request evidence cannot be cited/attested;
+schedule dispatch would bypass Future/Mercury/Bifrost;
+Prometheus cannot block autonomous due work;
+existing Hermes overlap would cause duplicate mail/brief consequences;
+timezone/DST semantics are unreliable;
+human corrections would be overwritten automatically.
+108. Documentation
+
+Update current canonical documentation.
+
+At minimum:
+
+Pantheon Roadmap
+pantheon-architecture-brief.md
+software.md
+current/system-inventory.md
+current/configuration-inventory.md
+current/operator-surface.md
+current/runtime-services.md
+current/permissions-and-approvals.md
+GUI contract
+operator guide
+
+Document:
+
+Father Time → chronology
+Janus       → temporal transitions
+Zodiac      → schedules / recurrence / due instances
+
+Do not rewrite historical kernel records merely to rename Orion references.
+
+Mark current horizon references to Orion as superseded by Zodiac.
+
+109. Required Reportback
+
+Report:
+
+A. Predecessor
+
+Exact clean commit/hash and Kernel 22 state.
+
+B. Zodiac Registry
+
+Schema and persistence.
+
+C. Wake Engine
+
+How due evaluation works.
+
+D. Catch-Up
+
+Policies implemented and tested.
+
+E. Dependencies
+
+Types supported.
+
+F. Attestation
+
+Direct-request evidence contract and verification.
+
+G. Apple Calendar
+
+Adapter, approval, capabilities, live proof.
+
+H. Google Calendar
+
+Adapter, capabilities, live proof.
+
+I. Projection
+
+Personal/work/dual behavior.
+
+J. Human Correction
+
+External edit reconciliation proof.
+
+K. Conflict
+
+Needs You proof.
+
+L. After-Hours Work
+
+Policy and proof.
+
+M. Mail
+
+Hourly schedule/cutover result.
+
+N. Situation Brief
+
+7:00 schedule and delivery result.
+
+O. Transcript
+
+Direct spoken request proof.
+
+P. Panopticon
+
+Screens/screenshots and operator proof.
+
+Q. Prometheus
+
+Pause/catch-up proof.
+
+R. Hermes
+
+Overlap duration, comparison, jobs paused/remaining.
+
+S. Time
+
+Timezone and DST tests.
+
+T. Failures
+
+Calendar/provider/authority/restart tests.
+
+U. Files Changed
+
+With purpose.
+
+V. Known Limitations
+
+Including provider/API constraints.
+
+W. Successor
+
+Recommend the next smallest safe kernel.
+
+Do not automatically begin Aphrodite merely because Zodiac passes.
+
+110. Definition of PASS
+
+Kernel 23 passes when Pantheon can truthfully demonstrate:
+
+A human obligation is discovered or declared
+            ↓
+Zodiac stores what is supposed to happen when
+            ↓
+the obligation becomes due or projects externally
+            ↓
+the correct calendar/system receives it
+            ↓
+human corrections remain authoritative
+            ↓
+conflicts become Needs You
+            ↓
+recurrence survives restart
+
+and:
+
+hourly mail
+daily Situation Brief
+
+are no longer architecturally dependent on Hermes cron.
+
+A database table alone is insufficient.
+
+A calendar mock alone is insufficient.
+
+A cron wrapper renamed Zodiac is insufficient.
+
+A GUI calendar where Grant manually enters everything is insufficient.
+
+The purpose is:
+
+Grant should increasingly tell Pantheon what he intends, and Zodiac should carry the burden of remembering when that intention matters.
+
+The operator should manage exceptions.
+
+Zodiac should manage the schedule.

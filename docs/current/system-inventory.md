@@ -1,12 +1,12 @@
 ---
 type: canonical-current-inventory
 status: active
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Current System Inventory
 
-This is the canonical current-state inventory for Kernel 22 and later work.
+This is the canonical current-state inventory for Kernel 23 and later work.
 It describes the repository and runtime as implemented, not the full design
 horizon. Kernel specifications and reportbacks remain historical evidence.
 
@@ -58,10 +58,10 @@ Bifrost governs crossings to external software and services.
 | Prometheus | control plane | running/paused | emergency pause, resume, approval, revocation | no reasoning or replay of skipped work |
 | Rumor | deterministic local audio boundary | enabled when configured | stable-file detection, local Whisper transcription, Intake handoff | no live transcription, interpretation, or Project Fame |
 | Bifrost | governed integration bridge | enabled when configured | capability registry, approvals, enablement, receipts, bounded adapters | no generic installer or autonomous capability acquisition |
-| Mail | bounded workflow | enabled when configured | explicit Gmail intake, durable newest-to-oldest backlog, local Apollo understanding, deterministic filters, and Future/Mercury/Bifrost action proposals | no scheduler, send, delete, archive, filter creation, or implicit authority |
+| Mail | bounded workflow | enabled when configured | explicit Gmail intake, durable newest-to-oldest backlog, local Apollo understanding, deterministic filters, and Future/Mercury/Bifrost action proposals | no send, delete, archive, filter creation, or implicit authority |
 | Notifications | local adapter | available if helper exists | fixed notification delivery boundary | no arbitrary command execution |
 | Archimedes | future reasoning boundary | deferred | privacy-minimized frontier escalation | not implemented |
-| Zodiac | future deterministic daemon | deferred | recurring schedules | not implemented |
+| Zodiac | deterministic scheduler | enabled when configured | explicit schedules, recurrence, due instances, catch-up policy, dependency state, Needs You, and provider-neutral calendar projections | no language interpretation, authority creation, provider install, or automatic external-calendar write without an approved Bifrost adapter |
 | Zeus | future deterministic daemon | deferred | explicitly identified machine-garbage sanitation | not implemented |
 
 Zeus is not currently implemented. No current component is authorized to
@@ -96,6 +96,7 @@ Other subsystem truth remains at its durable inspection routes:
 | Mercury | `GET /v1/mercury`, `GET /v1/orders` |
 | Bifrost | `GET /v1/bifrost`, `GET /v1/bifrost/approvals`, `GET /v1/bifrost/invocations` |
 | Mail | `GET /v1/mail`, `GET /v1/mail/messages`, `GET /v1/mail/rules`, `GET /v1/mail/actions` |
+| Zodiac | `GET /v1/zodiac`, `/today`, `/upcoming`, `/needs-you`; controlled `POST /v1/zodiac/round` and schedule routes |
 | organism trace | `GET /v1/organism` |
 | authority | `GET /v1/grants`, `GET /v1/authority/check` |
 

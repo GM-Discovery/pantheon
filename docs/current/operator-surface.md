@@ -1,7 +1,7 @@
 ---
 type: canonical-operator-inventory
 status: active
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Operator Surface Inventory
@@ -21,6 +21,8 @@ classification.
 | `pantheon show processors` | local processor availability | Rumor/Intake |
 | `pantheon show rumor` / `queue` / `source <id>` | audio sources, due work, attempts, handoff | Rumor |
 | `pantheon mail status` / `messages` / `rules` / `actions` | recorded mail understanding, backlog, deterministic filters, and action receipts | Mail |
+| `pantheon show zodiac` | schedules, due instances, provider health, projections, and exceptions | Zodiac |
+| `pantheon zodiac today` / `upcoming` / `needs-you` | human-readable temporal work views | Zodiac |
 | `pantheon show apollo` / `apollo report <id>` | local reasoning state and cited reports | Models/Apollo |
 | `pantheon show janus` / `transitions` / `transition <id>` | temporal subjects and transitions | Work/Temporal |
 | `pantheon show future` / `future proposals` / `future proposal <id>` | authority state and proposals | Prometheus/Work |
@@ -47,7 +49,9 @@ classification.
 | `pantheon bifrost register ...` | significant registry mutation | local control token; registration approval is separate metadata | Capability registration |
 | `pantheon bifrost enable/disable <id>` | restricted capability state | local control token; all required Bifrost approvals for enable | Capability controls |
 | `pantheon bifrost mail intake` | restricted external read | local control token, Bifrost use approval, Prometheus | Mail intake |
-| `pantheon mail check` | restricted explicit mail round | local control token, Bifrost read approval, Prometheus; no scheduler | Mail |
+| `pantheon mail check` | restricted explicit mail round | local control token, Bifrost read approval, Prometheus | Mail |
+| `pantheon zodiac round` | deterministic schedule evaluation | local control token, Prometheus; due consequential work still enters Future | Zodiac |
+| `pantheon zodiac schedule ...` | declare an explicit obligation or recurring system schedule | local control token; no authority is created | Zodiac |
 | `pantheon order ...` | significant durable order | local control token | Work/order composer |
 | `pantheon janus round` | routine deterministic transition | local control token and Prometheus | Temporal round |
 | `pantheon future round` | restricted authority administration | local control token and Prometheus | Authority review |

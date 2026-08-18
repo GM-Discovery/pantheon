@@ -83,6 +83,8 @@ func runDaemon() {
 	defer d.Close()
 	stopRumor := d.startRumorWatcher()
 	defer stopRumor()
+	stopZodiac := d.startZodiacWatcher()
+	defer stopZodiac()
 	server := &http.Server{Addr: defaultListenAddress, Handler: d.Handler(), ReadHeaderTimeout: 5 * time.Second}
 	fmt.Println("Pantheon daemon listening on", defaultListenAddress)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -130,6 +132,9 @@ func runClient(args []string) error {
 		if len(args) == 3 && args[1] == "mail" && args[2] == "rules" {
 			return clientGET("/v1/mail/rules")
 		}
+		if len(args) == 2 && args[1] == "zodiac" {
+			return clientGET("/v1/zodiac")
+		}
 		if len(args) == 4 && args[1] == "apollo" && args[2] == "report" {
 			return clientGET("/v1/apollo/reports/" + url.PathEscape(args[3]))
 		}
@@ -143,7 +148,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
 		}
 		switch args[1] {
 		case "config":
@@ -174,12 +179,14 @@ func runClient(args []string) error {
 			return clientGET("/v1/bifrost")
 		case "mail":
 			return clientGET("/v1/mail")
+		case "zodiac":
+			return clientGET("/v1/zodiac")
 		case "plugins":
 			return clientGET("/v1/seshat/plugins")
 		case "packages":
 			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -198,6 +205,8 @@ func runClient(args []string) error {
 		return runRumorCommand(args[1:])
 	case "mail":
 		return runMailCommand(args[1:])
+	case "zodiac":
+		return runZodiacCommand(args[1:])
 	case "order":
 		return runOrderCommand(args[1:])
 	case "mercury":
@@ -283,6 +292,77 @@ func runMailCommand(args []string) error {
 		return clientGET("/v1/mail/actions")
 	default:
 		return fmt.Errorf("usage: pantheon mail [check|status|messages|rules|actions]")
+	}
+}
+
+func runZodiacCommand(args []string) error {
+	if len(args) == 0 || args[0] == "status" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon zodiac [status|round|today|upcoming|needs-you|schedule ...]")
+		}
+		return clientGET("/v1/zodiac")
+	}
+	switch args[0] {
+	case "round":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon zodiac round")
+		}
+		return clientPOSTWithControl("/v1/zodiac/round", nil)
+	case "today":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon zodiac today")
+		}
+		return clientGET("/v1/zodiac/today")
+	case "upcoming":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon zodiac upcoming")
+		}
+		return clientGET("/v1/zodiac/upcoming")
+	case "needs-you":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon zodiac needs-you")
+		}
+		return clientGET("/v1/zodiac/needs-you")
+	case "schedule":
+		request := zodiacScheduleRequest{}
+		for i := 1; i < len(args); i++ {
+			if !strings.HasPrefix(args[i], "--") || i+1 >= len(args) {
+				return fmt.Errorf("usage: pantheon zodiac schedule --name <name> --kind <kind> --start <RFC3339|YYYY-MM-DD> --action <action> [--recurrence <RRULE>] [--timezone <zone>] [--catch-up <policy>] [--projection <policy>] [--source <source>]")
+			}
+			value := args[i+1]
+			switch args[i] {
+			case "--name":
+				request.Name = value
+			case "--kind":
+				request.Kind = value
+			case "--start":
+				request.StartAt = value
+			case "--action":
+				request.Action = value
+			case "--recurrence":
+				request.Recurrence = value
+			case "--timezone":
+				request.Timezone = value
+			case "--catch-up":
+				request.CatchUpPolicy = value
+			case "--projection":
+				request.ProjectionPolicy = value
+			case "--source":
+				request.Source = value
+			case "--priority":
+				request.Priority = value
+			case "--dependency":
+				request.Dependency = json.RawMessage(value)
+			case "--payload":
+				request.Payload = json.RawMessage(value)
+			default:
+				return fmt.Errorf("unknown zodiac schedule option %q", args[i])
+			}
+			i++
+		}
+		return clientPOSTWithControl("/v1/zodiac/schedules", request)
+	default:
+		return fmt.Errorf("usage: pantheon zodiac [status|round|today|upcoming|needs-you|schedule ...]")
 	}
 }
 

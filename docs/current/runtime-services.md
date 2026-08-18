@@ -1,7 +1,7 @@
 ---
 type: canonical-runtime-inventory
 status: active
-updated: 2026-08-17
+updated: 2026-08-18
 ---
 
 # Runtime and Service Inventory
@@ -22,11 +22,14 @@ are kept distinct.
 | `pantheon-vault-backup.service` | oneshot | timer | user shell helper | commits and pushes Vault changes; failure is service-manager-visible | retained; not a Pantheon reasoning or authority loop |
 | `hermes-gateway.service` | long-running user service | user systemd default target | Hermes installation | `Restart=always`, 5-second delay | retained rollback/external gateway; not retired by Kernel 19 |
 
-No Pantheon-owned cron job was found in the repository. The
-`mercury.round_on_cron_wake` and `bifrost.mail.schedule=hourly` values are
-configuration contracts; neither creates a scheduler. The Rumor watcher is
-started by the Pantheon daemon and is an in-process polling loop, not a
-separate service.
+No Pantheon-owned cron job was found in the repository. Kernel 23 adds Zodiac
+as an in-process, persisted application scheduler. Its wake loop evaluates
+declarations and creates due instances/Future proposals; it does not replace
+systemd process lifecycle or invoke Hermes. The `mercury.round_on_cron_wake`
+and `bifrost.mail.schedule=hourly` values remain compatibility/configuration
+contracts, while Zodiac owns the canonical hourly mail declaration. The Rumor
+watcher is also started by the Pantheon daemon and is an in-process polling
+loop, not a separate service.
 
 ## Ownership rules
 
@@ -61,9 +64,9 @@ service manager is unavailable.
 | `hermes-gateway.service` | retained rollback/external integration | no Kernel 19 cutover proof retired it |
 | legacy `hermes` CLI route | compatibility/deferred | current CLI reports it as direct and not daemon-routed |
 | old capability declarations in `config/capabilities.json` | compatibility and operator vocabulary | Bifrost is the governed Kernel 19 path; declarations do not authorize use |
-| Hermes routine mail jobs | not proven superseded | Kernel 22 adds a manual Pantheon mail path, but no live cutover proof was performed; existing jobs remain intact |
+| Hermes routine mail jobs | not proven superseded | Kernel 23 creates Pantheon/Zodiac declarations but no 1–2 day live overlap or cutover proof was performed; existing jobs remain intact |
 | Terra as an architecture role | superseded | Terra is only an external helper label; Mercury is the canonical runtime role |
 
-Kernel 22 does not uninstall Hermes, stop its service, or retire its jobs. It
-also does not add a scheduler; mail processing is explicit and manual until
-Zodiac is implemented.
+Kernel 23 does not uninstall Hermes, stop its service, or retire its jobs.
+Zodiac is now the Pantheon-owned application scheduler, but external calendar
+connectors and Hermes cutover remain explicit acceptance boundaries.

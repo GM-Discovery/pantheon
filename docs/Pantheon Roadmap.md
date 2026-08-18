@@ -801,7 +801,39 @@ human-reviewed cutover proof. The Panopticon Mail surface exposes explicit
 Check mail now, message evidence, deterministic filters, backlog state, and
 action receipts. See the [Kernel 22 reportback](reportbacks/kernel-22-mail-intelligence.md).
 
-## 8.21 Aphrodite — post-core software construction
+## 8.21 Kernel 23 — Zodiac deterministic schedule keeper
+
+Kernel 23 makes the recurring-schedule responsibility real under Zodiac. It
+stores explicit obligations and recurring system declarations, evaluates them
+against Father Time, persists stable due instances, applies per-schedule
+catch-up policy, and hands consequential due work into Future rather than
+creating authority itself.
+
+The repository implementation includes:
+
+- hourly Mail Intake and daily Situation Brief declarations;
+- one-time, date-only, daypart, deadline, recurring, conditional, follow-up,
+  dependency, and recurring-system schedule forms;
+- iCalendar-style recurrence support with local timezone/DST handling;
+- skip, run-once, reconcile, and Needs You catch-up behavior with no replay
+  avalanche;
+- stable instance identity, provenance, correction history, attestation
+  verification, Prometheus blocking, and restart-safe persistence;
+- provider-neutral Apple/Google projection registry and human-correction
+  reconciliation behind Bifrost;
+- Panopticon Today, recurring, provider-health, and Needs You views.
+
+Zodiac does not interpret natural language, run an LLM, create grants, replace
+Father Time or Janus, install connectors, or overwrite human calendar edits.
+The repository is verified. No Apple/Google adapter was installed, no live
+external-calendar proof was performed, and Hermes has not been cut over or
+paused; those remain explicit live acceptance boundaries. The daily Situation
+Brief declaration is durable, but its independent composition/delivery path
+is not claimed complete by Zodiac.
+
+See the [Kernel 23 reportback](reportbacks/kernel-23-zodiac-scheduler.md).
+
+## 8.22 Aphrodite — post-core software construction
 
 Aphrodite is a proposed software-construction intelligence. She may eventually
 work in an isolated branch or worktree to write code, tests, documentation,
@@ -1418,13 +1450,15 @@ Kernel 21 — GUI
         ↓
 Kernel 22 — manual mail intelligence and governed action proposals
         ↓
+Kernel 23 — Zodiac deterministic schedules and due-state ownership
+        ↓
 Aphrodite / Archimedes / post-build organism reconciliation as later horizons
 ```
 
 Likely later candidates include Aphrodite (Project Fame first, Project Purity
-later), Archimedes, Zodiac, additional external adapters, Zeus, Nostalgia, and
-post-build organism reconciliation. Kernel 22 must not begin Zodiac or infer
-these boundaries from historical kernel documents.
+later), Archimedes, additional external adapters, Hermes cutover proof, Zeus,
+Nostalgia, and post-build organism reconciliation. Kernel 23 must not begin
+Aphrodite or infer these boundaries from historical kernel documents.
 
 They are not permission to build them automatically.
 

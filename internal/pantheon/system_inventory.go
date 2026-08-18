@@ -28,6 +28,7 @@ type systemWorkSummary struct {
 	Mercury  map[string]any `json:"mercury"`
 	Bifrost  map[string]any `json:"bifrost"`
 	Mail     map[string]any `json:"mail"`
+	Zodiac   map[string]any `json:"zodiac"`
 	Failures map[string]any `json:"failures"`
 }
 
@@ -79,6 +80,10 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 	if err != nil {
 		return systemInventoryResponse{}, err
 	}
+	zodiac, err := d.zodiacInventorySummary()
+	if err != nil {
+		return systemInventoryResponse{}, err
+	}
 	failures, err := d.systemFailureSummary()
 	if err != nil {
 		return systemInventoryResponse{}, err
@@ -123,7 +128,7 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 		{ID: "mail", Label: "Mail", Kind: "workflow", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.MailEnabled], Role: "manual bounded mail intake, understanding, backlog, and governed actions", InspectionRoute: "/v1/mail", Controls: []string{"POST /v1/mail/round"}},
 		{ID: "notifications", Label: "Notifications", Kind: "integration", State: notifyState, Role: "fixed local notification adapter", InspectionRoute: "/v1/notify", Controls: []string{"POST /v1/notify"}},
 		{ID: "archimedes", Label: "Archimedes", Kind: "reasoning", State: "deferred", Role: "future frontier reasoning boundary"},
-		{ID: "zodiac", Label: "Zodiac", Kind: "deterministic", State: "deferred", Role: "future recurring-schedule owner"},
+		{ID: "zodiac", Label: "Zodiac", Kind: "deterministic", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.ZodiacEnabled], Role: "explicit schedules, recurrence, due instances, and calendar projections", InspectionRoute: "/v1/zodiac", Controls: []string{"POST /v1/zodiac/round"}},
 		{ID: "zeus", Label: "Zeus", Kind: "deterministic", State: "deferred", Role: "future explicitly identified machine-garbage sanitation"},
 	}
 
@@ -141,7 +146,7 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 			"archimedes": map[string]any{"model": d.cfg.FrontierModel, "state": "deferred", "enabled": false, "data_egress": false},
 		},
 		Components: components,
-		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Mail: mailSummary, Failures: failures},
+		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Mail: mailSummary, Zodiac: zodiac, Failures: failures},
 		Security: map[string]any{
 			"control_token":          "omitted",
 			"secrets":                "omitted",
@@ -254,6 +259,40 @@ func (d *daemon) systemMailSummary() (map[string]any, error) {
 	var cursor string
 	_ = d.db.QueryRow(`SELECT COALESCE(cursor_received_at, '') FROM mail_backlog_state WHERE account = ? AND inbox = ?`, d.cfg.MailAccount, d.cfg.MailInbox).Scan(&cursor)
 	return map[string]any{"enabled": d.cfg.MailEnabled, "adapter": d.cfg.MailAdapter, "account": d.cfg.MailAccount, "inbox": d.cfg.MailInbox, "state_counts": counts, "backlog_enabled": d.cfg.MailBacklogEnabled, "backlog_batch_size": d.cfg.MailBatchSize, "backlog_cursor": cursor, "mark_read_policy": d.cfg.MailMarkReadPolicy, "attachment_policy": d.cfg.MailAttachmentPolicy}, rowErr
+}
+
+func (d *daemon) zodiacInventorySummary() (map[string]any, error) {
+	if err := initializeZodiacSchema(d.db); err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	rows, err := d.db.Query(`SELECT state, COUNT(*) FROM zodiac_instances GROUP BY state`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var state string
+		var count int
+		if err := rows.Scan(&state, &count); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		counts[state] = count
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	var schedules, projections, needsYou int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM zodiac_schedules WHERE enabled = 1`).Scan(&schedules); err != nil {
+		return nil, err
+	}
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM zodiac_projections`).Scan(&projections); err != nil {
+		return nil, err
+	}
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM zodiac_instances WHERE state = ?`, zodiacInstanceNeedsYou).Scan(&needsYou); err != nil {
+		return nil, err
+	}
+	return map[string]any{"enabled": d.cfg.ZodiacEnabled, "timezone": d.cfg.ZodiacDefaultTimezone, "active_schedules": schedules, "instances_by_state": counts, "needs_you": needsYou, "projection_count": projections, "wake_seconds": d.cfg.ZodiacWakeSeconds}, nil
 }
 
 func (d *daemon) systemFailureSummary() (map[string]any, error) {

@@ -438,7 +438,8 @@ func (d *daemon) mercuryCapabilityAvailable(recipient, capability string) bool {
 	return (recipient == "present" && capability == "present.process") ||
 		(recipient == "apollo" && capability == apolloCapability) ||
 		(recipient == "local-notify" && capability == "notify.send") ||
-		(recipient == "gmail" && (capability == "mail.mark_read" || capability == "mail.label" || capability == "mail.move" || capability == "mail.draft"))
+		(recipient == "gmail" && (capability == "mail.mark_read" || capability == "mail.label" || capability == "mail.move" || capability == "mail.draft")) ||
+		(recipient == "pantheon" && capability == "mail.round")
 }
 
 func (d *daemon) recordOrderEvent(orderID, eventType, detail string) {
@@ -739,6 +740,22 @@ func (d *daemon) dispatchOrder(ctx context.Context, order mercuryOrder, command 
 			dispatchErr = actionErr.Error()
 		} else {
 			resultSummary = "bounded Gmail mail operation completed"
+		}
+	} else if order.Recipient == "pantheon" && order.Capability == "mail.round" {
+		var payload struct {
+			Account string `json:"account"`
+			Inbox   string `json:"inbox"`
+		}
+		if err := json.Unmarshal(order.Payload, &payload); err != nil {
+			dispatchErr = "mail.round payload is malformed"
+		} else {
+			mailResult, roundErr := d.mailRound(ctx, mailRunRequest{Account: payload.Account, Inbox: payload.Inbox})
+			if roundErr != nil {
+				dispatchErr = roundErr.Error()
+			} else {
+				resultSummaryBytes, _ := json.Marshal(mailResult)
+				resultSummary = string(resultSummaryBytes)
+			}
 		}
 	} else {
 		dispatchErr = "no exact dispatcher for order"
