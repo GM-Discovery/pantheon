@@ -67,15 +67,27 @@ The focused suite passed:
 GOCACHE=/tmp/pantheon-go-cache go test ./internal/pantheon -run Kernel22 -count=1
 ```
 
-Tests that create loopback `httptest.Server` listeners require the host test
-environment's network-listener permission; a restricted sandbox may reject
-those listeners before application code runs.
+Repository verification also passed:
+
+```text
+gofmt -w internal/pantheon/*.go
+GOCACHE=/tmp/pantheon-go-cache go test ./...
+GOCACHE=/tmp/pantheon-go-cache go vet ./...
+GOCACHE=/tmp/pantheon-go-cache go build -o /tmp/pantheon-kernel22 .
+node --check internal/pantheon/web/app.js
+```
+
+The full Go suite passed in the host environment. A restricted sandbox may
+reject the existing loopback `httptest.Server` listeners before application
+code runs; that was an environment limitation, not a repository failure.
 
 ## Live status
 
-The live Gmail → Bifrost → Intake → Present → Apollo round has not been run
-for this reportback. Therefore Kernel 22 is repository-verified, not live
-PASS. After the backend is installed, the explicit bounded path is:
+The verified Kernel 22 backend was installed into `pantheon.service`, which
+reported active with exit status 0. The live Gmail → Bifrost → Intake →
+Present → Apollo round has not been run for this reportback. Therefore Kernel
+22 is repository-verified with the backend installed, not live PASS. The
+explicit bounded path is:
 
 ```text
 pantheon mail status
