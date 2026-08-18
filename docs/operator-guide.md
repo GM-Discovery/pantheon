@@ -2,6 +2,19 @@
 
 Pantheon is a local-first control system. The CLI exposes deterministic inspection and control locally; Apollo uses the configured local model, and no package registration grants execution authority.
 
+## Panopticon
+
+When the user service is running, open the embedded human control surface at
+`http://127.0.0.1:8765/`. Panopticon is local-only and served by the Pantheon
+Go daemon; it does not start a second server. Home shows live work, cell
+health, the Father Time watch, and the red Radio Prometheus pause control.
+
+Use the GUI for readable state, typed configuration editing, notifications,
+Rumor attention, and governed Bifrost enablement. Use the CLI for complete
+forensic output and the terminal-only hard-stop path. The GUI never exposes
+the control token, raw audit tables, secrets, hidden chain of thought, or a
+marketplace/download engine.
+
 ## Start and check
 
 The user service is the normal runtime:

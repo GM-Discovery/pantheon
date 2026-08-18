@@ -39,10 +39,14 @@ type daemon struct {
 	capabilities capabilityConfig
 	db           *sql.DB
 	databasePath string
+	configPath   string
 	controlToken string
 	seshat       *seshatRegistry
 	mu           sync.Mutex
+	configMu     sync.Mutex
 	rumorMu      sync.Mutex
+	guiMu        sync.Mutex
+	guiSessions  map[string]time.Time
 }
 
 type statusResponse struct {
@@ -240,7 +244,7 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, fmt.Errorf("load Seshat registry: %w", err)
 	}
-	return &daemon{cfg: cfg, capabilities: caps, db: db, databasePath: opts.DatabasePath, controlToken: controlToken, seshat: seshat}, nil
+	return &daemon{cfg: cfg, capabilities: caps, db: db, databasePath: opts.DatabasePath, configPath: opts.ConfigPath, controlToken: controlToken, seshat: seshat, guiSessions: map[string]time.Time{}}, nil
 }
 
 func loadOrCreateControlToken(path string) (string, error) {
@@ -271,6 +275,21 @@ func (d *daemon) Close() error { return d.db.Close() }
 
 func (d *daemon) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /", d.handlePanopticon)
+	mux.HandleFunc("GET /assets/{name}", d.handlePanopticonAsset)
+	mux.HandleFunc("POST /v1/gui/session", d.handleGUISession)
+	mux.HandleFunc("GET /v1/gui/work", d.handleGUIWork)
+	mux.HandleFunc("GET /v1/gui/configuration", d.handleGUIConfiguration)
+	mux.HandleFunc("POST /v1/gui/configuration/validate", d.handleGUIConfigurationValidate)
+	mux.HandleFunc("POST /v1/gui/configuration/apply", d.handleGUIConfigurationApply)
+	mux.HandleFunc("GET /v1/gui/notifications", d.handleGUINotifications)
+	mux.HandleFunc("POST /v1/gui/prometheus/pause", d.handleGUIPrometheusPause)
+	mux.HandleFunc("POST /v1/gui/prometheus/resume", d.handleGUIPrometheusResume)
+	mux.HandleFunc("POST /v1/gui/bifrost/capabilities/{id}/enable", func(w http.ResponseWriter, r *http.Request) { d.handleGUIBifrostEnable(w, r, true) })
+	mux.HandleFunc("POST /v1/gui/bifrost/capabilities/{id}/disable", func(w http.ResponseWriter, r *http.Request) { d.handleGUIBifrostEnable(w, r, false) })
+	mux.HandleFunc("POST /v1/gui/rumor/scan", d.handleGUIRumorScan)
+	mux.HandleFunc("POST /v1/gui/rumor/sources/{id}/retry", func(w http.ResponseWriter, r *http.Request) { d.handleGUIRumorSource(w, r, true) })
+	mux.HandleFunc("POST /v1/gui/rumor/sources/{id}/ignore", func(w http.ResponseWriter, r *http.Request) { d.handleGUIRumorSource(w, r, false) })
 	mux.HandleFunc("GET /v1/status", d.handleStatus)
 	mux.HandleFunc("GET /v1/system/inventory", d.handleSystemInventory)
 	mux.HandleFunc("POST /v1/intake/scan", d.handleIntakeScan)

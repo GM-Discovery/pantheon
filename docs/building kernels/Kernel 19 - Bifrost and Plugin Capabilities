@@ -1,0 +1,679 @@
+Kernel 19 — Bifrost: External Capability Bridge
+Mission
+
+Build Bifrost, Pantheon’s governed bridge between the core organism and software, services, protocols, plugins, MCP servers, APIs, models, and other external capabilities.
+
+Pantheon should be able to gain new capabilities without teaching every daemon how every outside system works and without silently granting outside software authority over Pantheon.
+
+Bifrost connects worlds. It does not rule either one.
+
+This kernel should also establish the first practical Bifrost capability: replacing Hermes/Terra’s existing email-triage machinery with a bounded, deterministic mail-intake path suitable for Pantheon.
+
+1. Architectural Contract
+
+Bifrost is infrastructure, not a member of the main Pantheon roster.
+
+It lives outside the primary daemon code wherever practical and provides a governed boundary through which approved external capabilities may be:
+
+discovered
+described
+installed
+configured
+enabled/disabled
+invoked
+updated
+inspected
+revoked
+audited
+
+Design for multiple integration forms. Do not assume everything is an MCP.
+
+Anticipated capability types include at minimum:
+
+MCP servers
+command-line programs
+local applications
+local HTTP services
+remote APIs
+plugins/extensions
+model providers
+filesystem-backed tools
+imported/open-source software
+future protocols not yet selected
+
+Prefer a common capability abstraction where one can honestly exist, but do not mutilate fundamentally different systems to force them into one interface.
+
+2. Authority Boundary
+
+Installing software and authorizing its use are deliberate human decisions.
+
+Grant must approve:
+
+download
+installation
+registration with Bifrost
+initial authorization/use
+
+These are separate events and should remain distinguishable in receipts/audit history even when the UI eventually presents them as a convenient sequence.
+
+Pantheon must not discover an interesting tool on the Internet and silently install it.
+
+Pantheon must not install something and interpret installation as permission to use it.
+
+Pantheon must not use an installed but unapproved capability merely because it is technically available.
+
+Certain capabilities may later receive standing permission for automatic updates. That permission must be explicit, scoped, revocable, and visible.
+
+Automatic-update permissions should surface through the same reminder/notification system used for other persistent permissions so that old grants do not disappear into forgotten configuration.
+
+Default:
+
+No download, installation, activation, or first use without approval.
+
+3. Capability Registry
+
+Create a Bifrost registry capable of answering, at minimum:
+
+What is this capability?
+Where did it come from?
+What version is installed?
+How is it invoked?
+What does it claim it can do?
+What resources can it access?
+Does it require network access?
+Does it send data off-machine?
+What authentication/secrets does it require?
+What Pantheon components may invoke it?
+What operations are authorized?
+What operations remain prohibited?
+Was its download approved?
+Was installation approved?
+Was use approved?
+Are automatic updates permitted?
+When was it last invoked?
+What changed since approval?
+How can it be disabled?
+How can it be removed?
+
+Where the underlying plugin/protocol exposes useful metadata, ingest it rather than duplicating it manually.
+
+Where it does not, Bifrost must maintain the missing governance metadata itself.
+
+Do not pretend an external tool is safer or more understandable than the evidence supports.
+
+4. Capability Descriptions
+
+A capability should expose a human-readable description in addition to machine metadata.
+
+Eventually Grant should be able to ask questions such as:
+
+What can this thing actually do?
+
+Why does Pantheon want it?
+
+What can it see?
+
+What can it change?
+
+What leaves my computer?
+
+Who is currently allowed to use it?
+
+What would break if I turn it off?
+
+The registry should support those answers without requiring Grant to understand MCP schemas, manifests, OAuth scopes, CLI flags, or implementation details.
+
+Preserve the underlying technical information for inspection.
+
+5. Prometheus Governance
+
+Bifrost does not bypass Prometheus.
+
+External capabilities remain subject to Pantheon’s existing authority and safety architecture.
+
+Prometheus must be capable of:
+
+seeing registered capabilities
+seeing enabled capabilities
+seeing current/recent invocations
+preventing invocation
+revoking authorization
+constraining network/tool chains where applicable
+participating in the emergency pause
+
+pantheon prometheus protocol --pause
+
+must prevent Pantheon from initiating new Bifrost activity.
+
+Do not create a second competing permission/control plane inside Bifrost.
+
+Bifrost records and enforces capability-specific grants; Prometheus remains the overarching control plane.
+
+6. Mercury and Tool Execution
+
+Do not keep Terra riding Hermes merely because Hermes currently knows how to operate external tools.
+
+Mercury is sufficiently deterministic to carry authorized work to deterministic external capabilities.
+
+The intended pattern is:
+
+Future/order source → lawful order → Mercury → Bifrost → approved capability
+
+where that architecture applies.
+
+Mercury does not gain discretion merely because Bifrost gives it more destinations.
+
+Bifrost does not decide that work should occur.
+
+It provides the governed crossing.
+
+If an external capability requires reasoning before safe invocation, that reasoning belongs to the appropriate Pantheon intelligence before a lawful order reaches the execution path.
+
+7. Apollo and Aphrodite Visibility
+
+Apollo must be able to inspect Bifrost’s capability registry and understand what Pantheon can and cannot currently do.
+
+Future Aphrodite work must be able to inspect:
+
+installed capabilities
+capability descriptions
+versions
+permissions
+invocation history
+failures
+relevant system readings
+
+Aphrodite may eventually use those readings while working inside her sandbox and deliver findings through Pantheon to Apollo.
+
+Apollo or another appropriately authorized component may use Internet research to investigate an external capability and explain it.
+
+Researching software does not authorize downloading, installing, or using it.
+
+This kernel should establish the information structures needed for that future work without implementing Project Fame or Project Purity.
+
+8. First Bifrost Crossing: Email
+
+Use the existing personal Gmail workflow as Bifrost’s first substantial real-world integration.
+
+The current Hermes implementation has useful work worth preserving but should not remain the permanent architecture.
+
+Current flow approximately includes:
+
+Himalaya → bounded manifest → Terra/GPT reasoning → mailbox operations
+
+Replace the routine ingestion portion with a deterministic Pantheon path.
+
+Target:
+
+approved mail interface → Bifrost → deterministic mail-intake daemon → Pantheon Intake
+
+Interpretation happens later:
+
+Intake → Present / appropriate reasoning path → Apollo → downstream Pantheon work
+
+The mail-intake daemon is not Apollo.
+
+It does not summarize Grant’s life.
+
+It does not decide what deserves his attention.
+
+It gets mail safely across the bridge.
+
+9. Preserve Existing Mail Safety Work
+
+Use the existing Hermes scripts as implementation evidence, not permanent dependencies:
+
+/home/brick/.hermes/scripts/new_mail_triage_manifest.py
+/home/brick/.hermes/scripts/overnight_backlog_batch.py
+
+The existing system already demonstrates useful patterns:
+
+bounded manifests
+precise baseline/checkpoint state
+processed-ID deduplication
+fixed historical batches
+safe handling of changing mailbox IDs
+blocking when exact mapping cannot be established
+no uncontrolled historical-mail discovery during bounded processing
+
+Preserve or improve these properties.
+
+Do not blindly transplant Hermes code into Pantheon.
+
+10. Deterministic Mail Intake
+
+The new mail daemon should eventually be capable of checking approved accounts on a schedule, initially hourly.
+
+For each newly eligible message, create a clean Intake representation containing appropriate available metadata such as:
+
+stable source identifier
+message identifier
+account
+received timestamp
+sender
+recipients
+subject
+normalized body/content
+attachment metadata
+source/provenance
+ingestion timestamp
+ingestion status
+warnings/block reasons
+
+Preserve the original email in the mail provider.
+
+Do not make Pantheon’s Intake copy the authoritative mailbox.
+
+A failed Intake operation must not cause loss of the original message.
+
+11. Attachments
+
+Attachments cross a more restrictive bridge than ordinary message text.
+
+Implement a small explicit allowlist of attachment types that Pantheon can safely ingest.
+
+Do not construct a giant blacklist and assume everything omitted is safe.
+
+Files outside the allowlist are blocked from automatic ingestion.
+
+This explicitly includes formats that require proprietary/special readers or present opaque/encrypted content that Pantheon cannot safely inspect.
+
+HTML attachments should not be treated as ordinary safe documents.
+
+For blocked attachments:
+
+preserve the fact that the attachment exists
+preserve safe metadata where available
+do not execute/open/render it merely to determine its contents
+mark the Intake record with the reason it was blocked
+surface an appropriate warning through Pantheon’s existing notification/escalation architecture when warranted
+
+The email itself should still be ingestible when an attachment is blocked.
+
+12. Mailbox Mutation
+
+The deterministic daemon may perform only explicitly authorized deterministic mailbox operations.
+
+Initial safe scope may include:
+
+applying known labels/tags
+marking messages read
+temporarily marking important where a deterministic rule explicitly requires it
+moving/categorizing mail according to established deterministic rules
+
+It must not autonomously:
+
+send
+reply
+forward
+delete
+archive
+schedule sending
+alter account configuration
+
+Archive remains approval-gated.
+
+Draft composition belongs to a reasoning path, not this daemon.
+
+Newsletter unsubscribe behavior should not be migrated into the first deterministic mail daemon. It requires behavioral interpretation/state and can be redesigned separately.
+
+When classification cannot be established deterministically, preserve the message and surface uncertainty rather than guessing.
+
+13. Email Management Policy
+
+Treat the existing Obsidian procedure as source policy:
+
+/home/brick/Documents/Obsidian Vault/30 Procedures/Email Management.md
+
+Do not encode the entire document into the deterministic mail daemon.
+
+Separate mechanical policy from judgment.
+
+Examples of reasoning work that should remain outside the daemon include:
+
+relationship inference
+importance
+urgency
+contextual priority points
+whether something deserves Grant’s attention
+semantic suspiciousness
+whether a message deserves a reply
+drafting
+summarization
+interpreting what a deadline means
+learning what Grant finds worthy
+morning-brief composition
+reflection prompts
+historical-memory selection
+
+The deterministic daemon may attach facts that make those judgments easier downstream.
+
+14. Loved-One Safety
+
+Preserve the existing hard requirement:
+
+Pantheon must never autonomously respond to Grant’s loved ones or cause their messages to be lost, deleted, hidden, or otherwise unavailable for him to enjoy.
+
+Do not rely solely on probabilistic relationship inference to enforce destructive-action safety.
+
+Where Pantheon cannot establish that a destructive operation is safe, it must not perform it.
+
+15. Email → Vault
+
+Bifrost should establish a path by which selected email can eventually become Vault material.
+
+Grant specifically wants his own authored email available as evidence of his writing voice.
+
+Do not dump the entire mailbox into the Vault.
+
+Design for selection such as Sent-mail authored by Grant, with deterministic filtering where reliable.
+
+Preserve:
+
+provenance
+timestamps
+useful conversation context where appropriate
+source identity
+enough metadata to distinguish Grant-authored language from quoted/replied material
+
+Do not implement a naïve “50,000 emails → Vault” importer.
+
+This capability may use an MCP if MCP is the best interface, but MCP is an implementation option, not the architectural requirement.
+
+16. Hermes Migration Boundary
+
+Do not destroy Hermes during this kernel.
+
+We need a controlled migration.
+
+Existing Hermes jobs include:
+
+hourly new-mail-triage
+overnight overnight-backlog-triage
+the now-unwanted Hermes-authored Situation Brief and its verification machinery
+
+The new Pantheon email crossing must be proven before the corresponding Hermes mail jobs are removed.
+
+Avoid two systems mutating the same messages simultaneously.
+
+Provide an explicit migration/cutover procedure.
+
+Retain enough rollback information to restore the previous path temporarily if the new one fails.
+
+Hermes should cease being necessary for routine email ingestion once Bifrost’s replacement is proven.
+
+17. Scheduling
+
+Pantheon does not yet have its final calendar/email scheduling architecture.
+
+Do not solve the entire scheduler in Kernel 19.
+
+Implement only enough deterministic scheduling to prove the email intake path, or expose the operation so an existing lawful scheduler can trigger it.
+
+The architectural capability should not depend on Hermes cron permanently.
+
+Hourly mail retrieval is the intended initial cadence.
+
+18. Notifications and Persistent Permissions
+
+Bifrost should use Pantheon’s existing notification/escalation concepts rather than inventing an independent alert system.
+
+Examples worth surfacing include:
+
+blocked attachment requiring attention
+capability authorization failure
+authentication expiry
+external capability unexpectedly unavailable
+update awaiting approval
+changed permissions/scopes
+repeated invocation failure
+
+Persistent automatic permissions, particularly automatic updates, should be periodically resurfaced so Grant remembers what Pantheon is allowed to do.
+
+Do not nag for ordinary healthy operation.
+
+19. Secrets
+
+Bifrost must not become a plaintext credential warehouse.
+
+Reuse secure existing credential mechanisms where appropriate.
+
+Capability metadata may state that authentication exists without exposing the secret.
+
+Logs, receipts, Apollo reports, error messages, and Vault records must not casually reproduce:
+
+passwords
+API keys
+OAuth tokens
+session secrets
+authentication headers
+
+A capability losing authentication should fail closed and report the problem.
+
+20. Failure Semantics
+
+External systems are unreliable.
+
+Bifrost must distinguish at least:
+
+unavailable
+unauthorized
+approval required
+authentication expired
+unsupported operation
+malformed response
+blocked by policy
+blocked by Prometheus
+timeout
+external failure
+local adapter failure
+
+Do not turn every failure into generic "tool failed".
+
+A failed external operation must not be represented to the rest of Pantheon as successful.
+
+Where side effects may have partially occurred, record uncertainty explicitly.
+
+21. Audit Receipts
+
+Meaningful Bifrost activity should produce useful receipts.
+
+At minimum capture:
+
+capability
+invocation time
+requesting Pantheon component
+governing authorization/order where applicable
+operation
+result
+whether external network activity occurred
+relevant non-secret error state
+
+Keep receipts useful enough for Prometheus, Apollo, future Aphrodite analysis, debugging, and human inspection without creating an indiscriminate surveillance dump.
+
+22. CLI
+
+Add a small, coherent CLI surface.
+
+Exact syntax may follow existing Pantheon conventions, but functionality should approximately support:
+
+pantheon bifrost status
+pantheon bifrost list
+pantheon bifrost show <capability>
+pantheon bifrost approvals
+pantheon bifrost enable <capability>
+pantheon bifrost disable <capability>
+
+Operations requiring Grant’s authorization must actually require authorization.
+
+Do not implement fake confirmation by merely accepting --yes from an autonomous caller.
+
+Also expose enough email-specific functionality to inspect the first crossing, for example:
+
+pantheon bifrost mail status
+pantheon bifrost mail intake
+
+Prefer a small discoverable command tree over dozens of commands.
+
+23. Extensibility
+
+Adding the second and third external capabilities should be substantially easier than adding the first.
+
+A new adapter should not require rewriting Prometheus, Mercury, Apollo, or the Intake architecture.
+
+Favor:
+
+explicit adapter contracts
+capability manifests
+shared authorization structures
+shared receipts
+shared failure semantics
+narrow interfaces
+
+Avoid:
+
+giant switch statements keyed to product names
+arbitrary shell execution as the universal plugin API
+plugins importing Pantheon internals
+external tools writing directly into arbitrary Pantheon state
+tool-specific permission logic scattered throughout the organism
+24. Do Not Build Yet
+
+Kernel 19 should establish foundations, not consume every future project.
+
+Do not build:
+
+Project Fame
+Project Purity
+Aphrodite herself
+the full GUI
+live-transcription interpretation
+automatic voice-command execution
+the final morning briefing
+the final Pantheon scheduler
+a plugin marketplace
+autonomous Internet software acquisition
+automatic code modification by plugins
+a universal compatibility layer for every conceivable protocol
+
+Kernel 20 is expected to address the GUI. Do not let Bifrost become Kernel 20 accidentally.
+
+25. Verification
+
+Before declaring PASS, prove at minimum:
+
+Registry
+A capability can be registered.
+Its source/type/version are inspectable.
+Its permissions are inspectable.
+It can be disabled.
+Disabled means invocation actually fails closed.
+Approval
+
+Prove that an unapproved capability cannot be:
+
+downloaded by Pantheon
+installed by Pantheon
+invoked by Pantheon
+
+Prove separately that approval state is recorded.
+
+Prometheus
+
+With Pantheon paused:
+
+new Bifrost invocations do not proceed.
+
+Resume must restore normal governed operation without corrupting state.
+
+Email
+
+Using safe real or controlled email:
+
+Retrieve new mail through the new crossing.
+Produce a normalized Intake artifact.
+Preserve provenance.
+Do not alter the source message beyond explicitly authorized behavior.
+Run again and prove deduplication.
+Ingest an allowed attachment.
+Encounter a blocked attachment and prove:
+email ingestion continues;
+attachment is not opened;
+warning metadata survives.
+Simulate connector failure and prove no message is lost.
+Demonstrate bounded historical processing without uncontrolled mailbox discovery.
+Hermes coexistence
+
+Prove the migration procedure prevents Hermes and Pantheon from concurrently performing conflicting mail mutations.
+
+Secrets
+
+Inspect generated logs/receipts and demonstrate that credentials are not exposed.
+
+Failure reporting
+
+Demonstrate at least:
+
+authorization-required
+unavailable
+authentication failure
+policy block
+Prometheus block
+
+as distinguishable outcomes.
+
+26. Documentation
+
+Update the appropriate architecture/roadmap documentation with:
+
+Bifrost’s role
+authority boundaries
+relationship to Prometheus
+relationship to Mercury
+relationship to Apollo
+adapter model
+approval lifecycle
+email crossing
+Hermes migration status
+known limitations
+next integration candidates
+
+Document the principle prominently:
+
+Presence is not permission.
+
+Software existing on Grant’s computer does not mean Pantheon may use it.
+
+Also preserve:
+
+Research is not permission.
+
+Knowing that a capability exists or understanding how it works does not authorize Pantheon to acquire or invoke it.
+
+27. Kernel Completion Standard
+
+Kernel 19 is complete when Pantheon has a real, governed bridge to external capability and the bridge has been proven with at least one useful integration.
+
+The goal is not to collect plugins.
+
+The goal is to make Pantheon capable of safely gaining capabilities without weakening Grant’s agency or turning the organism into a pile of special-case integrations.
+
+For email specifically, completion means the architecture needed to retire Terra/Hermes from routine mail ingestion exists and is proven. Do not remove the old path until the replacement has passed its cutover tests.
+
+When complete, report:
+
+files changed
+architecture introduced
+capability registry schema
+approval model
+first adapter(s)
+mail-intake behavior
+attachment allowlist/blocking behavior
+tests performed
+live evidence
+Hermes jobs retired/paused/remaining
+known limitations
+rollback path
+recommended clean predecessor for Kernel 20
+
+Do not begin Kernel 20.

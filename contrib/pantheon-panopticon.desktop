@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Panopticon
+Comment=Open the local Pantheon human control surface
+Exec=xdg-open http://127.0.0.1:8765/
+Terminal=false
+Categories=Utility;

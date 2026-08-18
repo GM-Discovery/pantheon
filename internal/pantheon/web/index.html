@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panopticon — Pantheon</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">P</span><span>Panopticon</span><small>human control surface</small></div>
+    <div class="runtime-readout" aria-live="polite"><span id="runtime-state" class="status-dot">connecting</span><span id="runtime-time">—</span></div>
+  </header>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Panopticon navigation">
+      <nav>
+        <button class="nav-item active" data-view="home">Home</button>
+        <p class="nav-label">Understand</p>
+        <button class="nav-item" data-view="ingestion">Ingestion / Understanding</button>
+        <button class="nav-item" data-view="intake">Intake</button>
+        <button class="nav-item" data-view="rumor">Rumor</button>
+        <p class="nav-label">Act</p>
+        <button class="nav-item" data-view="execution">Execution / Capabilities</button>
+        <button class="nav-item" data-view="approvals">Approvals</button>
+        <button class="nav-item" data-view="bifrost">Bifrost</button>
+        <p class="nav-label">Operate</p>
+        <button class="nav-item" data-view="notifications">Notifications</button>
+        <button class="nav-item" data-view="models">Models</button>
+        <button class="nav-item" data-view="configuration">Configuration</button>
+        <button class="nav-item" data-view="system">System</button>
+      </nav>
+      <div class="sidebar-foot">LOCAL ONLY<br><span>127.0.0.1 · no remote control</span></div>
+    </aside>
+    <main id="app" class="content">
+      <section class="view active" data-panel="home">
+        <div class="page-heading"><div><p class="eyebrow">PANTHEON / HOME</p><h1>Good morning, operator.</h1><p class="lede">A calm view of what is happening, what is waiting, and what requires your decision.</p></div><span id="freshness" class="freshness">Waiting for live state…</span></div>
+        <section class="radio-card" aria-labelledby="radio-title">
+          <div class="radio-copy"><p class="eyebrow">EMERGENCY CONTROL</p><h2 id="radio-title">Radio Prometheus</h2><p id="pause-explanation">The kernel is running. Pausing refuses new work at the control boundary; it does not replay skipped work when resumed.</p><div class="button-row"><button id="pause-button" class="button danger">Pause Pantheon</button><button id="resume-button" class="button quiet">Resume Pantheon</button><span id="prometheus-state" class="state-chip">checking</span></div></div>
+          <div class="radio-sigil" aria-hidden="true">◉</div>
+        </section>
+        <section class="panel current-work-panel" aria-labelledby="current-work-title">
+          <div class="panel-title"><div><p class="eyebrow">CURRENT WORK</p><h2 id="current-work-title">What needs attention</h2></div><button class="text-button" data-work-category="all">How to act on this work →</button></div>
+          <div id="work-summary" class="work-board"><div class="metric"><strong>—</strong><span>loading live work</span></div></div>
+          <p id="work-summary-note" class="muted">Counts are derived from live Future, Janus, Mercury, and Intake state. Zero means no known work in that category—not that the system is unhealthy.</p>
+          <section id="work-context" class="work-context" hidden aria-live="polite"><div class="panel-title"><div><p class="eyebrow">WORK CONTEXT</p><h3 id="work-context-title">Select a category</h3></div><button id="work-context-close" class="text-button">Close</button></div><p id="work-context-intro" class="muted"></p><div id="work-context-items" class="work-detail-list"></div></section>
+        </section>
+        <div class="grid two home-secondary">
+          <section class="panel"><div class="panel-title"><h2>Father Time</h2><span class="tag">watch</span></div><div class="watch"><div id="clock" class="clock">--:--:--</div><div id="date" class="watch-date">—</div></div><p class="muted">A live local-time watch. Father Time records chronology; it is not a scheduler or occupant.</p></section>
+          <section class="panel"><div class="panel-title"><h2>Operational pulse</h2><span id="pulse-state" class="state-chip">—</span></div><div id="pulse-summary" class="detail-list"></div></section>
+        </div>
+        <section class="panel"><div class="panel-title"><div><p class="eyebrow">CELLS</p><h2>System at a glance</h2></div><span id="cell-summary" class="muted">—</span></div><div id="cells" class="cell-grid"></div></section>
+      </section>
+
+      <section class="view" data-panel="ingestion"><div class="page-heading"><div><p class="eyebrow">UNDERSTAND</p><h1>Ingestion / Understanding</h1><p class="lede">Present establishes the current source; Past and Weave supply bounded local context; Apollo reasons with citations.</p></div></div><section class="panel fates-surface"><div class="panel-title"><div><p class="eyebrow">OPERATIONAL SURFACE</p><h2>Fates</h2></div><span class="tag">Present · Past · Future</span></div><div class="fates-layout"><div class="fates-group"><article class="fate-card"><span class="fate-symbol">P</span><h2>Present</h2><p>Faithful Markdown normalization, provenance, and verified read-back.</p><span class="state-chip">deterministic</span></article><article class="fate-card"><span class="fate-symbol">Pa</span><h2>Past</h2><p>Bounded retrieval from local continuity with source citations.</p><span class="state-chip">retrieval</span></article><article class="fate-card"><span class="fate-symbol">F</span><h2>Future</h2><p>Deterministic authority administration and exact sealing. Forward state is visible, not invented here.</p><span class="state-chip">authority</span></article></div><aside class="weave-tool"><span class="tool-label">TOOL USED BY THE FATES</span><span class="fate-symbol">W</span><h3>Weave</h3><p>Local relationship and retrieval index used by Present, Past, and Future context paths.</p><span class="state-chip">deterministic tool</span></aside></div></section><section class="panel"><div class="panel-title"><h2>Apollo</h2><span id="apollo-state" class="state-chip">—</span></div><p>Local cited reasoning. Reports are durable and Future-consumable; recommendations are not authorization to execute.</p><div id="apollo-summary" class="detail-list"></div></section></section>
+
+      <section class="view" data-panel="execution"><div class="page-heading"><div><p class="eyebrow">ACT</p><h1>Execution / Capabilities</h1><p class="lede">Mercury transports sealed orders and Go executes bounded work. Every capability remains governed.</p></div></div><section class="panel"><div class="panel-title"><div><h2>Work records</h2><p class="muted">Choose what you want to inspect. This view does not invent an execution option when authority or an adapter is missing.</p></div><div class="execution-toolbar"><label for="execution-filter">Show</label><select id="execution-filter"><option value="all">All current work</option><option value="active">Active work</option><option value="blocked">Blocked work</option><option value="needs_attention">Needs decision</option></select><button id="execution-refresh" class="button quiet">Refresh</button></div></div><div id="execution-work-list" class="work-detail-list"></div></section><div class="panel"><div class="panel-title"><h2>Execution boundary</h2><span class="tag">no autonomous action</span></div><p>Panopticon can show state and request explicitly defined controls. It does not turn Apollo recommendations into orders, download plugins, or execute hidden reasoning. A blocked record has no safe retry button here; resolve its stated boundary first.</p></div></section>
+      <section class="view" data-panel="approvals"><div class="page-heading"><div><p class="eyebrow">ACT</p><h1>Approvals</h1><p class="lede">Human authority is visible before consequential capability use.</p></div></div><div class="empty-state"><span>◇</span><h2>Approval queue</h2><p>Current approval records are available through governed capability surfaces. Nothing is silently approved by this view.</p><button class="button" data-view-link="bifrost">Review Bifrost →</button></div></section>
+
+      <section class="view" data-panel="notifications"><div class="page-heading"><div><p class="eyebrow">OPERATE</p><h1>Notifications</h1><p class="lede">Canonical human-readable notifications, kept separate from raw audit output.</p></div><button id="refresh-notifications" class="button quiet">Refresh</button></div><section class="panel"><div class="panel-title"><h2>Recent notifications</h2><span id="notification-source" class="muted">—</span></div><div id="notifications-list" class="notification-list"></div></section></section>
+
+      <section class="view" data-panel="intake"><div class="page-heading"><div><p class="eyebrow">UNDERSTAND</p><h1>Intake</h1><p class="lede">Each source occurrence has an identity, state, and chronology trail.</p></div></div><section class="panel"><div id="intake-summary" class="metric-grid"></div><p class="muted">Use the terminal for the full deterministic scan and occurrence inspection. This surface reports live state without duplicating forensic output.</p></section></section>
+
+      <section class="view" data-panel="rumor"><div class="page-heading"><div><p class="eyebrow">UNDERSTAND</p><h1>Rumor</h1><p class="lede">Local audio boundary: wait for stable files, transcribe through local Whisper, then hand off to Intake.</p></div><button id="rumor-scan" class="button">Scan audio now</button></div><section class="panel"><div class="panel-title"><h2>Audio boundary</h2><span id="rumor-state" class="state-chip">—</span></div><div id="rumor-summary" class="metric-grid"></div><p class="muted">Live transcription is not enabled. No upload, cloud fallback, Project Fame, or Whisper IDE is implied.</p></section><section class="panel"><div class="panel-title"><h2>Sources needing attention</h2><span id="rumor-source-count" class="muted">—</span></div><div id="rumor-sources" class="source-list"></div></section></section>
+
+      <section class="view" data-panel="bifrost"><div class="page-heading"><div><p class="eyebrow">ACT / GOVERNED BRIDGE</p><h1>Bifrost</h1><p class="lede">Capability cards show registration, approval, and enablement as separate states.</p></div></div><section class="panel"><div class="panel-title"><h2>Capabilities</h2><div class="button-row"><span id="capability-state" class="state-chip">unknown</span><span class="tag">no marketplace</span></div></div><div id="capabilities" class="capability-list"></div></section></section>
+
+      <section class="view" data-panel="models"><div class="page-heading"><div><p class="eyebrow">OPERATE</p><h1>Models</h1><p class="lede">Local model boundaries are explicit. Frontier reasoning remains deferred and disabled.</p></div></div><div id="models-list" class="model-grid"></div></section>
+
+      <section class="view" data-panel="configuration"><div class="page-heading"><div><p class="eyebrow">OPERATE</p><h1>Configuration</h1><p class="lede">Edit safe fields, validate the complete proposed document, then apply with a visible backup and restart notice. Secrets stay omitted.</p></div></div><section class="panel"><div id="config-form" class="config-form"></div><div class="button-row config-actions"><button id="config-cancel" class="button quiet">Cancel</button><button id="config-apply" class="button">Validate &amp; Apply</button></div><div id="config-message" class="form-message" role="status" aria-live="polite"></div></section></section>
+
+      <section class="view" data-panel="system"><div class="page-heading"><div><p class="eyebrow">OPERATE</p><h1>System</h1><p class="lede">Live inventory from the Kernel 20 contract, extended here only with human-facing controls.</p></div><button id="refresh-system" class="button quiet">Refresh</button></div><section class="panel"><div id="system-details" class="detail-list"></div></section><section class="panel"><div class="panel-title"><h2>Components</h2><span class="muted">inspectable through the local API</span></div><div id="system-components" class="component-list"></div></section></section>
+    </main>
+  </div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

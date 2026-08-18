@@ -33,5 +33,7 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Kernel 18 reportback](reportbacks/kernel-18-rumor-whisper-audio-intake.md): local Rumor audio transcription, durable evidence, Intake handoff, and live verification.
 - [Kernel 19 reportback](reportbacks/kernel-19-bifrost-capability-bridge.md): governed external-capability registry, approval lifecycle, receipts, and bounded read-only mail intake.
 - [Kernel 20 reportback](reportbacks/kernel-20-canonical-reconciliation.md): canonical system/configuration/operator inventories and the GUI readiness contract.
+- [Kernel 21 reportback](reportbacks/kernel-21-panopticon.md): the embedded local Panopticon human control surface and its safety boundaries.
+- [Mini-Kernel 21A reportback](reportbacks/kernel-21a-panopticon-acceptance-repairs.md): acceptance repairs for capability fallback, Fates grouping, and Current Work prominence.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.
