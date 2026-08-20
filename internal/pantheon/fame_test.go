@@ -103,13 +103,18 @@ func TestFameHTTPSurfaceAndSlashCommand(t *testing.T) {
 			t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
 		}
 	}
+	personResponse := httptest.NewRecorder()
+	d.Handler().ServeHTTP(personResponse, httptest.NewRequest(http.MethodPost, "/v1/fame/command", strings.NewReader(`{"input":"/fame person add Trinh"}`)))
+	if personResponse.Code != http.StatusCreated {
+		t.Fatalf("person slash command status=%d body=%s", personResponse.Code, personResponse.Body.String())
+	}
 	response := httptest.NewRecorder()
 	d.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/v1/fame/command", strings.NewReader(`{"input":"/fame people"}`)))
 	if response.Code != http.StatusOK {
 		t.Fatalf("slash command status=%d body=%s", response.Code, response.Body.String())
 	}
 	var body fameSnapshot
-	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || len(body.People) != 1 {
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || len(body.People) != 2 {
 		t.Fatalf("slash command body=%s err=%v", response.Body.String(), err)
 	}
 }

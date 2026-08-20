@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -578,5 +579,68 @@ func (d *daemon) handleFameCommand(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, snapshot)
 		return
 	}
-	writeError(w, http.StatusBadRequest, errors.New("supported commands: /fame status | /fame people"))
+	switch fields[1] {
+	case "person":
+		if len(fields) < 4 || fields[2] != "add" {
+			writeError(w, http.StatusBadRequest, errors.New("usage: /fame person add <name>"))
+			return
+		}
+		person, err := d.createFamePerson(famePersonRequest{PreferredName: strings.Join(fields[3:], " ")})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, person)
+	case "conversation":
+		if len(fields) != 3 {
+			writeError(w, http.StatusBadRequest, errors.New("usage: /fame conversation <echo-run-id>"))
+			return
+		}
+		conversation, err := d.createFameConversation(fameConversationRequest{RunID: fields[2]})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, conversation)
+	case "observation":
+		if len(fields) < 6 {
+			writeError(w, http.StatusBadRequest, errors.New("usage: /fame observation <conversation-id> <kind> <source-ref> <content>"))
+			return
+		}
+		observation, err := d.createFameObservation(fameObservationRequest{ConversationID: fields[2], Kind: fields[3], SourceRef: fields[4], Content: strings.Join(fields[5:], " ")})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, observation)
+	case "correct":
+		if len(fields) < 5 {
+			writeError(w, http.StatusBadRequest, errors.New("usage: /fame correct <target-type> <kind> <statement>"))
+			return
+		}
+		correction, err := d.createFameCorrection(fameCorrectionRequest{TargetType: fields[2], Kind: fields[3], Statement: strings.Join(fields[4:], " ")})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, correction)
+	case "evidence":
+		if len(fields) < 6 {
+			writeError(w, http.StatusBadRequest, errors.New("usage: /fame evidence <person-id> <kind> <confidence> <detail>"))
+			return
+		}
+		confidence, err := strconv.ParseFloat(fields[4], 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, errors.New("confidence must be a number between 0 and 1"))
+			return
+		}
+		evidence, err := d.addFameEvidence(fields[2], fameEvidenceRequest{Kind: fields[3], Confidence: confidence, Detail: strings.Join(fields[5:], " ")}, "")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, evidence)
+	default:
+		writeError(w, http.StatusBadRequest, errors.New("supported commands: /fame status | /fame people | /fame person add <name> | /fame conversation <echo-run-id> | /fame observation <conversation-id> <kind> <source-ref> <content> | /fame correct <target-type> <kind> <statement>"))
+	}
 }
