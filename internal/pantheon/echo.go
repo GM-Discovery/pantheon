@@ -258,7 +258,7 @@ func (d *daemon) echoSnapshotForRun(selectedRunID string) (echoSnapshot, error) 
 		// Keep the review surface bounded while prioritizing substantial speech over
 		// isolated acknowledgements. The raw diarization remains available in its
 		// provenance file; Echo's UI groups nearby rows into review windows.
-		segRows, err := d.db.Query(`SELECT segment_id, run_id, start_seconds, end_seconds, anonymous_speaker, COALESCE(voice_id,''), mapping_state FROM (SELECT segment_id, run_id, start_seconds, end_seconds, anonymous_speaker, voice_id, mapping_state, ROW_NUMBER() OVER (PARTITION BY anonymous_speaker ORDER BY CASE WHEN end_seconds - start_seconds >= 1.0 THEN 0 ELSE 1 END, end_seconds - start_seconds DESC, start_seconds) AS speaker_row FROM echo_speaker_segments WHERE run_id = ?) WHERE speaker_row <= 150 ORDER BY start_seconds`, s.LatestRun.RunID)
+		segRows, err := d.db.Query(`SELECT segment_id, run_id, start_seconds, end_seconds, anonymous_speaker, COALESCE(voice_id,''), mapping_state FROM (SELECT segment_id, run_id, start_seconds, end_seconds, anonymous_speaker, voice_id, mapping_state, ROW_NUMBER() OVER (PARTITION BY anonymous_speaker ORDER BY CASE WHEN end_seconds - start_seconds >= 1.0 THEN 0 ELSE 1 END, end_seconds - start_seconds DESC, start_seconds) AS speaker_row FROM echo_speaker_segments WHERE run_id = ?) WHERE speaker_row <= 50 ORDER BY start_seconds`, s.LatestRun.RunID)
 		if err != nil {
 			return echoSnapshot{}, err
 		}
