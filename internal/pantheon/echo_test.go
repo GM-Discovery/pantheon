@@ -186,3 +186,61 @@ func TestEchoIdentityReviewChangesOneSegmentAndSupportsRenameAndClear(t *testing
 	}
 	_ = run
 }
+
+func TestEchoRunSelectionAndVoiceArchive(t *testing.T) {
+	d := kernel15Daemon(t, janusTestPackage("TEST:ECHORUNS", "expire"))
+	defer d.Close()
+
+	source := filepath.Join(t.TempDir(), "recording.m4a")
+	if err := os.WriteFile(source, []byte("local audio fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	diarizationOne := filepath.Join(t.TempDir(), "run-one.tsv")
+	if err := os.WriteFile(diarizationOne, []byte("start_seconds\tend_seconds\tspeaker\tduration_seconds\n0.000\t1.000\tSPEAKER_00\t1.000\n1.000\t2.000\tSPEAKER_01\t1.000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	diarizationTwo := filepath.Join(t.TempDir(), "run-two.tsv")
+	if err := os.WriteFile(diarizationTwo, []byte("start_seconds\tend_seconds\tspeaker\tduration_seconds\n0.000\t1.000\tSPEAKER_00\t1.000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.importEchoRun(echoImportRequest{RunID: "echo-run-one", SourcePath: source, DiarizationPath: diarizationOne}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.importEchoRun(echoImportRequest{RunID: "echo-run-two", SourcePath: source, DiarizationPath: diarizationTwo}); err != nil {
+		t.Fatal(err)
+	}
+
+	snapshot, err := d.echoSnapshotForRun("echo-run-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.SelectedRunID != "echo-run-one" || snapshot.LatestRun == nil || snapshot.LatestRun.RunID != "echo-run-one" || len(snapshot.AnonymousSpeakers) != 2 {
+		t.Fatalf("selected Echo run = %#v", snapshot)
+	}
+
+	profile, err := d.createEchoVoice(echoVoiceRequest{Name: "Accidental profile"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive := httptest.NewRecorder()
+	d.Handler().ServeHTTP(archive, httptest.NewRequest(http.MethodPost, "/v1/echo/voices/"+profile.VoiceID+"/archive", strings.NewReader(`{}`)))
+	if archive.Code != http.StatusOK {
+		t.Fatalf("archive status=%d body=%s", archive.Code, archive.Body.String())
+	}
+	profiles, err := readEchoProfiles(d.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range profiles {
+		if item.VoiceID == profile.VoiceID {
+			t.Fatalf("archived profile remained active: %#v", profiles)
+		}
+	}
+	var state string
+	if err := d.db.QueryRow(`SELECT state FROM echo_voice_profiles WHERE voice_id = ?`, profile.VoiceID).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != echoVoiceDisabled {
+		t.Fatalf("archived profile state=%q", state)
+	}
+}

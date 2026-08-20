@@ -358,6 +358,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/echo/voices/{id}/samples", d.handleEchoEnroll)
 	mux.HandleFunc("POST /v1/echo/voices/{id}/confirm", d.handleEchoConfirm)
 	mux.HandleFunc("POST /v1/echo/voices/{id}/rename", d.handleEchoVoiceRename)
+	mux.HandleFunc("POST /v1/echo/voices/{id}/archive", d.handleEchoVoiceArchive)
 	mux.HandleFunc("POST /v1/echo/segments/{id}/confirm", d.handleEchoSegmentConfirm)
 	mux.HandleFunc("POST /v1/echo/segments/{id}/clear", d.handleEchoSegmentClear)
 	mux.HandleFunc("POST /v1/echo/runs/import", d.handleEchoImport)

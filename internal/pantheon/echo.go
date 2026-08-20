@@ -82,6 +82,7 @@ type echoSnapshot struct {
 	LocalOnly         bool                 `json:"local_only"`
 	Model             string               `json:"model"`
 	Profiles          []echoVoiceProfile   `json:"profiles"`
+	SelectedRunID     string               `json:"selected_run_id,omitempty"`
 	LatestRun         *echoRun             `json:"latest_run,omitempty"`
 	RecentRuns        []echoRun            `json:"recent_runs"`
 	AnonymousSpeakers []string             `json:"anonymous_speakers"`
@@ -168,7 +169,7 @@ func (d *daemon) ensureEchoDefaults() error {
 }
 
 func readEchoProfiles(db *sql.DB) ([]echoVoiceProfile, error) {
-	rows, err := db.Query(`SELECT voice_id, name, aliases_json, state, sample_count, local_only, COALESCE(notes, ''), created_at, updated_at FROM echo_voice_profiles ORDER BY name`)
+	rows, err := db.Query(`SELECT voice_id, name, aliases_json, state, sample_count, local_only, COALESCE(notes, ''), created_at, updated_at FROM echo_voice_profiles WHERE state != ? ORDER BY name`, echoVoiceDisabled)
 	if err != nil {
 		return nil, err
 	}
@@ -189,6 +190,10 @@ func readEchoProfiles(db *sql.DB) ([]echoVoiceProfile, error) {
 }
 
 func (d *daemon) echoSnapshot() (echoSnapshot, error) {
+	return d.echoSnapshotForRun("")
+}
+
+func (d *daemon) echoSnapshotForRun(selectedRunID string) (echoSnapshot, error) {
 	if err := d.ensureEchoDefaults(); err != nil {
 		return echoSnapshot{}, err
 	}
@@ -218,6 +223,20 @@ func (d *daemon) echoSnapshot() (echoSnapshot, error) {
 	}
 	if len(s.RecentRuns) > 0 {
 		s.LatestRun = &s.RecentRuns[0]
+		if strings.TrimSpace(selectedRunID) != "" {
+			found := false
+			for i := range s.RecentRuns {
+				if s.RecentRuns[i].RunID == strings.TrimSpace(selectedRunID) {
+					s.LatestRun = &s.RecentRuns[i]
+					found = true
+					break
+				}
+			}
+			if !found {
+				return echoSnapshot{}, fmt.Errorf("unknown Echo run %q", selectedRunID)
+			}
+		}
+		s.SelectedRunID = s.LatestRun.RunID
 	}
 	if s.LatestRun != nil {
 		s.LatestRun.TranscriptPath = d.echoTranscriptPath(s.LatestRun.SourcePath)
@@ -527,9 +546,9 @@ func (d *daemon) importEchoRun(req echoImportRequest) (echoRun, error) {
 }
 
 func (d *daemon) handleEchoSnapshot(w http.ResponseWriter, r *http.Request) {
-	snapshot, err := d.echoSnapshot()
+	snapshot, err := d.echoSnapshotForRun(r.URL.Query().Get("run_id"))
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, apiError{err.Error()})
+		writeJSON(w, http.StatusNotFound, apiError{err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, snapshot)
@@ -688,6 +707,26 @@ func (d *daemon) handleEchoVoiceRename(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeError(w, http.StatusInternalServerError, errors.New("renamed voice profile could not be read"))
+}
+
+func (d *daemon) handleEchoVoiceArchive(w http.ResponseWriter, r *http.Request) {
+	voiceID := r.PathValue("id")
+	if voiceID == "" || voiceID == "me" {
+		writeError(w, http.StatusBadRequest, errors.New("the default self profile cannot be removed"))
+		return
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	result, err := d.db.Exec(`UPDATE echo_voice_profiles SET state = ?, updated_at = ? WHERE voice_id = ? AND state != ?`, echoVoiceDisabled, now, voiceID, echoVoiceDisabled)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		writeError(w, http.StatusNotFound, errors.New("unknown or already removed voice profile"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"archived": true, "voice_id": voiceID, "note": "The profile is hidden from the active list; historical samples and assignments remain inspectable."})
 }
 func (d *daemon) handleEchoCommand(w http.ResponseWriter, r *http.Request) {
 	var req echoCommandRequest

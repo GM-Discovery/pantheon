@@ -54,6 +54,10 @@
     if (clearSegment) { clearEchoSegment(clearSegment.dataset.echoClearSegment); return; }
     const renameVoice = event.target.closest("[data-echo-voice-rename]");
     if (renameVoice) { renameEchoVoice(renameVoice.dataset.echoVoiceRename); return; }
+    const archiveVoice = event.target.closest("[data-echo-voice-archive]");
+    if (archiveVoice) { archiveEchoVoice(archiveVoice.dataset.echoVoiceArchive); return; }
+    const approveSpeaker = event.target.closest("[data-echo-approve-speaker]");
+    if (approveSpeaker) { approveEchoSpeaker(approveSpeaker.dataset.echoApproveSpeaker); return; }
     const speakerTrigger = event.target.closest("[data-echo-speaker]");
     if (speakerTrigger) { renderEchoSpeakerDetail(speakerTrigger.dataset.echoSpeaker); return; }
     const viewTrigger = event.target.closest("[data-view-link]");
@@ -110,18 +114,21 @@
     const run = body.latest_run || {};
     const profiles = Array.isArray(body.profiles) ? body.profiles : [];
     const speakers = Array.isArray(body.anonymous_speakers) ? body.anonymous_speakers : [];
+    const runs = Array.isArray(body.recent_runs) ? body.recent_runs : [];
     $("echo-state").outerHTML = `<span id="echo-state" class="state-chip ${body.enabled ? "enabled" : "disabled"}">${body.enabled ? "local" : "disabled"}</span>`;
     renderMetrics("echo-summary", { "voice profiles": profiles.length, "latest speakers": speakers.length, "segments in latest run": run.segment_count || 0, "confirmed mappings": (body.segments || []).filter((s) => s.mapping_state === "confirmed").length });
     $("echo-model").textContent = `${body.model || "not configured"} · ${body.local_only ? "local only" : "external boundary"}`;
+    $("echo-run-select").innerHTML = runs.map((item) => `<option value="${escapeHTML(item.run_id)}">${escapeHTML(item.run_id)} · ${escapeHTML(item.speaker_count)} speakers · ${escapeHTML(item.source_path)}</option>`).join("");
+    if (body.selected_run_id) $("echo-run-select").value = body.selected_run_id;
     $("echo-run").innerHTML = run.run_id ? `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(run.run_id)}</strong>${stateChip(run.status)}</div><p>${escapeHTML(run.source_path)}</p><div class="zodiac-meta">${escapeHTML(run.segment_count)} segments · ${escapeHTML(run.speaker_count)} anonymous speakers · diarization ${escapeHTML(run.diarization_path)}</div></article>` : `<p class="muted">No diarization run has been imported yet.</p>`;
-    $("echo-profiles").innerHTML = profiles.map((p) => `<article class="work-detail"><div class="work-detail-head"><div><input class="echo-profile-name" data-echo-voice-name="${escapeHTML(p.voice_id)}" value="${escapeHTML(p.name)}" aria-label="Voice profile name"></div>${stateChip(p.state)}</div><div class="button-row"><button type="button" class="button quiet" data-echo-voice-rename="${escapeHTML(p.voice_id)}">Save name</button><span class="muted">${p.sample_count ? `${escapeHTML(p.sample_count)} local sample reference${p.sample_count === 1 ? "" : "s"}` : "No sample yet"}</span></div><div class="zodiac-meta">voice id ${escapeHTML(p.voice_id)} · local only ${escapeHTML(p.local_only)}</div></article>`).join("") || `<p class="muted">No profiles registered.</p>`;
+    $("echo-profiles").innerHTML = profiles.map((p) => `<article class="work-detail echo-profile-card"><div class="work-detail-head"><div><input class="echo-profile-name" data-echo-voice-name="${escapeHTML(p.voice_id)}" value="${escapeHTML(p.name)}" aria-label="Voice profile name"></div>${stateChip(p.state)}</div><div class="button-row"><button type="button" class="button quiet" data-echo-voice-rename="${escapeHTML(p.voice_id)}">Save name</button>${p.voice_id !== "me" ? `<button type="button" class="button quiet" data-echo-voice-archive="${escapeHTML(p.voice_id)}">Remove</button>` : ""}<span class="muted">${p.sample_count ? `${escapeHTML(p.sample_count)} local sample reference${p.sample_count === 1 ? "" : "s"}` : "No sample yet"}</span></div><div class="zodiac-meta">voice id ${escapeHTML(p.voice_id)} · local only ${escapeHTML(p.local_only)}</div></article>`).join("") || `<p class="muted">No active voice profiles registered.</p>`;
     $("echo-speakers").innerHTML = speakers.map((speaker) => {
       const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
       const first = segments[0];
       const firstTime = first ? formatEchoSeconds(first.start_seconds) : "not in the visible segment window";
       const mapped = segments.filter((segment) => segment.voice_id).map((segment) => profiles.find((profile) => profile.voice_id === segment.voice_id)?.name || segment.voice_id);
       const uniqueMapped = [...new Set(mapped)];
-      return `<button type="button" class="work-detail echo-speaker-card" data-echo-speaker="${escapeHTML(speaker)}"><div class="work-detail-head"><strong>${escapeHTML(speaker)}</strong>${stateChip(mapped.length ? "review assignments" : "anonymous")}</div><p>This is the exact anonymous label Echo assigned. ${mapped.length ? `It currently has ${mapped.length} segment assignment${mapped.length === 1 ? "" : "s"} to review: ${escapeHTML(uniqueMapped.join(", "))}.` : "It has not been assigned to a voice profile."}</p><div class="zodiac-meta">${segments.length} visible segment${segments.length === 1 ? "" : "s"} · first visible timestamp ${escapeHTML(firstTime)} · click to review one at a time</div></button>`;
+      return `<button type="button" class="work-detail echo-speaker-card" data-echo-speaker="${escapeHTML(speaker)}"><div class="work-detail-head"><strong>${escapeHTML(speaker)}</strong>${stateChip(mapped.length ? "review assignments" : "anonymous")}</div><p>${mapped.length ? `Assigned in ${mapped.length} visible segment${mapped.length === 1 ? "" : "s"}: ${escapeHTML(uniqueMapped.join(", "))}.` : "No identity assignment yet."}</p><div class="zodiac-meta">${segments.length} visible segment${segments.length === 1 ? "" : "s"} · first visible timestamp ${escapeHTML(firstTime)} · review snippets and approve deliberately</div></button>`;
     }).join("") || `<p class="muted">No anonymous speaker labels recorded.</p>`;
     $("echo-boundaries").innerHTML = (body.boundaries || []).map((item) => `<li>${escapeHTML(item)}</li>`).join("");
   }
@@ -139,7 +146,8 @@
     const sample = segments.find((segment) => segment.segment_id === selectedSegmentID);
     $("echo-speaker-sample-note").textContent = sample ? `Selected snippet: ${formatEchoSeconds(sample.start_seconds)}–${formatEchoSeconds(sample.end_seconds)} (${(sample.end_seconds - sample.start_seconds).toFixed(1)} seconds). Only this segment will be changed.` : "Select a snippet below before setting an identity. No segment will be changed in bulk.";
     const segmentList = segments.map((segment) => `<article class="work-detail echo-segment ${segment.segment_id === selectedSegmentID ? "echo-segment-selected" : ""}"><div class="work-detail-head"><strong>${escapeHTML(formatEchoSeconds(segment.start_seconds))}–${escapeHTML(formatEchoSeconds(segment.end_seconds))}</strong>${stateChip(segment.mapping_state || "anonymous")}</div><p>Anonymous label: <code>${escapeHTML(segment.anonymous_speaker)}</code>${segment.voice_id ? ` · voice profile: <code>${escapeHTML(segment.voice_id)}</code>` : ""}</p><p><b>Transcript:</b> ${escapeHTML(segment.transcript_snippet || "No matching transcript snippet was found for this timestamp.")}</p><div class="button-row"><button type="button" class="button quiet" data-echo-select-segment="${escapeHTML(segment.segment_id)}" data-echo-speaker-for-segment="${escapeHTML(speaker)}">Use this snippet</button>${segment.voice_id ? `<button type="button" class="button quiet" data-echo-clear-segment="${escapeHTML(segment.segment_id)}">Clear this assignment</button>` : ""}</div><div class="zodiac-meta">segment ${escapeHTML(segment.segment_id)} · source ${escapeHTML(source)}</div></article>`).join("") || `<p class="muted">No segment rows for this speaker are currently in the visible Echo snapshot. Use the run and diarization paths above to inspect the complete local output.</p>`;
-    $("echo-speaker-detail-body").innerHTML = `<article class="work-detail"><div class="work-detail-head"><strong>Review one snippet at a time</strong>${stateChip("human confirmation")}</div><p>Names mentioned in a transcript are not speaker identity evidence. Listen to the selected time range before assigning it. This action creates one local voice sample and one Fame correction for one segment.</p></article>${segmentList}`;
+    const approval = sample?.voice_id ? `<div class="button-row"><button type="button" class="button" data-echo-approve-speaker="${escapeHTML(speaker)}">Approve this speaker label for this run</button><span class="muted">This will apply the selected profile to every ${escapeHTML(speaker)} segment in ${escapeHTML(run.run_id || "this run")}; it requires explicit confirmation.</span></div>` : `<p class="muted">To approve the whole label later, first select one snippet and save its identity. That separate approval will apply only to this run and anonymous label.</p>`;
+    $("echo-speaker-detail-body").innerHTML = `<article class="work-detail"><div class="work-detail-head"><strong>Review one snippet at a time</strong>${stateChip("human confirmation")}</div><p>Names mentioned in a transcript are not speaker identity evidence. Listen to the selected time range before assigning it. Saving creates one local voice sample and one Fame correction for one segment.</p>${approval}</article>${segmentList}`;
     $("echo-speaker-detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
   async function setEchoSpeakerIdentity(event) {
@@ -169,7 +177,7 @@
       await post("/v1/fame/corrections", { target_type: "segment", target_id: sample.segment_id, kind: "operator_identity_confirmation", statement: `Operator identified this segment of ${speaker} as ${name} in Echo run ${run.run_id}.`, person_id: person.person_id });
       await post(`/v1/fame/people/${encodeURIComponent(person.person_id)}/evidence`, { kind: "operator_correction", source_ref: `${run.run_id}:${sample.segment_id}`, detail: `Human entered ${name} for one Echo segment and confirmed the local voice sample.`, confidence: 1 });
       showNotice(`One ${speaker} segment is now assigned to ${name}. Other segments remain unchanged.`);
-      await loadEcho();
+      await loadEcho(run.run_id);
       renderEchoSpeakerDetail(speaker, sample.segment_id);
     } catch (error) {
       showNotice(error.message || "The speaker identity could not be saved. No cloud upload was attempted.", true);
@@ -186,7 +194,7 @@
       if ((fame.attributions || []).some((item) => item.segment_id === segmentID && item.person_id)) await post(`/v1/fame/segments/${encodeURIComponent(segmentID)}/clear`);
       showNotice("That segment is anonymous again. Other segment assignments were left unchanged.");
       const speaker = document.querySelector("#echo-speaker-identity-form")?.dataset.echoSpeaker || "";
-      await loadEcho();
+      await loadEcho(state.echo?.selected_run_id || "");
       if (speaker) renderEchoSpeakerDetail(speaker, segmentID);
     } catch (error) {
       showNotice(error.message || "The segment assignment could not be cleared.", true);
@@ -199,12 +207,45 @@
     try {
       await post(`/v1/echo/voices/${encodeURIComponent(voiceID)}/rename`, { name });
       showNotice(`Voice profile renamed to ${name}. Existing segment assignments remain attached to this profile.`);
-      await loadEcho();
+      await loadEcho(state.echo?.selected_run_id || "");
     } catch (error) {
       showNotice(error.message || "The voice profile name could not be saved.", true);
     }
   }
-  async function loadEcho() { try { renderEcho(await json("/v1/gui/echo")); } catch (error) { $("echo-run").innerHTML = `<p class="muted">Echo state is unavailable; no voice action was taken.</p>`; showNotice(error.message || "Echo state unavailable.", true); } }
+  async function archiveEchoVoice(voiceID) {
+    if (!window.confirm("Remove this voice profile from the active Echo list? Historical samples and assignments will be preserved.")) return;
+    try {
+      await post(`/v1/echo/voices/${encodeURIComponent(voiceID)}/archive`);
+      showNotice("Voice profile removed from the active list. Historical evidence was preserved.");
+      await loadEcho(state.echo?.selected_run_id || "");
+    } catch (error) {
+      showNotice(error.message || "The voice profile could not be removed.", true);
+    }
+  }
+  async function approveEchoSpeaker(speaker) {
+    const form = $("echo-speaker-identity-form");
+    const body = state.echo || {};
+    const run = body.latest_run || {};
+    const name = $("echo-speaker-identity-name").value.trim();
+    const segment = (body.segments || []).find((item) => item.anonymous_speaker === speaker && item.segment_id === form.dataset.echoSegment);
+    if (!speaker || !run.run_id || !name || !segment?.voice_id) { showNotice("Select and save one identified snippet before approving this speaker label.", true); return; }
+    if (!window.confirm(`Approve ${speaker} as ${name} for every segment in ${run.run_id}? Review the snippets first; this changes the whole anonymous label only in this run.`)) return;
+    try {
+      const fame = await json("/v1/fame");
+      let person = (fame.people || []).find((item) => String(item.preferred_name || "").toLowerCase() === name.toLowerCase());
+      if (!person) person = await post("/v1/fame/people", { preferred_name: name, status: "confirmed" });
+      await post(`/v1/echo/voices/${encodeURIComponent(segment.voice_id)}/confirm`, { run_id: run.run_id, speaker });
+      const fameAfterPerson = await json("/v1/fame");
+      if (!(fameAfterPerson.conversations || []).some((conversation) => conversation.run_id === run.run_id)) await post("/v1/fame/conversations", { run_id: run.run_id });
+      await post("/v1/fame/corrections", { target_type: "speaker", target_id: run.run_id, kind: "operator_speaker_label_confirmation", statement: `Operator approved every ${speaker} segment in Echo run ${run.run_id} as ${name}.`, person_id: person.person_id, run_id: run.run_id, speaker });
+      showNotice(`${speaker} is approved as ${name} for this Echo run. Other runs remain unchanged.`);
+      await loadEcho(run.run_id);
+      renderEchoSpeakerDetail(speaker, segment.segment_id);
+    } catch (error) {
+      showNotice(error.message || "The speaker label could not be approved.", true);
+    }
+  }
+  async function loadEcho(runID = "") { try { const url = runID ? `/v1/gui/echo?run_id=${encodeURIComponent(runID)}` : "/v1/gui/echo"; renderEcho(await json(url)); } catch (error) { $("echo-run").innerHTML = `<p class="muted">Echo state is unavailable; no voice action was taken.</p>`; showNotice(error.message || "Echo state unavailable.", true); } }
   function renderFame(body) {
     state.fame = body;
     const people = Array.isArray(body.people) ? body.people : [];
@@ -255,6 +296,7 @@
   $("zodiac-round")?.addEventListener("click", evaluateZodiac); $("zodiac-refresh")?.addEventListener("click", loadZodiac);
   $("aphrodite-refresh")?.addEventListener("click", loadAphrodite);
   $("echo-refresh")?.addEventListener("click", loadEcho);
+  $("echo-run-select")?.addEventListener("change", (event) => loadEcho(event.target.value));
   $("fame-refresh")?.addEventListener("click", loadFame);
   $("echo-speaker-identity-form")?.addEventListener("submit", setEchoSpeakerIdentity);
   function updateClock() { const now = new Date(); $("clock").textContent = now.toLocaleTimeString(); $("date").textContent = now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }); $("runtime-time").textContent = now.toLocaleTimeString(); }
