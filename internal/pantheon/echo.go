@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,7 @@ type echoRun struct {
 	SpeakerCount    int    `json:"speaker_count"`
 	Status          string `json:"status"`
 	DiarizationPath string `json:"diarization_path"`
+	TranscriptPath  string `json:"transcript_path,omitempty"`
 	SegmentCount    int    `json:"segment_count"`
 	CreatedAt       string `json:"created_at"`
 	CompletedAt     string `json:"completed_at,omitempty"`
@@ -64,13 +66,14 @@ type echoRun struct {
 }
 
 type echoSpeakerSegment struct {
-	SegmentID        string  `json:"segment_id"`
-	RunID            string  `json:"run_id"`
-	StartSeconds     float64 `json:"start_seconds"`
-	EndSeconds       float64 `json:"end_seconds"`
-	AnonymousSpeaker string  `json:"anonymous_speaker"`
-	VoiceID          string  `json:"voice_id,omitempty"`
-	MappingState     string  `json:"mapping_state"`
+	SegmentID         string  `json:"segment_id"`
+	RunID             string  `json:"run_id"`
+	StartSeconds      float64 `json:"start_seconds"`
+	EndSeconds        float64 `json:"end_seconds"`
+	AnonymousSpeaker  string  `json:"anonymous_speaker"`
+	VoiceID           string  `json:"voice_id,omitempty"`
+	MappingState      string  `json:"mapping_state"`
+	TranscriptSnippet string  `json:"transcript_snippet,omitempty"`
 }
 
 type echoSnapshot struct {
@@ -209,6 +212,8 @@ func (d *daemon) echoSnapshot() (echoSnapshot, error) {
 		s.LatestRun = &s.RecentRuns[0]
 	}
 	if s.LatestRun != nil {
+		s.LatestRun.TranscriptPath = d.echoTranscriptPath(s.LatestRun.SourcePath)
+		transcript, _ := readEchoTranscript(s.LatestRun.TranscriptPath)
 		rows, err := d.db.Query(`SELECT DISTINCT anonymous_speaker FROM echo_speaker_segments WHERE run_id = ? ORDER BY anonymous_speaker`, s.LatestRun.RunID)
 		if err != nil {
 			return echoSnapshot{}, err
@@ -232,10 +237,108 @@ func (d *daemon) echoSnapshot() (echoSnapshot, error) {
 			if err := segRows.Scan(&x.SegmentID, &x.RunID, &x.StartSeconds, &x.EndSeconds, &x.AnonymousSpeaker, &x.VoiceID, &x.MappingState); err != nil {
 				return echoSnapshot{}, err
 			}
+			x.TranscriptSnippet = echoTranscriptSnippetForSegment(transcript, x)
 			s.Segments = append(s.Segments, x)
 		}
 	}
 	return s, nil
+}
+
+type echoTranscriptSnippet struct {
+	StartSeconds     float64
+	EndSeconds       float64
+	AnonymousSpeaker string
+	Text             string
+}
+
+var echoTranscriptLinePattern = regexp.MustCompile(`^\[([^\]]+)[–-]([^\]]+)\]\s+\*\*([^:*]+):\*\*\s*(.*)$`)
+
+func parseEchoTimestamp(value string) (float64, error) {
+	parts := strings.Split(strings.TrimSpace(value), ":")
+	if len(parts) != 3 {
+		return 0, errors.New("invalid timestamp")
+	}
+	hours, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return 0, err
+	}
+	minutes, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return 0, err
+	}
+	seconds, err := strconv.ParseFloat(parts[2], 64)
+	if err != nil {
+		return 0, err
+	}
+	return hours*3600 + minutes*60 + seconds, nil
+}
+
+func (d *daemon) echoTranscriptPath(sourcePath string) string {
+	if strings.TrimSpace(d.cfg.VaultPath) == "" {
+		return ""
+	}
+	base := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
+	pattern := filepath.Join(d.cfg.VaultPath, "80 Pantheon Raw", "Audio", "*", "*", "*", base+".kernel24-safe-*.speaker-transcript.md")
+	matches, err := filepath.Glob(pattern)
+	if err != nil || len(matches) == 0 {
+		return ""
+	}
+	return matches[len(matches)-1]
+}
+
+func readEchoTranscript(path string) ([]echoTranscriptSnippet, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	var snippets []echoTranscriptSnippet
+	for scanner.Scan() {
+		match := echoTranscriptLinePattern.FindStringSubmatch(strings.TrimSpace(scanner.Text()))
+		if len(match) != 5 {
+			continue
+		}
+		start, startErr := parseEchoTimestamp(match[1])
+		end, endErr := parseEchoTimestamp(match[2])
+		if startErr != nil || endErr != nil || end < start || strings.TrimSpace(match[4]) == "" {
+			continue
+		}
+		snippets = append(snippets, echoTranscriptSnippet{StartSeconds: start, EndSeconds: end, AnonymousSpeaker: strings.TrimSpace(match[3]), Text: strings.TrimSpace(match[4])})
+	}
+	return snippets, scanner.Err()
+}
+
+func echoTranscriptSnippetForSegment(snippets []echoTranscriptSnippet, segment echoSpeakerSegment) string {
+	bestOverlap := 0.0
+	bestText := ""
+	for _, snippet := range snippets {
+		if snippet.AnonymousSpeaker != segment.AnonymousSpeaker {
+			continue
+		}
+		overlap := minFloat(snippet.EndSeconds, segment.EndSeconds) - maxFloat(snippet.StartSeconds, segment.StartSeconds)
+		if overlap > bestOverlap {
+			bestOverlap, bestText = overlap, snippet.Text
+		}
+	}
+	return bestText
+}
+
+func minFloat(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxFloat(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func echoFileHash(path string) (string, error) {

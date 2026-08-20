@@ -115,11 +115,47 @@
     const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
     const source = run.source_path || "the latest Echo run";
     $("echo-speaker-detail").hidden = false;
+    $("echo-speaker-identity-form").dataset.echoSpeaker = speaker;
     $("echo-speaker-detail-title").textContent = speaker;
     $("echo-speaker-detail-intro").textContent = `This is ${speaker} in run ${run.run_id || "without an imported run"}. The timestamped segments below are how you identify the voice in the recording; Echo does not supply transcript text here.`;
-    const segmentList = segments.map((segment) => `<article class="work-detail echo-segment"><div class="work-detail-head"><strong>${escapeHTML(formatEchoSeconds(segment.start_seconds))}–${escapeHTML(formatEchoSeconds(segment.end_seconds))}</strong>${stateChip(segment.mapping_state || "anonymous")}</div><p>Anonymous label: <code>${escapeHTML(segment.anonymous_speaker)}</code>${segment.voice_id ? ` · voice profile: <code>${escapeHTML(segment.voice_id)}</code>` : ""}</p><div class="zodiac-meta">segment ${escapeHTML(segment.segment_id)} · source ${escapeHTML(source)}</div></article>`).join("") || `<p class="muted">No segment rows for this speaker are currently in the visible Echo snapshot. Use the run and diarization paths above to inspect the complete local output.</p>`;
+    const sample = segments.reduce((longest, segment) => !longest || (segment.end_seconds - segment.start_seconds) > (longest.end_seconds - longest.start_seconds) ? segment : longest, null);
+    $("echo-speaker-sample-note").textContent = sample ? `The default local enrollment sample will be ${formatEchoSeconds(sample.start_seconds)}–${formatEchoSeconds(sample.end_seconds)} (${(sample.end_seconds - sample.start_seconds).toFixed(1)} seconds).` : "No enrollment sample is available for this speaker yet.";
+    const segmentList = segments.map((segment) => `<article class="work-detail echo-segment"><div class="work-detail-head"><strong>${escapeHTML(formatEchoSeconds(segment.start_seconds))}–${escapeHTML(formatEchoSeconds(segment.end_seconds))}</strong>${stateChip(segment.mapping_state || "anonymous")}</div><p>Anonymous label: <code>${escapeHTML(segment.anonymous_speaker)}</code>${segment.voice_id ? ` · voice profile: <code>${escapeHTML(segment.voice_id)}</code>` : ""}</p><p><b>Transcript:</b> ${escapeHTML(segment.transcript_snippet || "No matching transcript snippet was found for this timestamp.")}</p><div class="zodiac-meta">segment ${escapeHTML(segment.segment_id)} · source ${escapeHTML(source)}</div></article>`).join("") || `<p class="muted">No segment rows for this speaker are currently in the visible Echo snapshot. Use the run and diarization paths above to inspect the complete local output.</p>`;
     $("echo-speaker-detail-body").innerHTML = `<article class="work-detail"><div class="work-detail-head"><strong>How to set this speaker</strong>${stateChip("human confirmation")}</div><p>1. Listen to one of the timestamps below. 2. Create or choose a local voice profile. 3. Enroll a clear sample from the same recording. 4. Confirm this exact anonymous label. Confirmation links a voice profile to this label; it does not by itself assert a durable Fame person identity.</p><div class="zodiac-meta">Example: <code>pantheon echo voice enroll &lt;voice-id&gt; ${escapeHTML(source)} --start &lt;start-seconds&gt; --end &lt;end-seconds&gt;</code><br><br>Then: <code>pantheon echo confirm &lt;voice-id&gt; ${escapeHTML(run.run_id || "&lt;run-id&gt;")} ${escapeHTML(speaker)}</code></div></article>${segmentList}`;
     $("echo-speaker-detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  async function setEchoSpeakerIdentity(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const speaker = form.dataset.echoSpeaker;
+    const name = $("echo-speaker-identity-name").value.trim();
+    const body = state.echo || {};
+    const run = body.latest_run || {};
+    const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
+    const sample = segments.reduce((longest, segment) => !longest || (segment.end_seconds - segment.start_seconds) > (longest.end_seconds - longest.start_seconds) ? segment : longest, null);
+    if (!speaker || !name || !run.run_id || !run.source_path || !sample) { showNotice("Choose a speaker with a visible timestamp before setting its identity.", true); return; }
+    const submit = form.querySelector("button[type=submit]");
+    submit.disabled = true;
+    submit.textContent = "Saving…";
+    try {
+      const fame = await json("/v1/fame");
+      let person = (fame.people || []).find((item) => String(item.preferred_name || "").toLowerCase() === name.toLowerCase());
+      if (!person) person = await post("/v1/fame/people", { preferred_name: name, status: "confirmed" });
+      let profile = (body.profiles || []).find((item) => String(item.name || "").toLowerCase() === name.toLowerCase());
+      if (!profile) profile = await post("/v1/echo/voices", { name });
+      await post(`/v1/echo/voices/${encodeURIComponent(profile.voice_id)}/samples`, { source_path: run.source_path, start_seconds: sample.start_seconds, end_seconds: sample.end_seconds });
+      await post(`/v1/echo/voices/${encodeURIComponent(profile.voice_id)}/confirm`, { run_id: run.run_id, speaker });
+      await post("/v1/fame/corrections", { target_type: "speaker", target_id: run.run_id, kind: "operator_identity_confirmation", statement: `Operator identified ${speaker} as ${name} in Echo run ${run.run_id}.`, person_id: person.person_id, run_id: run.run_id, speaker });
+      await post(`/v1/fame/people/${encodeURIComponent(person.person_id)}/evidence`, { kind: "operator_correction", source_ref: `${run.run_id}:${speaker}`, detail: `Human entered ${name} for this Echo speaker and confirmed the local voice sample.`, confidence: 1 });
+      showNotice(`${speaker} is now confirmed as ${name} for this Echo run. Source audio stayed local.`);
+      await loadEcho();
+      renderEchoSpeakerDetail(speaker);
+    } catch (error) {
+      showNotice(error.message || "The speaker identity could not be saved. No cloud upload was attempted.", true);
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "Set speaker identity";
+    }
   }
   async function loadEcho() { try { renderEcho(await json("/v1/gui/echo")); } catch (error) { $("echo-run").innerHTML = `<p class="muted">Echo state is unavailable; no voice action was taken.</p>`; showNotice(error.message || "Echo state unavailable.", true); } }
   function renderFame(body) {
@@ -173,6 +209,7 @@
   $("aphrodite-refresh")?.addEventListener("click", loadAphrodite);
   $("echo-refresh")?.addEventListener("click", loadEcho);
   $("fame-refresh")?.addEventListener("click", loadFame);
+  $("echo-speaker-identity-form")?.addEventListener("submit", setEchoSpeakerIdentity);
   function updateClock() { const now = new Date(); $("clock").textContent = now.toLocaleTimeString(); $("date").textContent = now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }); $("runtime-time").textContent = now.toLocaleTimeString(); }
   async function boot() { try { await post("/v1/gui/session"); await refreshState(); updateClock(); setInterval(updateClock, 1000); setInterval(refreshState, 3000); } catch (error) { showNotice("Panopticon could not establish a local session. Check that Pantheon is running and retry.", true); console.warn("[Panopticon] Session startup failed", error); } }
   boot();

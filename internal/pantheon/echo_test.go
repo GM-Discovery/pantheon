@@ -103,3 +103,22 @@ func TestEchoHTTPSurfaceAndSlashCommand(t *testing.T) {
 		t.Fatalf("slash command body=%s err=%v", recorder.Body.String(), err)
 	}
 }
+
+func TestEchoReadsSpeakerTranscriptSnippetsByTimestamp(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "speaker-transcript.md")
+	content := "# Transcript\n\n[00:00:01.440–00:00:03.120] **SPEAKER_00:** Did you send the documents?\n[00:00:03.980–00:00:09.030] **SPEAKER_01:** Then if there is no documentation.\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	snippets, err := readEchoTranscript(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snippets) != 2 {
+		t.Fatalf("parsed snippets=%d", len(snippets))
+	}
+	text := echoTranscriptSnippetForSegment(snippets, echoSpeakerSegment{AnonymousSpeaker: "SPEAKER_00", StartSeconds: 1.482, EndSeconds: 2.100})
+	if text != "Did you send the documents?" {
+		t.Fatalf("matched snippet=%q", text)
+	}
+}
