@@ -45,7 +45,7 @@
     if (view === "execution") loadExecutionWork($("execution-filter")?.value || "all");
   }
   document.querySelectorAll("[data-view]").forEach((item) => item.addEventListener("click", () => selectView(item.dataset.view)));
-  document.addEventListener("click", (event) => { const workTrigger = event.target.closest("[data-work-category]"); if (workTrigger) { loadWorkContext(workTrigger.dataset.workCategory); return; } const viewTrigger = event.target.closest("[data-view-link]"); if (viewTrigger) selectView(viewTrigger.dataset.viewLink); if (event.target.closest("#work-context-close")) $("work-context").hidden = true; });
+  document.addEventListener("click", (event) => { const workTrigger = event.target.closest("[data-work-category]"); if (workTrigger) { loadWorkContext(workTrigger.dataset.workCategory); return; } const speakerTrigger = event.target.closest("[data-echo-speaker]"); if (speakerTrigger) { renderEchoSpeakerDetail(speakerTrigger.dataset.echoSpeaker); return; } const viewTrigger = event.target.closest("[data-view-link]"); if (viewTrigger) selectView(viewTrigger.dataset.viewLink); if (event.target.closest("#work-context-close")) $("work-context").hidden = true; if (event.target.closest("#echo-speaker-detail-close")) $("echo-speaker-detail").hidden = true; });
 
   function renderInventory() {
     const inventory = state.inventory; if (!inventory) return;
@@ -100,8 +100,26 @@
     $("echo-model").textContent = `${body.model || "not configured"} · ${body.local_only ? "local only" : "external boundary"}`;
     $("echo-run").innerHTML = run.run_id ? `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(run.run_id)}</strong>${stateChip(run.status)}</div><p>${escapeHTML(run.source_path)}</p><div class="zodiac-meta">${escapeHTML(run.segment_count)} segments · ${escapeHTML(run.speaker_count)} anonymous speakers · diarization ${escapeHTML(run.diarization_path)}</div></article>` : `<p class="muted">No diarization run has been imported yet.</p>`;
     $("echo-profiles").innerHTML = profiles.map((p) => `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(p.name)}</strong>${stateChip(p.state)}</div><p>${p.sample_count ? `${escapeHTML(p.sample_count)} local sample reference${p.sample_count === 1 ? "" : "s"}` : "No sample yet; choose a clear segment before matching this profile."}</p><div class="zodiac-meta">voice id ${escapeHTML(p.voice_id)} · local only ${escapeHTML(p.local_only)}</div></article>`).join("") || `<p class="muted">No profiles registered.</p>`;
-    $("echo-speakers").innerHTML = speakers.map((speaker) => `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(speaker)}</strong>${stateChip("anonymous")}</div><p>Echo found this voice in the latest run. It has not been assigned to a person.</p><div class="zodiac-meta">Use the CLI to enroll a sample, then confirm the mapping.</div></article>`).join("") || `<p class="muted">No anonymous speaker labels recorded.</p>`;
+    $("echo-speakers").innerHTML = speakers.map((speaker) => {
+      const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
+      const first = segments[0];
+      const firstTime = first ? formatEchoSeconds(first.start_seconds) : "not in the visible segment window";
+      return `<button type="button" class="work-detail echo-speaker-card" data-echo-speaker="${escapeHTML(speaker)}"><div class="work-detail-head"><strong>${escapeHTML(speaker)}</strong>${stateChip("anonymous")}</div><p>This is the exact anonymous label Echo assigned. It has not been assigned to a person.</p><div class="zodiac-meta">${segments.length} visible segment${segments.length === 1 ? "" : "s"} · first visible timestamp ${escapeHTML(firstTime)} · click for setup steps</div></button>`;
+    }).join("") || `<p class="muted">No anonymous speaker labels recorded.</p>`;
     $("echo-boundaries").innerHTML = (body.boundaries || []).map((item) => `<li>${escapeHTML(item)}</li>`).join("");
+  }
+  const formatEchoSeconds = (value) => { const seconds = Math.max(0, Math.floor(Number(value) || 0)); const hours = Math.floor(seconds / 3600); const minutes = Math.floor((seconds % 3600) / 60); const remainder = seconds % 60; return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`; };
+  function renderEchoSpeakerDetail(speaker) {
+    const body = state.echo || {};
+    const run = body.latest_run || {};
+    const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
+    const source = run.source_path || "the latest Echo run";
+    $("echo-speaker-detail").hidden = false;
+    $("echo-speaker-detail-title").textContent = speaker;
+    $("echo-speaker-detail-intro").textContent = `This is ${speaker} in run ${run.run_id || "without an imported run"}. The timestamped segments below are how you identify the voice in the recording; Echo does not supply transcript text here.`;
+    const segmentList = segments.map((segment) => `<article class="work-detail echo-segment"><div class="work-detail-head"><strong>${escapeHTML(formatEchoSeconds(segment.start_seconds))}–${escapeHTML(formatEchoSeconds(segment.end_seconds))}</strong>${stateChip(segment.mapping_state || "anonymous")}</div><p>Anonymous label: <code>${escapeHTML(segment.anonymous_speaker)}</code>${segment.voice_id ? ` · voice profile: <code>${escapeHTML(segment.voice_id)}</code>` : ""}</p><div class="zodiac-meta">segment ${escapeHTML(segment.segment_id)} · source ${escapeHTML(source)}</div></article>`).join("") || `<p class="muted">No segment rows for this speaker are currently in the visible Echo snapshot. Use the run and diarization paths above to inspect the complete local output.</p>`;
+    $("echo-speaker-detail-body").innerHTML = `<article class="work-detail"><div class="work-detail-head"><strong>How to set this speaker</strong>${stateChip("human confirmation")}</div><p>1. Listen to one of the timestamps below. 2. Create or choose a local voice profile. 3. Enroll a clear sample from the same recording. 4. Confirm this exact anonymous label. Confirmation links a voice profile to this label; it does not by itself assert a durable Fame person identity.</p><div class="zodiac-meta">Example: <code>pantheon echo voice enroll &lt;voice-id&gt; ${escapeHTML(source)} --start &lt;start-seconds&gt; --end &lt;end-seconds&gt;</code><br><br>Then: <code>pantheon echo confirm &lt;voice-id&gt; ${escapeHTML(run.run_id || "&lt;run-id&gt;")} ${escapeHTML(speaker)}</code></div></article>${segmentList}`;
+    $("echo-speaker-detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
   async function loadEcho() { try { renderEcho(await json("/v1/gui/echo")); } catch (error) { $("echo-run").innerHTML = `<p class="muted">Echo state is unavailable; no voice action was taken.</p>`; showNotice(error.message || "Echo state unavailable.", true); } }
   function renderFame(body) {

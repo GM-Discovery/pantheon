@@ -20,7 +20,7 @@
         <button class="nav-item" data-view="ingestion">Ingestion / Understanding</button>
         <button class="nav-item" data-view="intake">Intake</button>
         <button class="nav-item" data-view="rumor">Rumor</button>
-        <button class="nav-item" data-view="echo">Echo / Voices</button>
+        <button class="nav-item" data-view="echo">Echo</button>
         <button class="nav-item" data-view="fame">Fame / People</button>
         <button class="nav-item" data-view="mail">Mail</button>
         <button class="nav-item" data-view="zodiac">Zodiac</button>
@@ -104,7 +104,8 @@
         <section class="panel"><div class="panel-title"><div><h2>Local diarization</h2><p id="echo-model" class="muted">Loading model state…</p></div><span id="echo-state" class="state-chip unknown">unknown</span></div><div id="echo-summary" class="metric-grid"></div></section>
         <section class="panel"><div class="panel-title"><div><h2>Latest run</h2><p class="muted">Run provenance and output paths remain visible for inspection.</p></div></div><div id="echo-run" class="work-detail-list"></div></section>
         <section class="panel"><div class="panel-title"><div><h2>Voice profiles</h2><p class="muted">Profiles are local references. Enrollment does not train Whisper or upload audio.</p></div></div><div id="echo-profiles" class="work-detail-list"></div></section>
-        <section class="panel"><div class="panel-title"><div><h2>Anonymous speakers</h2><p class="muted">These labels are the safe starting point for human confirmation.</p></div></div><div id="echo-speakers" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Anonymous speakers</h2><p class="muted">Click a speaker to see exactly which label and time segments the system means.</p></div></div><div id="echo-speakers" class="work-detail-list"></div></section>
+        <section id="echo-speaker-detail" class="panel work-context" hidden><div class="panel-title"><div><p class="eyebrow">SELECTED SPEAKER</p><h2 id="echo-speaker-detail-title">Speaker detail</h2><p id="echo-speaker-detail-intro" class="muted"></p></div><button id="echo-speaker-detail-close" class="text-button">Close</button></div><div id="echo-speaker-detail-body" class="work-detail-list"></div></section>
         <section class="panel"><div class="panel-title"><h2>Boundaries</h2><span class="tag">local only</span></div><ul id="echo-boundaries" class="boundary-list"></ul></section>
       </section>
 
