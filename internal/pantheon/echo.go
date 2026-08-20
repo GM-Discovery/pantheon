@@ -254,7 +254,9 @@ func (d *daemon) echoSnapshotForRun(selectedRunID string) (echoSnapshot, error) 
 			s.AnonymousSpeakers = append(s.AnonymousSpeakers, name)
 		}
 		rows.Close()
-		segRows, err := d.db.Query(`SELECT segment_id, run_id, start_seconds, end_seconds, anonymous_speaker, COALESCE(voice_id,''), mapping_state FROM echo_speaker_segments WHERE run_id = ? ORDER BY start_seconds LIMIT 50`, s.LatestRun.RunID)
+		// Keep the review surface bounded while guaranteeing that a later speaker
+		// is not hidden behind the first speaker's long stretch of audio.
+		segRows, err := d.db.Query(`SELECT segment_id, run_id, start_seconds, end_seconds, anonymous_speaker, COALESCE(voice_id,''), mapping_state FROM (SELECT segment_id, run_id, start_seconds, end_seconds, anonymous_speaker, voice_id, mapping_state, ROW_NUMBER() OVER (PARTITION BY anonymous_speaker ORDER BY start_seconds) AS speaker_row FROM echo_speaker_segments WHERE run_id = ?) WHERE speaker_row <= 50 ORDER BY start_seconds`, s.LatestRun.RunID)
 		if err != nil {
 			return echoSnapshot{}, err
 		}
