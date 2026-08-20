@@ -113,6 +113,14 @@ type echoConfirmRequest struct {
 	Speaker string `json:"speaker"`
 }
 
+type echoSegmentConfirmRequest struct {
+	VoiceID string `json:"voice_id"`
+}
+
+type echoVoiceRenameRequest struct {
+	Name string `json:"name"`
+}
+
 type echoCommandRequest struct {
 	Input string `json:"input"`
 }
@@ -416,7 +424,7 @@ func (d *daemon) enrollEchoVoice(voiceID string, req echoEnrollRequest) (echoVoi
 		return echoVoiceSample{}, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	id := "sample-" + hash[:16]
+	id := fmt.Sprintf("sample-%s-%.3f-%.3f", hash[:16], req.StartSeconds, req.EndSeconds)
 	_, err = d.db.Exec(`INSERT OR REPLACE INTO echo_voice_samples (sample_id, voice_id, source_path, start_seconds, end_seconds, sha256, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, id, voiceID, path, req.StartSeconds, req.EndSeconds, hash, now)
 	if err != nil {
 		return echoVoiceSample{}, err
@@ -601,6 +609,85 @@ func (d *daemon) handleEchoConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"confirmed": n, "run_id": req.RunID, "speaker": speaker, "voice_id": voiceID})
+}
+
+func (d *daemon) handleEchoSegmentConfirm(w http.ResponseWriter, r *http.Request) {
+	var request echoSegmentConfirmRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	voiceID := strings.TrimSpace(request.VoiceID)
+	if voiceID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("voice_id is required"))
+		return
+	}
+	var exists int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM echo_voice_profiles WHERE voice_id = ?`, voiceID).Scan(&exists); err != nil || exists == 0 {
+		writeError(w, http.StatusNotFound, errors.New("unknown voice profile"))
+		return
+	}
+	result, err := d.db.Exec(`UPDATE echo_speaker_segments SET voice_id = ?, mapping_state = ? WHERE segment_id = ?`, voiceID, echoMappingConfirmed, r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		writeError(w, http.StatusNotFound, errors.New("unknown Echo segment"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"confirmed": true, "segment_id": r.PathValue("id"), "voice_id": voiceID})
+}
+
+func (d *daemon) handleEchoSegmentClear(w http.ResponseWriter, r *http.Request) {
+	result, err := d.db.Exec(`UPDATE echo_speaker_segments SET voice_id = NULL, mapping_state = ? WHERE segment_id = ?`, echoMappingAnonymous, r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		writeError(w, http.StatusNotFound, errors.New("unknown Echo segment"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"cleared": true, "segment_id": r.PathValue("id")})
+}
+
+func (d *daemon) handleEchoVoiceRename(w http.ResponseWriter, r *http.Request) {
+	var request echoVoiceRenameRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" || len(name) > 80 {
+		writeError(w, http.StatusBadRequest, errors.New("voice name must be 1-80 characters"))
+		return
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	result, err := d.db.Exec(`UPDATE echo_voice_profiles SET name = ?, updated_at = ? WHERE voice_id = ?`, name, now, r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusConflict, errors.New("voice profile name is already in use or invalid"))
+		return
+	}
+	count, _ := result.RowsAffected()
+	if count == 0 {
+		writeError(w, http.StatusNotFound, errors.New("unknown voice profile"))
+		return
+	}
+	profiles, err := readEchoProfiles(d.db)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	for _, profile := range profiles {
+		if profile.VoiceID == r.PathValue("id") {
+			writeJSON(w, http.StatusOK, profile)
+			return
+		}
+	}
+	writeError(w, http.StatusInternalServerError, errors.New("renamed voice profile could not be read"))
 }
 func (d *daemon) handleEchoCommand(w http.ResponseWriter, r *http.Request) {
 	var req echoCommandRequest

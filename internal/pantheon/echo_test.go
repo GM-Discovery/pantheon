@@ -122,3 +122,67 @@ func TestEchoReadsSpeakerTranscriptSnippetsByTimestamp(t *testing.T) {
 		t.Fatalf("matched snippet=%q", text)
 	}
 }
+
+func TestEchoIdentityReviewChangesOneSegmentAndSupportsRenameAndClear(t *testing.T) {
+	d := kernel15Daemon(t, janusTestPackage("TEST:ECHOREVIEW", "expire"))
+	defer d.Close()
+
+	source := filepath.Join(t.TempDir(), "recording.m4a")
+	if err := os.WriteFile(source, []byte("local audio fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	diarization := filepath.Join(t.TempDir(), "run.tsv")
+	if err := os.WriteFile(diarization, []byte("start_seconds\tend_seconds\tspeaker\tduration_seconds\n0.000\t1.000\tSPEAKER_00\t1.000\n1.000\t2.000\tSPEAKER_00\t1.000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	run, err := d.importEchoRun(echoImportRequest{RunID: "echo-review", SourcePath: source, DiarizationPath: diarization})
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := d.createEchoVoice(echoVoiceRequest{Name: "Review Voice"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	confirm := httptest.NewRecorder()
+	d.Handler().ServeHTTP(confirm, httptest.NewRequest(http.MethodPost, "/v1/echo/segments/echo-review-000000/confirm", strings.NewReader(`{"voice_id":"review-voice"}`)))
+	if confirm.Code != http.StatusOK {
+		t.Fatalf("confirm status=%d body=%s", confirm.Code, confirm.Body.String())
+	}
+	var first, second string
+	if err := d.db.QueryRow(`SELECT mapping_state FROM echo_speaker_segments WHERE segment_id = ?`, "echo-review-000000").Scan(&first); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.db.QueryRow(`SELECT mapping_state FROM echo_speaker_segments WHERE segment_id = ?`, "echo-review-000001").Scan(&second); err != nil {
+		t.Fatal(err)
+	}
+	if first != echoMappingConfirmed || second != echoMappingAnonymous {
+		t.Fatalf("segment states after one confirmation = %q, %q", first, second)
+	}
+
+	rename := httptest.NewRecorder()
+	d.Handler().ServeHTTP(rename, httptest.NewRequest(http.MethodPost, "/v1/echo/voices/"+profile.VoiceID+"/rename", strings.NewReader(`{"name":"Renamed Voice"}`)))
+	if rename.Code != http.StatusOK {
+		t.Fatalf("rename status=%d body=%s", rename.Code, rename.Body.String())
+	}
+	var name string
+	if err := d.db.QueryRow(`SELECT name FROM echo_voice_profiles WHERE voice_id = ?`, profile.VoiceID).Scan(&name); err != nil {
+		t.Fatal(err)
+	}
+	if name != "Renamed Voice" {
+		t.Fatalf("renamed profile=%q", name)
+	}
+
+	clear := httptest.NewRecorder()
+	d.Handler().ServeHTTP(clear, httptest.NewRequest(http.MethodPost, "/v1/echo/segments/echo-review-000000/clear", strings.NewReader(`{}`)))
+	if clear.Code != http.StatusOK {
+		t.Fatalf("clear status=%d body=%s", clear.Code, clear.Body.String())
+	}
+	if err := d.db.QueryRow(`SELECT mapping_state, COALESCE(voice_id,'') FROM echo_speaker_segments WHERE segment_id = ?`, "echo-review-000000").Scan(&first, &second); err != nil {
+		t.Fatal(err)
+	}
+	if first != echoMappingAnonymous || second != "" {
+		t.Fatalf("segment state after clear = %q, voice=%q", first, second)
+	}
+	_ = run
+}

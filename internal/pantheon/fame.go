@@ -382,6 +382,11 @@ func (d *daemon) createFameCorrection(request fameCorrectionRequest) (fameCorrec
 	if err != nil {
 		return fameCorrection{}, err
 	}
+	if request.PersonID != "" && request.TargetType == "segment" && request.TargetID != "" {
+		if _, err := d.db.Exec(`UPDATE fame_segment_attributions SET person_id = ?, state = ?, confidence = 1, evidence_id = ?, updated_at = ? WHERE segment_id = ?`, request.PersonID, fameAttributionCorrected, id, now, request.TargetID); err != nil {
+			return fameCorrection{}, err
+		}
+	}
 	// A correction that explicitly names a run, anonymous speaker, and person
 	// is allowed to change attribution. A prose correction alone is retained
 	// as evidence and does not silently relabel a whole recording.
@@ -391,6 +396,24 @@ func (d *daemon) createFameCorrection(request fameCorrectionRequest) (fameCorrec
 		}
 	}
 	return fameCorrection{CorrectionID: id, TargetType: request.TargetType, TargetID: request.TargetID, Kind: request.Kind, Statement: request.Statement, PersonID: request.PersonID, RunID: request.RunID, Speaker: request.Speaker, CreatedAt: now}, nil
+}
+
+func (d *daemon) clearFameSegment(segmentID string) (fameCorrection, error) {
+	var exists int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM fame_segment_attributions WHERE segment_id = ?`, segmentID).Scan(&exists); err != nil {
+		return fameCorrection{}, err
+	}
+	if exists == 0 {
+		return fameCorrection{}, errors.New("unknown Fame segment attribution")
+	}
+	correction, err := d.createFameCorrection(fameCorrectionRequest{TargetType: "segment", TargetID: segmentID, Kind: "identity_cleared", Statement: "Human cleared this segment's identity assignment for review."})
+	if err != nil {
+		return fameCorrection{}, err
+	}
+	if _, err := d.db.Exec(`UPDATE fame_segment_attributions SET person_id = NULL, state = ?, confidence = 0, evidence_id = NULL, updated_at = ? WHERE segment_id = ?`, fameAttributionAnonymous, correction.CreatedAt, segmentID); err != nil {
+		return fameCorrection{}, err
+	}
+	return correction, nil
 }
 
 func (d *daemon) fameSnapshot() (fameSnapshot, error) {
@@ -557,6 +580,15 @@ func (d *daemon) handleFameCorrection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, correction)
+}
+
+func (d *daemon) handleFameSegmentClear(w http.ResponseWriter, r *http.Request) {
+	correction, err := d.clearFameSegment(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"cleared": true, "correction": correction})
 }
 
 func (d *daemon) handleFameCommand(w http.ResponseWriter, r *http.Request) {
