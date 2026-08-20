@@ -1,0 +1,331 @@
+# Kernel 24A — Fame: Human Identity and Relational Continuity
+
+**Status:** design/build increment within the active Aphrodite kernel.
+
+**Purpose:** Complete the human-identity portion of Pantheon’s ingestion architecture before Kernel 25 attempts the first end-to-end ingestion success.
+
+## 1. Architectural correction
+
+Project Fame is not merely a transcript-interpretation system.
+
+**Fame is Pantheon’s human-recognition and relational-continuity layer.**
+
+Its central question is:
+
+> **Who is this person, and what from this interaction belongs to our continuing understanding of them?**
+
+Transcript interpretation remains part of Fame, but personhood is the organizing primitive.
+
+Aphrodite is building Fame. Aphrodite is not intended to permanently perform Fame’s runtime work. Fame may ultimately produce one or more bounded runtime organs.
+
+## 2. Place in the ingestion path
+
+The current ingestion direction becomes:
+
+```text
+audio
+  ↓
+Rumor
+  ↓
+transcription
+  ↓
+Fame
+  ├── conversation boundaries
+  ├── speaker diarization
+  ├── speaker recognition
+  ├── person resolution
+  ├── interaction interpretation
+  └── confidence / correction
+  ↓
+accountable observations
+  ↓
+Pantheon continuity / Weave / later workflow
+```
+
+Rumor answers primarily:
+
+> **What sounds became words?**
+
+Fame answers:
+
+> **Who was involved, what happened between these people, and what does this interaction mean for continuing human context?**
+
+## 3. Fame's core primitives
+
+### 3.1 Conversation boundary
+
+Fame identifies plausible beginnings, endings, and separations between human interactions.
+
+A long recording may contain:
+
+* silence,
+* media,
+* self-talk,
+* incidental speech,
+* multiple unrelated encounters,
+* and several meaningful conversations.
+
+A recording is therefore not assumed to equal one conversation.
+
+### 3.2 Speaker diarization
+
+Fame determines which portions of speech belong to distinct speakers.
+
+Initial output may remain anonymous:
+
+```text
+Speaker_00
+Speaker_01
+Speaker_02
+```
+
+Diarization establishes **speaker continuity inside an interaction**. It does not by itself establish identity.
+
+### 3.3 Speaker recognition
+
+Known voices may be represented through locally stored speaker embeddings or another reviewed local identification mechanism.
+
+Example:
+
+```text
+Speaker_00 → Grant      0.99
+Speaker_01 → Heather    0.94
+Speaker_02 → unknown
+```
+
+Speaker recognition is probabilistic evidence, not identity authority.
+
+Voice-derived identity material should remain local. Voice embeddings are biometric information and require tighter handling than ordinary transcript prose.
+
+### 3.4 Person resolution
+
+Fame reconciles evidence from multiple sources to determine whether an observed human corresponds to an already-known person.
+
+Potential evidence may include:
+
+* voice match,
+* spoken name,
+* self-identification,
+* Grant naming the person,
+* calendar context,
+* contact records,
+* email identity,
+* phone identity,
+* prior interaction context,
+* location/context when legitimately available,
+* previous human corrections.
+
+The target should be a durable Pantheon person reference rather than merely a display name.
+
+```text
+Person#0042
+├── preferred name: Heather
+├── aliases
+├── voice identities
+├── email identities
+├── phone/contact identities
+└── supporting identity evidence
+```
+
+A person is not reduced to any single account, email address, contact card, or voiceprint. This follows Pantheon’s broader distinction that durable human continuity belongs above replaceable services and representations.
+
+### 3.5 Unknown and provisional people
+
+Fame must be capable of preserving continuity before knowing a name.
+
+For example:
+
+```text
+Person#0194
+status: provisional
+display: Unknown woman from August 19 staff conversation
+voice_identity: Voice#0081
+```
+
+A later interaction may establish that `Person#0194` is Melissa.
+
+The previous interaction should then attach to Melissa rather than disappear or remain permanently fragmented.
+
+## 4. Confidence is explicit
+
+Fame must not silently convert inference into identity fact.
+
+Identity and interpretation should preserve their basis and confidence, for example:
+
+```text
+person: Person#0042
+preferred_name: Heather
+identity_confidence: 0.94
+
+evidence:
+  - voice_match: 0.91
+  - Grant addressed speaker as "Heather"
+  - calendar participant matched Heather
+```
+
+Confidence describes evidentiary support, not omniscience. Pantheon already treats confidence and citations as inspectable support rather than authority.
+
+Useful states may eventually include:
+
+```text
+confirmed
+high-confidence
+probable
+uncertain
+unknown
+conflicted
+```
+
+Exact thresholds remain a design decision.
+
+## 5. Human correction
+
+Human correction outranks Fame inference.
+
+Examples:
+
+```text
+"No, Speaker_02 was Melissa."
+"That wasn't John."
+"Sarah and Sara are the same person."
+"Those are two different Michaels."
+```
+
+Corrections must alter future resolution while preserving enough history to inspect why the earlier conclusion changed.
+
+Pantheon already requires correction history to be preserved rather than silently rewriting consequential prior state.
+
+## 6. Interaction interpretation
+
+Once people are provisionally resolved, Fame interprets the interaction **as an interaction among people**.
+
+Candidate outputs include:
+
+* requests,
+* commitments,
+* promises,
+* decisions,
+* plans,
+* important facts,
+* concerns,
+* unresolved questions,
+* notable changes,
+* interpersonal context,
+* chatter/non-consequential speech,
+* attention or escalation signals.
+
+Crucially:
+
+```text
+"Someone said they would send the document Thursday."
+```
+
+is weaker than:
+
+```text
+Heather committed to send the document Thursday.
+```
+
+The latter creates useful continuity because identity and meaning have been joined.
+
+## 7. Fame does not yet become the full personal CRM
+
+Kernel 24A establishes **who a person is and how interactions belong to them**.
+
+It should not yet attempt to create the full structured personal-memory system for:
+
+* birthdays,
+* favorite foods,
+* favorite colors,
+* family details,
+* gift ideas,
+* hobbies,
+* preferences,
+* personal milestones,
+* or similar long-lived human knowledge.
+
+Those capabilities belong to the later fuller relationship-memory/CRM increment anticipated after the first end-to-end success.
+
+Fame must nevertheless create the stable person references that make that later system possible.
+
+## 8. Source and authority boundaries
+
+Fame produces evidence-backed interpretations.
+
+It does not gain executive authority because it recognizes a person or detects a commitment.
+
+Pantheon remains the authorization locus. Intelligence and operational authority remain separate.
+
+Fame should preserve attributable source material sufficient for later inspection:
+
+```text
+recording
+→ transcript segment
+→ speaker
+→ person-resolution evidence
+→ interpreted observation
+```
+
+Derived human context should remain distinguishable from original source material, consistent with the existing Weave requirement that derived interpretations not silently overwrite their sources.
+
+## 9. Kernel 24A build target
+
+The remainder of the Aphrodite ingestion work should establish the shape necessary for Fame to eventually support:
+
+1. conversation segmentation,
+2. diarized transcript segments,
+3. locally generated speaker identities,
+4. enrollment of known voices,
+5. matching future speakers against enrolled identities,
+6. provisional unknown-person records,
+7. stable person IDs,
+8. multi-source person resolution,
+9. confidence/evidence records,
+10. human identity correction,
+11. attribution of requests, commitments, and other meaningful interaction content to resolved people.
+
+Implementation may proceed incrementally. Kernel 24A does **not** require every recognition mechanism to be mature before moving forward.
+
+## 10. Kernel 25 handoff condition
+
+Kernel 25 should attempt the first meaningful **end-to-end ingestion success**.
+
+The target shape is approximately:
+
+```text
+real audio arrives
+→ Rumor detects it
+→ Whisper produces transcript
+→ speakers are separated
+→ Fame resolves at least one known person
+→ Fame identifies meaningful interaction content
+→ durable accountable records are created
+→ Pantheon can retrieve the result through the ordinary continuity path
+```
+
+A representative acceptance test would be:
+
+> Grant has a real conversation with a known person. Later, Pantheon can answer who Grant spoke with and accurately retrieve a consequential request, commitment, decision, or fact from that conversation with inspectable source evidence.
+
+Kernel 25 is therefore not merely a daemon-starts-without-errors milestone.
+
+It is the first proof that the ingestion architecture produces **useful human continuity from lived experience**.
+
+## 11. Successor horizon
+
+After Kernel 25 proves the complete path, the following increment can expand the stable person substrate into the fuller human-memory system: birthdays, preferences, relationships, interests, important dates, gift ideas, and other useful knowledge that helps Grant remember and care for the people in his life.
+
+The dependency is intentional:
+
+```text
+K24A — know who the human is
+        ↓
+K25 — prove the entire lived-interaction path
+        ↓
+K26 — remember increasingly useful things about that human
+```
+
+**Kernel 24A principle:**
+
+> Fame does not begin by asking what should be remembered about a transcript.
+> Fame begins by asking who these people are.

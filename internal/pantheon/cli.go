@@ -111,6 +111,9 @@ func runClient(args []string) error {
 		if len(args) == 2 && args[1] == "echo" {
 			return clientGET("/v1/echo")
 		}
+		if len(args) == 2 && args[1] == "fame" {
+			return clientGET("/v1/fame")
+		}
 		if len(args) == 3 && args[1] == "rumor" && args[2] == "queue" {
 			return clientGET("/v1/rumor/queue")
 		}
@@ -154,7 +157,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|aphrodite|echo|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|aphrodite|echo|fame|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
 		}
 		switch args[1] {
 		case "config":
@@ -191,6 +194,8 @@ func runClient(args []string) error {
 			return clientGET("/v1/aphrodite")
 		case "echo":
 			return clientGET("/v1/echo")
+		case "fame":
+			return clientGET("/v1/fame")
 		case "plugins":
 			return clientGET("/v1/seshat/plugins")
 		case "packages":
@@ -242,6 +247,10 @@ func runClient(args []string) error {
 		return runEchoCommand(args[1:])
 	case "/echo":
 		return runEchoCommand(args[1:])
+	case "fame":
+		return runFameCommand(args[1:])
+	case "/fame":
+		return runFameCommand(args[1:])
 	case "prometheus":
 		return runPrometheusCommand(args[1:])
 	case "status":
@@ -470,6 +479,48 @@ func runEchoCommand(args []string) error {
 		return clientPOST("/v1/echo/voices/"+url.PathEscape(args[1])+"/confirm", echoConfirmRequest{RunID: args[2], Speaker: args[3]})
 	default:
 		return fmt.Errorf("usage: pantheon echo [voices|voice add|voice enroll|import|confirm]")
+	}
+}
+
+func runFameCommand(args []string) error {
+	if len(args) == 0 || args[0] == "status" || args[0] == "people" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon fame [status|people|person add|evidence|conversation|observation|correct]")
+		}
+		return clientGET("/v1/fame")
+	}
+	switch args[0] {
+	case "person":
+		if len(args) != 3 || args[1] != "add" {
+			return fmt.Errorf("usage: pantheon fame person add <name>")
+		}
+		return clientPOST("/v1/fame/people", famePersonRequest{PreferredName: args[2]})
+	case "evidence":
+		if len(args) < 5 {
+			return fmt.Errorf("usage: pantheon fame evidence <person-id> <kind> <confidence> <detail>")
+		}
+		confidence, err := strconv.ParseFloat(args[3], 64)
+		if err != nil {
+			return fmt.Errorf("invalid confidence %q", args[3])
+		}
+		return clientPOST("/v1/fame/people/"+url.PathEscape(args[1])+"/evidence", fameEvidenceRequest{Kind: args[2], Confidence: confidence, Detail: strings.Join(args[4:], " ")})
+	case "conversation":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: pantheon fame conversation <echo-run-id>")
+		}
+		return clientPOST("/v1/fame/conversations", fameConversationRequest{RunID: args[1]})
+	case "observation":
+		if len(args) < 5 {
+			return fmt.Errorf("usage: pantheon fame observation <conversation-id> <kind> <source-ref> <content>")
+		}
+		return clientPOST("/v1/fame/observations", fameObservationRequest{ConversationID: args[1], Kind: args[2], SourceRef: args[3], Content: strings.Join(args[4:], " ")})
+	case "correct":
+		if len(args) < 4 {
+			return fmt.Errorf("usage: pantheon fame correct <target-type> <kind> <statement>")
+		}
+		return clientPOST("/v1/fame/corrections", fameCorrectionRequest{TargetType: args[1], Kind: args[2], Statement: strings.Join(args[3:], " ")})
+	default:
+		return fmt.Errorf("usage: pantheon fame [status|people|person add|evidence|conversation|observation|correct]")
 	}
 }
 

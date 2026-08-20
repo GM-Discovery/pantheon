@@ -21,6 +21,7 @@
         <button class="nav-item" data-view="intake">Intake</button>
         <button class="nav-item" data-view="rumor">Rumor</button>
         <button class="nav-item" data-view="echo">Echo / Voices</button>
+        <button class="nav-item" data-view="fame">Fame / People</button>
         <button class="nav-item" data-view="mail">Mail</button>
         <button class="nav-item" data-view="zodiac">Zodiac</button>
         <p class="nav-label">Build</p>
@@ -105,6 +106,15 @@
         <section class="panel"><div class="panel-title"><div><h2>Voice profiles</h2><p class="muted">Profiles are local references. Enrollment does not train Whisper or upload audio.</p></div></div><div id="echo-profiles" class="work-detail-list"></div></section>
         <section class="panel"><div class="panel-title"><div><h2>Anonymous speakers</h2><p class="muted">These labels are the safe starting point for human confirmation.</p></div></div><div id="echo-speakers" class="work-detail-list"></div></section>
         <section class="panel"><div class="panel-title"><h2>Boundaries</h2><span class="tag">local only</span></div><ul id="echo-boundaries" class="boundary-list"></ul></section>
+      </section>
+
+      <section class="view" data-panel="fame">
+        <div class="page-heading"><div><p class="eyebrow">UNDERSTAND / HUMAN CONTINUITY</p><h1>Fame</h1><p class="lede">Fame keeps anonymous speakers, durable people, identity evidence, and human corrections distinct and inspectable.</p></div><button id="fame-refresh" class="button quiet">Refresh</button></div>
+        <section class="panel"><div class="panel-title"><div><h2>Human recognition substrate</h2><p id="fame-boundary-note" class="muted">Loading local identity boundaries…</p></div><span id="fame-state" class="state-chip unknown">unknown</span></div><div id="fame-summary" class="metric-grid"></div></section>
+        <section class="panel"><div class="panel-title"><h2>People</h2><span id="fame-people-count" class="muted">—</span></div><div id="fame-people" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><h2>Conversations and attributions</h2><span id="fame-conversation-count" class="muted">—</span></div><div id="fame-conversations" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><h2>Meaningful observations</h2><span id="fame-observation-count" class="muted">—</span></div><div id="fame-observations" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><h2>Human corrections</h2><span id="fame-correction-count" class="muted">—</span></div><div id="fame-corrections" class="work-detail-list"></div></section>
       </section>
 
       <section class="view" data-panel="bifrost"><div class="page-heading"><div><p class="eyebrow">ACT / GOVERNED BRIDGE</p><h1>Bifrost</h1><p class="lede">Capability cards show registration, approval, and enablement as separate states.</p></div></div><section class="panel"><div class="panel-title"><h2>Capabilities</h2><div class="button-row"><span id="capability-state" class="state-chip">unknown</span><span class="tag">no marketplace</span></div></div><div id="capabilities" class="capability-list"></div></section></section>

@@ -271,6 +271,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := d.ensureFameDefaults(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	return d, nil
 }
 
@@ -339,6 +343,15 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/gui/aphrodite", d.handleAphroditeSnapshot)
 	mux.HandleFunc("GET /v1/echo", d.handleEchoSnapshot)
 	mux.HandleFunc("GET /v1/gui/echo", d.handleEchoSnapshot)
+	mux.HandleFunc("GET /v1/fame", d.handleFameSnapshot)
+	mux.HandleFunc("GET /v1/gui/fame", d.handleFameSnapshot)
+	mux.HandleFunc("GET /v1/fame/people", d.handleFamePeople)
+	mux.HandleFunc("POST /v1/fame/people", d.handleFamePeople)
+	mux.HandleFunc("POST /v1/fame/people/{id}/evidence", d.handleFamePersonEvidence)
+	mux.HandleFunc("POST /v1/fame/conversations", d.handleFameConversation)
+	mux.HandleFunc("POST /v1/fame/observations", d.handleFameObservation)
+	mux.HandleFunc("POST /v1/fame/corrections", d.handleFameCorrection)
+	mux.HandleFunc("POST /v1/fame/command", d.handleFameCommand)
 	mux.HandleFunc("GET /v1/echo/voices", d.handleEchoVoices)
 	mux.HandleFunc("POST /v1/echo/voices", d.handleEchoVoices)
 	mux.HandleFunc("POST /v1/echo/voices/{id}/samples", d.handleEchoEnroll)
