@@ -52,6 +52,8 @@
     if (selectSegment) { renderEchoSpeakerDetail(selectSegment.dataset.echoSpeakerForSegment, selectSegment.dataset.echoSelectSegment); return; }
     const clearSegment = event.target.closest("[data-echo-clear-segment]");
     if (clearSegment) { clearEchoSegment(clearSegment.dataset.echoClearSegment); return; }
+    const playSegment = event.target.closest("[data-echo-play-segment]");
+    if (playSegment) { playEchoSegment(playSegment.dataset.echoPlaySegment); return; }
     const renameVoice = event.target.closest("[data-echo-voice-rename]");
     if (renameVoice) { renameEchoVoice(renameVoice.dataset.echoVoiceRename); return; }
     const archiveVoice = event.target.closest("[data-echo-voice-archive]");
@@ -145,10 +147,21 @@
     $("echo-speaker-detail-intro").textContent = `This is ${speaker} in run ${run.run_id || "without an imported run"}. Select one transcript snippet, listen to that time range, and assign only that segment. Later segments remain independent until confirmed.`;
     const sample = segments.find((segment) => segment.segment_id === selectedSegmentID);
     $("echo-speaker-sample-note").textContent = sample ? `Selected snippet: ${formatEchoSeconds(sample.start_seconds)}–${formatEchoSeconds(sample.end_seconds)} (${(sample.end_seconds - sample.start_seconds).toFixed(1)} seconds). Only this segment will be changed.` : "Select a snippet below before setting an identity. No segment will be changed in bulk.";
-    const segmentList = segments.map((segment) => `<article class="work-detail echo-segment ${segment.segment_id === selectedSegmentID ? "echo-segment-selected" : ""}"><div class="work-detail-head"><strong>${escapeHTML(formatEchoSeconds(segment.start_seconds))}–${escapeHTML(formatEchoSeconds(segment.end_seconds))}</strong>${stateChip(segment.mapping_state || "anonymous")}</div><p>Anonymous label: <code>${escapeHTML(segment.anonymous_speaker)}</code>${segment.voice_id ? ` · voice profile: <code>${escapeHTML(segment.voice_id)}</code>` : ""}</p><p><b>Transcript:</b> ${escapeHTML(segment.transcript_snippet || "No matching transcript snippet was found for this timestamp.")}</p><div class="button-row"><button type="button" class="button quiet" data-echo-select-segment="${escapeHTML(segment.segment_id)}" data-echo-speaker-for-segment="${escapeHTML(speaker)}">Use this snippet</button>${segment.voice_id ? `<button type="button" class="button quiet" data-echo-clear-segment="${escapeHTML(segment.segment_id)}">Clear this assignment</button>` : ""}</div><div class="zodiac-meta">segment ${escapeHTML(segment.segment_id)} · source ${escapeHTML(source)}</div></article>`).join("") || `<p class="muted">No segment rows for this speaker are currently in the visible Echo snapshot. Use the run and diarization paths above to inspect the complete local output.</p>`;
+    const segmentList = segments.map((segment) => `<article class="work-detail echo-segment ${segment.segment_id === selectedSegmentID ? "echo-segment-selected" : ""}"><div class="work-detail-head"><strong>${escapeHTML(formatEchoSeconds(segment.start_seconds))}–${escapeHTML(formatEchoSeconds(segment.end_seconds))}</strong>${stateChip(segment.mapping_state || "anonymous")}</div><p>Anonymous label: <code>${escapeHTML(segment.anonymous_speaker)}</code>${segment.voice_id ? ` · voice profile: <code>${escapeHTML(segment.voice_id)}</code>` : ""}</p><p><b>Transcript:</b> ${escapeHTML(segment.transcript_snippet || "No matching transcript snippet was found for this timestamp.")}</p><div class="button-row"><button type="button" class="button quiet" data-echo-play-segment="${escapeHTML(segment.segment_id)}">Play this snippet</button><button type="button" class="button quiet" data-echo-select-segment="${escapeHTML(segment.segment_id)}" data-echo-speaker-for-segment="${escapeHTML(speaker)}">Use this snippet</button>${segment.voice_id ? `<button type="button" class="button quiet" data-echo-clear-segment="${escapeHTML(segment.segment_id)}">Clear this assignment</button>` : ""}</div><div class="zodiac-meta">segment ${escapeHTML(segment.segment_id)} · source ${escapeHTML(source)}</div></article>`).join("") || `<p class="muted">No segment rows for this speaker are currently in the visible Echo snapshot. Use the run and diarization paths above to inspect the complete local output.</p>`;
     const approval = sample?.voice_id ? `<div class="button-row"><button type="button" class="button" data-echo-approve-speaker="${escapeHTML(speaker)}">Approve this speaker label for this run</button><span class="muted">This will apply the selected profile to every ${escapeHTML(speaker)} segment in ${escapeHTML(run.run_id || "this run")}; it requires explicit confirmation.</span></div>` : `<p class="muted">To approve the whole label later, first select one snippet and save its identity. That separate approval will apply only to this run and anonymous label.</p>`;
     $("echo-speaker-detail-body").innerHTML = `<article class="work-detail"><div class="work-detail-head"><strong>Review one snippet at a time</strong>${stateChip("human confirmation")}</div><p>Names mentioned in a transcript are not speaker identity evidence. Listen to the selected time range before assigning it. Saving creates one local voice sample and one Fame correction for one segment.</p>${approval}</article>${segmentList}`;
     $("echo-speaker-detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function playEchoSegment(segmentID) {
+    const body = state.echo || {};
+    const run = body.latest_run || {};
+    const segment = (body.segments || []).find((item) => item.segment_id === segmentID);
+    const player = $("echo-snippet-player");
+    if (!run.run_id || !segment || !player) return;
+    player.hidden = false;
+    player.src = "/v1/echo/runs/" + encodeURIComponent(run.run_id) + "/audio#t=" + Number(segment.start_seconds).toFixed(3) + "," + Number(segment.end_seconds).toFixed(3);
+    player.load();
+    player.play().catch(() => showNotice("Use the audio controls to start this snippet.", true));
   }
   async function setEchoSpeakerIdentity(event) {
     event.preventDefault();

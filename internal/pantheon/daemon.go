@@ -362,6 +362,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/echo/segments/{id}/confirm", d.handleEchoSegmentConfirm)
 	mux.HandleFunc("POST /v1/echo/segments/{id}/clear", d.handleEchoSegmentClear)
 	mux.HandleFunc("POST /v1/echo/runs/import", d.handleEchoImport)
+	mux.HandleFunc("GET /v1/echo/runs/{id}/audio", d.handleEchoRunAudio)
 	mux.HandleFunc("POST /v1/echo/command", d.handleEchoCommand)
 	mux.HandleFunc("POST /v1/aphrodite/projects", d.handleAphroditeProjectCreate)
 	mux.HandleFunc("GET /v1/aphrodite/projects/{id}", d.handleAphroditeProject)

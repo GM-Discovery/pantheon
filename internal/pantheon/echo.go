@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -603,6 +604,33 @@ func (d *daemon) handleEchoImport(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 201, run)
 }
+
+func (d *daemon) handleEchoRunAudio(w http.ResponseWriter, r *http.Request) {
+	var sourcePath string
+	if err := d.db.QueryRow(`SELECT source_path FROM echo_runs WHERE run_id = ?`, r.PathValue("id")).Scan(&sourcePath); err != nil {
+		writeError(w, http.StatusNotFound, errors.New("unknown Echo run"))
+		return
+	}
+	info, err := os.Stat(sourcePath)
+	if err != nil || !info.Mode().IsRegular() {
+		writeError(w, http.StatusNotFound, errors.New("Echo source audio is unavailable"))
+		return
+	}
+	file, err := os.Open(sourcePath)
+	if err != nil {
+		writeError(w, http.StatusNotFound, errors.New("Echo source audio could not be opened"))
+		return
+	}
+	defer file.Close()
+	contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(sourcePath)))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", "inline")
+	http.ServeContent(w, r, filepath.Base(sourcePath), info.ModTime(), file)
+}
+
 func (d *daemon) handleEchoConfirm(w http.ResponseWriter, r *http.Request) {
 	var req echoConfirmRequest
 	if err := decodeJSON(r, &req); err != nil {

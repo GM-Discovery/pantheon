@@ -217,6 +217,11 @@ func TestEchoRunSelectionAndVoiceArchive(t *testing.T) {
 	if snapshot.SelectedRunID != "echo-run-one" || snapshot.LatestRun == nil || snapshot.LatestRun.RunID != "echo-run-one" || len(snapshot.AnonymousSpeakers) != 2 {
 		t.Fatalf("selected Echo run = %#v", snapshot)
 	}
+	audio := httptest.NewRecorder()
+	d.Handler().ServeHTTP(audio, httptest.NewRequest(http.MethodGet, "/v1/echo/runs/echo-run-one/audio", nil))
+	if audio.Code != http.StatusOK || audio.Body.Len() == 0 {
+		t.Fatalf("audio preview status=%d bytes=%d", audio.Code, audio.Body.Len())
+	}
 
 	profile, err := d.createEchoVoice(echoVoiceRequest{Name: "Accidental profile"})
 	if err != nil {
