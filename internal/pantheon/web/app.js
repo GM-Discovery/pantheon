@@ -71,6 +71,12 @@
     const form = event.target.closest("[data-echo-segment-form]");
     if (form) { event.preventDefault(); saveEchoSegmentIdentity(form); }
   });
+  document.addEventListener("change", (event) => {
+    const select = event.target.closest("[data-echo-profile-for]");
+    if (!select) return;
+    const input = select.closest("[data-echo-segment-form]")?.querySelector("[data-echo-name-for]");
+    if (input && !input.value) input.value = select.options[select.selectedIndex]?.textContent?.split(" · ")[0] || "";
+  });
 
   function renderInventory() {
     const inventory = state.inventory; if (!inventory) return;
@@ -122,14 +128,21 @@
     const speakers = Array.isArray(body.anonymous_speakers) ? body.anonymous_speakers : [];
     const runs = Array.isArray(body.recent_runs) ? body.recent_runs : [];
     $("echo-state").outerHTML = `<span id="echo-state" class="state-chip ${body.enabled ? "enabled" : "disabled"}">${body.enabled ? "local" : "disabled"}</span>`;
-    renderMetrics("echo-summary", { "voice profiles": profiles.length, "latest speakers": speakers.length, "segments in latest run": run.segment_count || 0, "confirmed mappings": (body.segments || []).filter((s) => s.mapping_state === "confirmed").length });
+    renderMetrics("echo-summary", { "voice profiles": profiles.length, "unassigned speakers": speakers.filter((speaker) => (body.segments || []).some((segment) => segment.anonymous_speaker === speaker && !segment.voice_id)).length, "segments in latest run": run.segment_count || 0, "confirmed mappings": (body.segments || []).filter((s) => s.mapping_state === "confirmed").length });
     $("echo-model").textContent = `${body.model || "not configured"} · ${body.local_only ? "local only" : "external boundary"}`;
     $("echo-run-select").innerHTML = runs.map((item) => `<option value="${escapeHTML(item.run_id)}">${escapeHTML(item.run_id)} · ${escapeHTML(item.speaker_count)} speakers · ${escapeHTML(item.source_path)}</option>`).join("");
     if (body.selected_run_id) $("echo-run-select").value = body.selected_run_id;
     $("echo-run").innerHTML = run.run_id ? `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(run.run_id)}</strong>${stateChip(run.status)}</div><p>${escapeHTML(run.source_path)}</p><div class="zodiac-meta">${escapeHTML(run.segment_count)} segments · ${escapeHTML(run.speaker_count)} anonymous speakers · diarization ${escapeHTML(run.diarization_path)}</div></article>` : `<p class="muted">No diarization run has been imported yet.</p>`;
     $("echo-profiles").innerHTML = profiles.map((p) => `<article class="work-detail echo-profile-card"><div class="work-detail-head"><div><input class="echo-profile-name" data-echo-voice-name="${escapeHTML(p.voice_id)}" value="${escapeHTML(p.name)}" aria-label="Voice profile name"></div>${stateChip(p.state)}</div><div class="button-row"><button type="button" class="button quiet" data-echo-voice-rename="${escapeHTML(p.voice_id)}">Save name</button>${p.voice_id !== "me" ? `<button type="button" class="button quiet" data-echo-voice-archive="${escapeHTML(p.voice_id)}">Remove</button>` : ""}<span class="muted">${p.sample_count ? `${escapeHTML(p.sample_count)} local sample reference${p.sample_count === 1 ? "" : "s"}` : "No sample yet"}</span></div><div class="zodiac-meta">voice id ${escapeHTML(p.voice_id)} · local only ${escapeHTML(p.local_only)}</div></article>`).join("") || `<p class="muted">No active voice profiles registered.</p>`;
+    $("echo-assigned").innerHTML = profiles.map((profile) => {
+      const assigned = (body.segments || []).filter((segment) => segment.voice_id === profile.voice_id);
+      if (!assigned.length) return "";
+      const rows = assigned.slice(0, 10).map((segment) => "<li><b>" + escapeHTML(formatEchoSeconds(segment.start_seconds)) + "</b> · " + escapeHTML(segment.transcript_snippet || "Transcript snippet unavailable") + "</li>").join("");
+      return "<article class=\"work-detail echo-assigned-card\"><div class=\"work-detail-head\"><strong>" + escapeHTML(profile.name) + "</strong>" + stateChip(assigned.length + " assigned") + "</div><ul>" + rows + "</ul>" + (assigned.length > 10 ? "<p class=\"muted\">Showing 10 of " + assigned.length + " visible assigned snippets.</p>" : "") + "</article>";
+    }).join("") || "<p class=\"muted\">No snippets have been assigned to a voice profile yet.</p>";
     $("echo-speakers").innerHTML = speakers.map((speaker) => {
-      const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
+      const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker && !segment.voice_id);
+      if (!segments.length) return "";
       const first = segments[0];
       const firstTime = first ? formatEchoSeconds(first.start_seconds) : "not in the visible segment window";
       const mapped = segments.filter((segment) => segment.voice_id).map((segment) => profiles.find((profile) => profile.voice_id === segment.voice_id)?.name || segment.voice_id);
@@ -142,7 +155,7 @@
   function renderEchoSpeakerDetail(speaker, selectedSegmentID = "") {
     const body = state.echo || {};
     const run = body.latest_run || {};
-    const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
+    const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker && !segment.voice_id);
     const source = run.source_path || "the latest Echo run";
     $("echo-speaker-detail").hidden = false;
     $("echo-speaker-detail-title").textContent = speaker;
@@ -193,7 +206,7 @@
       await post(`/v1/fame/people/${encodeURIComponent(person.person_id)}/evidence`, { kind: "operator_correction", source_ref: `${run.run_id}:${sample.segment_id}`, detail: `Human entered ${name} for one Echo segment and confirmed the local voice sample.`, confidence: 1 });
       showNotice(`This snippet is now assigned to ${name}. Other snippets were not changed.`);
       await loadEcho(run.run_id);
-      renderEchoSpeakerDetail(speaker, sample.segment_id);
+      $("echo-speaker-detail").hidden = true;
     } catch (error) {
       if (status) { status.textContent = error.message || "This snippet could not be saved."; status.classList.add("error"); }
       showNotice(error.message || "This snippet could not be saved. No cloud upload was attempted.", true);
