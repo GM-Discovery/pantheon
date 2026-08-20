@@ -20,16 +20,17 @@ type systemComponent struct {
 }
 
 type systemWorkSummary struct {
-	Intake   map[string]any `json:"intake"`
-	Rumor    map[string]any `json:"rumor"`
-	Apollo   map[string]any `json:"apollo"`
-	Future   map[string]any `json:"future"`
-	Janus    map[string]any `json:"janus"`
-	Mercury  map[string]any `json:"mercury"`
-	Bifrost  map[string]any `json:"bifrost"`
-	Mail     map[string]any `json:"mail"`
-	Zodiac   map[string]any `json:"zodiac"`
-	Failures map[string]any `json:"failures"`
+	Intake    map[string]any `json:"intake"`
+	Rumor     map[string]any `json:"rumor"`
+	Apollo    map[string]any `json:"apollo"`
+	Future    map[string]any `json:"future"`
+	Janus     map[string]any `json:"janus"`
+	Mercury   map[string]any `json:"mercury"`
+	Bifrost   map[string]any `json:"bifrost"`
+	Mail      map[string]any `json:"mail"`
+	Zodiac    map[string]any `json:"zodiac"`
+	Aphrodite map[string]any `json:"aphrodite"`
+	Failures  map[string]any `json:"failures"`
 }
 
 type systemInventoryResponse struct {
@@ -84,6 +85,10 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 	if err != nil {
 		return systemInventoryResponse{}, err
 	}
+	aphrodite, err := d.systemAphroditeSummary()
+	if err != nil {
+		return systemInventoryResponse{}, err
+	}
 	failures, err := d.systemFailureSummary()
 	if err != nil {
 		return systemInventoryResponse{}, err
@@ -129,6 +134,7 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 		{ID: "notifications", Label: "Notifications", Kind: "integration", State: notifyState, Role: "fixed local notification adapter", InspectionRoute: "/v1/notify", Controls: []string{"POST /v1/notify"}},
 		{ID: "archimedes", Label: "Archimedes", Kind: "reasoning", State: "deferred", Role: "future frontier reasoning boundary"},
 		{ID: "zodiac", Label: "Zodiac", Kind: "deterministic", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.ZodiacEnabled], Role: "explicit schedules, recurrence, due instances, and calendar projections", InspectionRoute: "/v1/zodiac", Controls: []string{"POST /v1/zodiac/round"}},
+		{ID: "aphrodite", Label: "Aphrodite", Kind: "development intelligence", State: "bounded workshop", Role: "project lifecycle, research, experiments, and candidate construction outside production", InspectionRoute: "/v1/aphrodite"},
 		{ID: "zeus", Label: "Zeus", Kind: "deterministic", State: "deferred", Role: "future explicitly identified machine-garbage sanitation"},
 	}
 
@@ -146,7 +152,7 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 			"archimedes": map[string]any{"model": d.cfg.FrontierModel, "state": "deferred", "enabled": false, "data_egress": false},
 		},
 		Components: components,
-		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Mail: mailSummary, Zodiac: zodiac, Failures: failures},
+		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Mail: mailSummary, Zodiac: zodiac, Aphrodite: aphrodite, Failures: failures},
 		Security: map[string]any{
 			"control_token":          "omitted",
 			"secrets":                "omitted",

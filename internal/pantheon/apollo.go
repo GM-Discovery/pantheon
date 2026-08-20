@@ -309,7 +309,7 @@ func (d *daemon) retrieveApolloEvidence(query string, seen map[string]bool) (apo
 		if len(seen) >= maxSources {
 			break
 		}
-		if strings.HasPrefix(result.Passage.Path, "Nexus/") || strings.HasPrefix(result.Passage.Path, "00 Pantheon Core/Weave/") {
+		if strings.HasPrefix(result.Passage.Path, "Nexus/") || strings.HasPrefix(result.Passage.Path, "00 Pantheon Core/Weave/") || strings.HasPrefix(result.Passage.Path, "70 Pantheon Reports/Apollo/") {
 			continue
 		}
 		clean := filepath.Clean(filepath.Join(d.cfg.VaultPath, result.Passage.Path))
@@ -388,16 +388,20 @@ func (d *daemon) invokeApollo(ctx context.Context, order mercuryOrder, evidence 
 		return apolloModelOutput{}, errors.New("Apollo returned an empty report")
 	}
 	var output apolloModelOutput
-	if err := json.Unmarshal([]byte(content), &output); err != nil {
-		// A model that cannot follow the JSON protocol still yields a bounded
-		// answer, but cannot request additional retrieval.
-		output = apolloModelOutput{Answer: content, Status: "complete"}
-		if strings.HasPrefix(strings.ToUpper(content), "NEED_EVIDENCE:") {
-			query := strings.TrimSpace(strings.TrimPrefix(content, "NEED_EVIDENCE:"))
-			output.Answer = "Apollo requested additional local evidence."
-			output.Status = "needs_evidence"
-			if query != "" {
-				output.NeedsEvidence = []string{query}
+	if err := decodeApolloModelOutput(content, &output); err != nil {
+		if answer := extractApolloAnswer(content); answer != "" {
+			output = apolloModelOutput{Answer: answer, Status: "complete"}
+		} else {
+			// A model that cannot follow the JSON protocol still yields a bounded
+			// answer, but cannot request additional retrieval.
+			output = apolloModelOutput{Answer: content, Status: "complete"}
+			if strings.HasPrefix(strings.ToUpper(content), "NEED_EVIDENCE:") {
+				query := strings.TrimSpace(strings.TrimPrefix(content, "NEED_EVIDENCE:"))
+				output.Answer = "Apollo requested additional local evidence."
+				output.Status = "needs_evidence"
+				if query != "" {
+					output.NeedsEvidence = []string{query}
+				}
 			}
 		}
 	}
@@ -411,6 +415,49 @@ func (d *daemon) invokeApollo(ctx context.Context, order mercuryOrder, evidence 
 		output.NeedsEvidence = output.NeedsEvidence[:2]
 	}
 	return output, nil
+}
+
+func extractApolloAnswer(content string) string {
+	content = strings.TrimSpace(content)
+	if start := strings.Index(content, "{"); start >= 0 {
+		if end := strings.LastIndex(content, "}"); end > start {
+			var wrapper struct {
+				Answer string `json:"answer"`
+			}
+			if err := json.Unmarshal([]byte(content[start:end+1]), &wrapper); err == nil {
+				return strings.TrimSpace(wrapper.Answer)
+			}
+		}
+	}
+	return ""
+}
+
+func decodeApolloModelOutput(content string, output *apolloModelOutput) error {
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(content, "```") {
+		if newline := strings.IndexByte(content, '\n'); newline >= 0 {
+			content = content[newline+1:]
+		}
+		content = strings.TrimSpace(strings.TrimSuffix(content, "```"))
+	}
+	if err := json.Unmarshal([]byte(content), output); err == nil {
+		// Some local models wrap their protocol object inside the answer field
+		// after a correction request. Normalize that extra layer so the report
+		// never exposes transport JSON as the human answer.
+		nested := strings.TrimSpace(output.Answer)
+		if strings.HasPrefix(nested, "{") || strings.HasPrefix(nested, "```") {
+			var inner apolloModelOutput
+			if err := decodeApolloModelOutput(nested, &inner); err == nil && strings.TrimSpace(inner.Answer) != "" && inner.Answer != output.Answer {
+				*output = inner
+			}
+		}
+		return nil
+	}
+	start, end := strings.IndexByte(content, '{'), strings.LastIndexByte(content, '}')
+	if start >= 0 && end > start {
+		return json.Unmarshal([]byte(content[start:end+1]), output)
+	}
+	return errors.New("Apollo response was not valid JSON")
 }
 
 func mergeFutureReadyResult(result *futureReadyResult, output apolloModelOutput) {
@@ -453,16 +500,29 @@ func validateApolloCitations(answer string, citations []string) (bool, []string)
 		known[citation] = true
 	}
 	var invalid []string
+	found := false
 	for _, match := range apolloCitationPattern.FindAllStringSubmatch(answer, -1) {
+		found = true
 		citation := "[[" + match[1] + "]]"
 		if !known[citation] {
-			invalid = append(invalid, citation)
+			// Timestamp anchors are useful citations inside a transcript. They
+			// are not durable file citations, but the report carries the
+			// authorized source-file list beside them.
+			if !apolloTimestampCitation(match[1]) {
+				invalid = append(invalid, citation)
+			}
 		}
 	}
-	if len(apolloCitationPattern.FindAllString(answer, -1)) == 0 {
+	if !found {
 		return false, []string{"no source citation present"}
 	}
 	return len(invalid) == 0, invalid
+}
+
+func apolloTimestampCitation(value string) bool {
+	value = strings.TrimSpace(value)
+	value = strings.TrimSpace(strings.TrimPrefix(strings.ToLower(value), "citations:"))
+	return regexp.MustCompile(`^\d{2}:\d{2}:\d{2}[.,]\d{3}\s*[–-]\s*\d{2}:\d{2}:\d{2}[.,]\d{3}$`).MatchString(value)
 }
 
 func (d *daemon) correctApolloCitations(ctx context.Context, order mercuryOrder, answer string, evidence string, citations []string) (string, error) {
@@ -495,6 +555,25 @@ func (d *daemon) processApolloOrder(ctx context.Context, order mercuryOrder, com
 	if err != nil {
 		return apolloRunResult{}, err
 	}
+	seen := make(map[string]bool)
+	for _, citation := range citations {
+		seen[filepath.Join(d.cfg.VaultPath, strings.Trim(citation, "[]"))] = true
+	}
+	if sourceCount > 0 && strings.TrimSpace(order.RequestText) != "" && d.cfg.VaultPath != "" {
+		// The explicit artifacts are primary evidence, but Apollo's authority
+		// boundary is the whole configured Vault. Do one bounded, relevance-ranked
+		// retrieval pass before the first model call so related notes, decisions,
+		// and people context are available without injecting the entire Vault.
+		bundle, retrieveErr := d.retrieveApolloEvidence(order.RequestText, seen)
+		if retrieveErr != nil {
+			warnings = append(warnings, "Initial bounded Vault retrieval was unavailable: "+retrieveErr.Error())
+		} else if bundle.SourceCount > 0 {
+			evidence = appendApolloEvidence(evidence, bundle.Text, d.cfg.ApolloMaxContextBytes)
+			citations = append(citations, bundle.Citations...)
+			sourceCount += bundle.SourceCount
+			warnings = append(warnings, fmt.Sprintf("Apollo added %d relevance-ranked source(s) from the configured Vault", bundle.SourceCount))
+		}
+	}
 	reportID, err := newLocalID("report-")
 	if err != nil {
 		return apolloRunResult{}, err
@@ -526,10 +605,6 @@ func (d *daemon) processApolloOrder(ctx context.Context, order mercuryOrder, com
 		unresolved = append(unresolved, referralType)
 		warnings = append(warnings, "Apollo stopped before model invocation because no authorized evidence was available")
 	} else {
-		seen := make(map[string]bool)
-		for _, citation := range citations {
-			seen[filepath.Join(d.cfg.VaultPath, strings.Trim(citation, "[]"))] = true
-		}
 		maxRounds := d.cfg.ApolloMaxRetrievalRounds
 		if maxRounds <= 0 {
 			maxRounds = 12

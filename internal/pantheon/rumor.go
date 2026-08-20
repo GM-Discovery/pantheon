@@ -581,6 +581,12 @@ func (d *daemon) runRumorWhisper(ctx context.Context, source rumorSource) (rumor
 	defer os.RemoveAll(workDir)
 	outputBase := filepath.Join(workDir, "transcript")
 	args := []string{"-m", model, "-f", source.SourcePath, "--output-txt", "--output-json-full", "--output-file", outputBase, "--no-prints", "--no-timestamps", "-l", language}
+	if vad := strings.TrimSpace(d.cfg.WhisperVADModel); vad != "" && strings.Contains(strings.ToLower(filepath.Base(binary)), "whisper-cli") {
+		if info, statErr := os.Stat(vad); statErr != nil || !info.Mode().IsRegular() {
+			return rumorTranscription{}, errors.New("configured Whisper VAD model is unavailable")
+		}
+		args = append(args, "--vad", "--vad-model", vad, "--no-fallback", "--temperature", "0", "--max-context", "0", "--split-on-word", "--no-speech-thold", "0.60", "--vad-max-speech-duration-s", "30")
+	}
 	cmd := exec.CommandContext(ctx, binary, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -604,6 +610,9 @@ func (d *daemon) runRumorWhisper(ctx context.Context, source rumorSource) (rumor
 	transcript = bytes.TrimSpace(transcript)
 	if len(transcript) == 0 {
 		return rumorTranscription{}, errors.New("Whisper produced no transcript")
+	}
+	if repeated, count := transcriptRepeatedLine(transcript); count >= 25 {
+		return rumorTranscription{}, fmt.Errorf("Whisper transcript quality gate rejected repeated line %q (%d occurrences)", repeated, count)
 	}
 	detectedLanguage := rumorDetectedLanguage(stderr.String() + "\n" + stdout.String() + "\n" + string(transcript))
 	if metadata, readErr := os.ReadFile(outputBase + ".json"); readErr == nil {

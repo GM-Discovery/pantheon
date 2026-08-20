@@ -45,15 +45,15 @@ func TestKernel17ActiveDocumentationReferencesCurrentSurfaces(t *testing.T) {
 		t.Fatal("could not locate repository source")
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", ".."))
-	for _, path := range []string{"docs/README.md", "docs/pantheon-architecture-brief.md", "docs/operator-guide.md", "docs/future-authority.md", "docs/seshat-plugin-extension.md", "docs/janus-temporal.md"} {
+	for _, path := range []string{"docs/README.md", "docs/historical/pantheon-architecture-brief.md", "docs/operator-guide.md", "docs/historical/future-authority.md", "docs/historical/seshat-plugin-extension.md", "docs/historical/janus-temporal.md"} {
 		if _, err := os.Stat(filepath.Join(root, path)); err != nil {
 			t.Fatalf("documented path %s is missing: %v", path, err)
 		}
 	}
 	for path, required := range map[string][]string{
-		"docs/operator-guide.md":              {"pantheon help --commands", "pantheon help --codes", "pantheon prometheus protocol --pause", "pantheon organism run"},
-		"docs/pantheon-architecture-brief.md": {"Intake", "Present", "Past", "Apollo", "Seshat", "Janus", "Future", "Mercury"},
-		"docs/software.md":                    {"Intake -> Present -> Past / Weave -> Apollo -> Seshat", "Future is currently a deterministic authority-signing boundary"},
+		"docs/operator-guide.md":                         {"pantheon help --commands", "pantheon help --codes", "pantheon prometheus protocol --pause", "pantheon organism run"},
+		"docs/historical/pantheon-architecture-brief.md": {"Intake", "Present", "Past", "Apollo", "Seshat", "Janus", "Future", "Mercury"},
+		"docs/historical/software.md":                    {"Intake -> Present -> Past / Weave -> Apollo -> Seshat", "Future is currently a deterministic authority-signing boundary"},
 	} {
 		data, err := os.ReadFile(filepath.Join(root, path))
 		if err != nil {

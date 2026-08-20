@@ -1,6 +1,6 @@
 (() => {
   "use strict";
-  const state = { inventory: null, work: null, config: null, rumor: null, mail: null };
+  const state = { inventory: null, work: null, config: null, rumor: null, mail: null, aphrodite: null, echo: null };
   const $ = (id) => document.getElementById(id);
   const escapeHTML = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const json = async (url, options = {}) => { const response = await fetch(url, { credentials: "same-origin", ...options }); let body = {}; try { body = await response.json(); } catch (_) {} if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`); return body; };
@@ -39,6 +39,8 @@
     if (view === "rumor") loadRumor();
     if (view === "mail") loadMail();
     if (view === "zodiac") loadZodiac();
+    if (view === "aphrodite") loadAphrodite();
+    if (view === "echo") loadEcho();
     if (view === "execution") loadExecutionWork($("execution-filter")?.value || "all");
   }
   document.querySelectorAll("[data-view]").forEach((item) => item.addEventListener("click", () => selectView(item.dataset.view)));
@@ -67,6 +69,40 @@
   }
 
   async function refreshState() { try { const results = await Promise.allSettled([json("/v1/system/inventory"), json("/v1/gui/work"), json("/v1/gui/mail")]); if (results[0].status === "rejected") throw results[0].reason; state.inventory = results[0].value; if (results[1].status === "fulfilled") state.work = results[1].value; else { state.work = null; console.warn("[Panopticon] Work context unavailable", results[1].reason); } if (results[2].status === "fulfilled") state.mail = results[2].value; else { state.mail = null; console.warn("[Panopticon] Mail state unavailable", results[2].reason); } renderInventory(); } catch (error) { $("runtime-state").textContent = "unavailable"; $("runtime-state").className = "status-dot paused"; showNotice("Live Pantheon state unavailable. Retry shortly.", true); console.warn("[Panopticon] Live state unavailable", error); } }
+  function renderAphrodite(body) {
+    state.aphrodite = body;
+    const project = body.active_project || body.projects?.[0] || {};
+    $("aphrodite-project-name").textContent = project.name || "Project state";
+    $("aphrodite-project-purpose").textContent = project.purpose || "No active project is recorded.";
+    $("aphrodite-project-state").outerHTML = `<span id="aphrodite-project-state" class="state-chip ${escapeHTML(project.state || "unknown")}">${escapeHTML(project.state || "unknown")}</span>`;
+    renderMetrics("aphrodite-summary", { "projects": (body.projects || []).length, "Fame fixtures": (body.fame_fixtures || []).length, "research requests": (body.research_requests || []).length, "candidate artifacts": (body.artifacts || []).length });
+    $("aphrodite-project-meta").innerHTML = [["Phase", project.phase || "not started"], ["Workspace", project.workspace_path || body.workspace_root || "not available"], ["Last result", project.last_result || "none recorded"], ["Approved inspection routes", (body.approved_inspection_routes || []).length]].map(([k, v]) => `<div class="detail-row"><span>${escapeHTML(k)}</span><strong>${escapeHTML(v)}</strong></div>`).join("");
+    const fixtures = body.fame_fixtures || [];
+    $("aphrodite-fixture-count").textContent = `${fixtures.length} fixture${fixtures.length === 1 ? "" : "s"}`;
+    $("aphrodite-fixtures").innerHTML = fixtures.map((item) => `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(item.title)}</strong>${stateChip(item.source_kind)}</div><p>${escapeHTML(item.transcript_path)}</p><div class="zodiac-meta">sha256 ${escapeHTML(item.sha256)}${item.source_id ? ` · Rumor ${escapeHTML(item.source_id)}` : " · corpus case"}</div></article>`).join("") || `<p class="muted">No Fame fixtures recorded.</p>`;
+    const requests = body.research_requests || [];
+    $("aphrodite-research-count").textContent = `${requests.length} request${requests.length === 1 ? "" : "s"}`;
+    $("aphrodite-research").innerHTML = requests.map((item) => `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(item.question)}</strong>${stateChip(item.status)}</div><p>${escapeHTML(item.rationale || "No rationale recorded.")}</p><div class="zodiac-meta">${item.surfaced_in_brief ? "visible in Situation Brief" : "not surfaced in Situation Brief"} · ${escapeHTML(item.artifact_path || "no artifact path")}</div></article>`).join("") || `<p class="muted">No Apollo research requests recorded.</p>`;
+    const artifacts = body.artifacts || [];
+    $("aphrodite-artifact-count").textContent = `${artifacts.length} artifact${artifacts.length === 1 ? "" : "s"}`;
+    $("aphrodite-artifacts").innerHTML = artifacts.map((item) => `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(item.title)}</strong>${stateChip(item.kind)}</div><p>${escapeHTML(item.path)}</p><div class="zodiac-meta">${escapeHTML(item.status)} · sha256 ${escapeHTML(item.sha256)}</div></article>`).join("") || `<p class="muted">No candidate artifacts recorded.</p>`;
+    $("aphrodite-boundaries").innerHTML = (body.boundaries || []).map((item) => `<li>${escapeHTML(item)}</li>`).join("");
+  }
+  async function loadAphrodite() { try { renderAphrodite(await json("/v1/gui/aphrodite")); } catch (error) { $("aphrodite-project-purpose").textContent = "Aphrodite state is unavailable; no project action was taken."; showNotice(error.message || "Aphrodite state unavailable.", true); } }
+  function renderEcho(body) {
+    state.echo = body;
+    const run = body.latest_run || {};
+    const profiles = Array.isArray(body.profiles) ? body.profiles : [];
+    const speakers = Array.isArray(body.anonymous_speakers) ? body.anonymous_speakers : [];
+    $("echo-state").outerHTML = `<span id="echo-state" class="state-chip ${body.enabled ? "enabled" : "disabled"}">${body.enabled ? "local" : "disabled"}</span>`;
+    renderMetrics("echo-summary", { "voice profiles": profiles.length, "latest speakers": speakers.length, "segments in latest run": run.segment_count || 0, "confirmed mappings": (body.segments || []).filter((s) => s.mapping_state === "confirmed").length });
+    $("echo-model").textContent = `${body.model || "not configured"} · ${body.local_only ? "local only" : "external boundary"}`;
+    $("echo-run").innerHTML = run.run_id ? `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(run.run_id)}</strong>${stateChip(run.status)}</div><p>${escapeHTML(run.source_path)}</p><div class="zodiac-meta">${escapeHTML(run.segment_count)} segments · ${escapeHTML(run.speaker_count)} anonymous speakers · diarization ${escapeHTML(run.diarization_path)}</div></article>` : `<p class="muted">No diarization run has been imported yet.</p>`;
+    $("echo-profiles").innerHTML = profiles.map((p) => `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(p.name)}</strong>${stateChip(p.state)}</div><p>${p.sample_count ? `${escapeHTML(p.sample_count)} local sample reference${p.sample_count === 1 ? "" : "s"}` : "No sample yet; choose a clear segment before matching this profile."}</p><div class="zodiac-meta">voice id ${escapeHTML(p.voice_id)} · local only ${escapeHTML(p.local_only)}</div></article>`).join("") || `<p class="muted">No profiles registered.</p>`;
+    $("echo-speakers").innerHTML = speakers.map((speaker) => `<article class="work-detail"><div class="work-detail-head"><strong>${escapeHTML(speaker)}</strong>${stateChip("anonymous")}</div><p>Echo found this voice in the latest run. It has not been assigned to a person.</p><div class="zodiac-meta">Use the CLI to enroll a sample, then confirm the mapping.</div></article>`).join("") || `<p class="muted">No anonymous speaker labels recorded.</p>`;
+    $("echo-boundaries").innerHTML = (body.boundaries || []).map((item) => `<li>${escapeHTML(item)}</li>`).join("");
+  }
+  async function loadEcho() { try { renderEcho(await json("/v1/gui/echo")); } catch (error) { $("echo-run").innerHTML = `<p class="muted">Echo state is unavailable; no voice action was taken.</p>`; showNotice(error.message || "Echo state unavailable.", true); } }
   const workCategoryLabels = { all: "All identified work", active: "Active work", waiting: "Waiting work", needs_grant: "Needs Grant", blocked: "Blocked work", needs_attention: "Needs decision", upcoming: "Upcoming known work" };
   const renderWorkItems = (items, includeViewButton = true) => items.map((item) => `<article class="work-detail"><div class="work-detail-head"><div><strong>${escapeHTML(item.title)}</strong><div class="work-detail-meta">${stateChip(item.category)} ${stateChip(item.state)}</div></div><span class="work-detail-id">${escapeHTML(item.id)}</span></div><p><b>Why it is here:</b> ${escapeHTML(item.explanation)}</p><p><b>Next safe step:</b> ${escapeHTML(item.next_action)}</p>${includeViewButton ? `<button type="button" class="button quiet" data-view-link="${escapeHTML(item.view)}">Open ${escapeHTML(item.view)} view →</button>` : (item.category === "blocked" ? `<span class="no-safe-action">No safe execution action is available until this boundary is resolved.</span>` : `<button type="button" class="button quiet" data-view-link="${escapeHTML(item.view)}">Review in ${escapeHTML(item.view)} →</button>`)}</article>`).join("");
   async function loadWorkContext(category) { const context = $("work-context"); context.hidden = false; $("work-context-title").textContent = workCategoryLabels[category] || "Work context"; $("work-context-intro").textContent = "Loading the underlying records and the next safe step…"; $("work-context-items").innerHTML = ""; context.scrollIntoView({ behavior: "smooth", block: "nearest" }); try { const body = await json(`/v1/gui/work?category=${encodeURIComponent(category)}`); const items = Array.isArray(body.items) ? body.items : []; $("work-context-intro").textContent = items.length ? `${items.length} bounded record${items.length === 1 ? "" : "s"} identified. Each entry says why it is here and what to do next.` : "No underlying record is currently identified for this category. The count may have changed; refresh the live state."; $("work-context-items").innerHTML = renderWorkItems(items) || `<div class="empty-state compact"><h2>Nothing currently needs this view</h2><p>Refresh the live state if you expected a record here.</p></div>`; } catch (error) { console.warn("[Panopticon] Work context unavailable", error); $("work-context-intro").textContent = "Work context is temporarily unavailable. The rest of Panopticon remains available."; $("work-context-items").innerHTML = `<div class="empty-state compact"><h2>Work details unavailable</h2><p>Retry the live state shortly; no action was taken.</p><button type="button" class="button quiet" data-work-category="${escapeHTML(category)}">Retry work details</button></div>`; } }
@@ -95,6 +131,8 @@
   async function capabilityAction(action, id) { if (!window.confirm(`${action === "enable" ? "Enable" : "Disable"} this governed capability?`)) return; try { await post(`/v1/gui/bifrost/capabilities/${encodeURIComponent(id)}/${action}`); await loadCapabilities(); } catch (error) { showNotice(error.message, true); } }
   $("pause-button").addEventListener("click", () => controlPrometheus(true)); $("resume-button").addEventListener("click", () => controlPrometheus(false)); $("config-apply").addEventListener("click", applyConfiguration); $("config-cancel").addEventListener("click", renderConfiguration); $("refresh-notifications").addEventListener("click", loadNotifications); $("refresh-system").addEventListener("click", refreshState); $("execution-filter")?.addEventListener("change", (event) => loadExecutionWork(event.target.value)); $("execution-refresh")?.addEventListener("click", () => loadExecutionWork($("execution-filter")?.value || "all")); $("rumor-scan").addEventListener("click", async () => { try { await post("/v1/gui/rumor/scan"); await loadRumor(); showNotice("Rumor scan completed."); } catch (error) { showNotice(error.message, true); } }); $("mail-round")?.addEventListener("click", checkMail);
   $("zodiac-round")?.addEventListener("click", evaluateZodiac); $("zodiac-refresh")?.addEventListener("click", loadZodiac);
+  $("aphrodite-refresh")?.addEventListener("click", loadAphrodite);
+  $("echo-refresh")?.addEventListener("click", loadEcho);
   function updateClock() { const now = new Date(); $("clock").textContent = now.toLocaleTimeString(); $("date").textContent = now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }); $("runtime-time").textContent = now.toLocaleTimeString(); }
   async function boot() { try { await post("/v1/gui/session"); await refreshState(); updateClock(); setInterval(updateClock, 1000); setInterval(refreshState, 3000); } catch (error) { showNotice("Panopticon could not establish a local session. Check that Pantheon is running and retry.", true); console.warn("[Panopticon] Session startup failed", error); } }
   boot();

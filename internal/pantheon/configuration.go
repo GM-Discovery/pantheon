@@ -76,6 +76,7 @@ type canonicalWhisper struct {
 	Binary   *string `json:"binary,omitempty"`
 	Model    *string `json:"model,omitempty"`
 	Language *string `json:"language,omitempty"`
+	VADModel *string `json:"vad_model,omitempty"`
 }
 
 type canonicalMedia struct {
@@ -209,6 +210,7 @@ type config struct {
 	WhisperBinary                     string   `json:"whisper_binary,omitempty"`
 	WhisperModel                      string   `json:"whisper_model,omitempty"`
 	WhisperLanguage                   string   `json:"whisper_language,omitempty"`
+	WhisperVADModel                   string   `json:"whisper_vad_model,omitempty"`
 	MediaConverter                    string   `json:"media_converter,omitempty"`
 	RumorEnabled                      bool     `json:"rumor_enabled,omitempty"`
 	RumorWatchPaths                   []string `json:"rumor_watch_paths,omitempty"`
@@ -465,6 +467,9 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 			}
 			if canonical.Ingestion.Whisper.Language != nil {
 				resolved.WhisperLanguage = strings.TrimSpace(*canonical.Ingestion.Whisper.Language)
+			}
+			if canonical.Ingestion.Whisper.VADModel != nil {
+				resolved.WhisperVADModel = strings.TrimSpace(*canonical.Ingestion.Whisper.VADModel)
 			}
 		}
 		if canonical.Ingestion.Media != nil && canonical.Ingestion.Media.Converter != nil {
@@ -949,7 +954,7 @@ func canonicalConfigFor(cfg config) canonicalConfig {
 			Archimedes: &canonicalArchimedes{Model: &archimedes},
 		},
 		Ingestion: &canonicalIngestion{
-			Whisper: &canonicalWhisper{Enabled: &cfg.WhisperEnabled, Binary: &cfg.WhisperBinary, Model: &cfg.WhisperModel, Language: &cfg.WhisperLanguage},
+			Whisper: &canonicalWhisper{Enabled: &cfg.WhisperEnabled, Binary: &cfg.WhisperBinary, Model: &cfg.WhisperModel, Language: &cfg.WhisperLanguage, VADModel: &cfg.WhisperVADModel},
 			Media:   &canonicalMedia{Converter: &cfg.MediaConverter},
 		},
 		Rumor:   &canonicalRumor{Enabled: &cfg.RumorEnabled, WatchPaths: append([]string(nil), cfg.RumorWatchPaths...), WhisperModel: &cfg.RumorWhisperModel, Language: &cfg.RumorLanguage, RetryLimit: &cfg.RumorRetryLimit, TranscriptDestination: &cfg.RumorTranscriptDestination, OnComplete: &cfg.RumorOnComplete, StabilitySeconds: &cfg.RumorStabilitySeconds, PollSeconds: &cfg.RumorPollSeconds},

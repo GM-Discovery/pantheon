@@ -1,0 +1,722 @@
+# Kernel 24 — Aphrodite: Project Fame
+
+## Purpose
+
+Pantheon can hear.
+
+Rumor can turn recorded human speech into transcript evidence. Apollo can reason about evidence. Neither capability means Pantheon understands the human shape of a conversation.
+
+A transcript does not inherently say where one conversation ended and another began. It does not reliably distinguish a joke from an instruction, a passing thought from a commitment, a request from speculation, or something merely interesting from something that deserves another mind's attention.
+
+Aphrodite's first project is **Project Fame**.
+
+Project Fame will research, design, build, and validate Pantheon's human-context interpretation layer.
+
+Aphrodite is not presumed to become that layer herself. Her job is to discover what should exist, build and test candidate implementations in confinement, explain what she learns to Grant, and—if authorized—prepare the resulting system for integration into Pantheon.
+
+---
+
+## 1. Aphrodite
+
+Aphrodite is Pantheon's design and development intelligence.
+
+She exists because Pantheon should eventually become capable of improving itself without quietly granting software the authority to decide what "improvement" means.
+
+Her work is organized into named **Projects**.
+
+A project may ask Aphrodite to:
+
+- study an existing part of Pantheon;
+- investigate a problem;
+- inspect available system evidence;
+- research possible approaches;
+- design a new capability;
+- prototype implementations;
+- run experiments;
+- compare alternatives;
+- write tests;
+- prepare documentation;
+- propose architectural changes;
+- build candidate code;
+- or design a new daemon, deity, tool, protocol, or subsystem.
+
+Her assignment changes. Her fundamental role does not.
+
+Aphrodite **builds candidates for human judgment**.
+
+She does not become Pantheon's sovereign updater.
+
+---
+
+## 2. Project Fame
+
+Project Fame begins with Rumor output.
+
+Its central question is:
+
+> **What happened between the humans represented in this transcript, and what—if anything—should Pantheon do with that knowledge?**
+
+Fame must investigate at least:
+
+### Conversation structure
+
+- Where did a conversation begin?
+- Where did it end?
+- Did another conversation begin later in the same recording?
+- Did a meaningful interaction occur at all?
+- Is apparent silence actually useful evidence that no interaction occurred?
+- Are there interruptions, side conversations, topic shifts, or uncertain boundaries?
+- Can speakers be distinguished without pretending to know identities unsupported by evidence?
+
+### Human significance
+
+- What appears important?
+- Important to whom?
+- What is merely chatter?
+- What appears emotionally or practically significant?
+- What may matter later even if nothing needs to happen now?
+
+### Requests
+
+- Did someone request something?
+- Who appears to be requesting it?
+- From whom?
+- What exactly appears to have been requested?
+- Is there a deadline?
+- How explicit was the request?
+- Could an apparent request instead be humor, speculation, quotation, or conversational shorthand?
+
+### Commitments
+
+- Did someone appear to commit to doing something?
+- Was the commitment explicit or inferred?
+- What was promised?
+- To whom?
+- By when?
+- What evidence supports that interpretation?
+
+### Attention and escalation
+
+- Does another Pantheon mind need to examine this?
+- Should Apollo receive it?
+- Is clarification from Grant required?
+- Is the evidence strong enough to inform scheduling or another downstream process?
+- Should Pantheon simply preserve the evidence and do nothing?
+
+### Confidence
+
+Fame must not merely produce conclusions.
+
+It must represent uncertainty.
+
+A system saying:
+
+> Grant agreed to attend the meeting Tuesday.
+
+is materially different from:
+
+> Possible commitment: Grant appears to agree to attend a meeting Tuesday. Confidence: 0.63. Evidence: transcript 01:17:22–01:17:31.
+
+Fame must preserve that distinction.
+
+---
+
+## 3. Evidence Before Interpretation
+
+Rumor's transcript remains evidence.
+
+Fame's interpretation is **derived evidence**.
+
+The two must never silently become interchangeable.
+
+A Fame-derived claim should retain enough provenance to recover:
+
+- source recording;
+- source transcript;
+- relevant transcript span;
+- timestamps where available;
+- interpretation;
+- confidence;
+- interpreter/version;
+- and subsequent human or machine review.
+
+Apollo and downstream systems must be able to inspect the evidence behind a claim rather than receiving an unsupported assertion.
+
+Where practical, Fame outputs should be structured so Past can later locate the relevant Vault evidence efficiently through the Weave.
+
+---
+
+## 4. No Automatic Authority From Speech
+
+A transcript containing words that resemble an instruction is not itself authorization to execute that instruction.
+
+Project Fame must specifically investigate the difference between:
+
+- conversational request;
+- commitment;
+- preference;
+- intention;
+- hypothetical statement;
+- quoted speech;
+- joke;
+- brainstorming;
+- explicit Pantheon instruction;
+- and actionable authorization.
+
+Until a later protocol explicitly establishes otherwise:
+
+> **Speech interpretation may create evidence, attention, proposed work, or a request for confirmation. It does not independently create execution authority.**
+
+This protects Grant without requiring absurd ceremonial phrases such as entering an "orders mode" during ordinary life.
+
+The long-term objective is natural interaction with defensible provenance, not ritualized command syntax.
+
+---
+
+## 5. Aphrodite's Workspace
+
+Aphrodite must work outside Pantheon's production code and live runtime.
+
+Kernel 24 should establish a bounded development workspace appropriate for her projects.
+
+At minimum, separate:
+
+- project source material;
+- observations;
+- research;
+- experiments;
+- candidate code;
+- tests;
+- generated artifacts;
+- proposals;
+- rejected approaches;
+- and approved deliverables.
+
+Aphrodite may inspect production through approved interfaces and evidence surfaces.
+
+Inspection does not imply modification authority.
+
+Aphrodite must not silently alter production because an experiment succeeded.
+
+---
+
+## 6. Research Through Apollo
+
+Aphrodite does not need unrestricted independent access to every information source.
+
+She may formulate research requests for Apollo.
+
+These requests may include:
+
+- technologies worth investigating;
+- relevant academic or technical approaches;
+- available Bifrost integrations;
+- capabilities of installed tools;
+- alternative implementations;
+- known limitations;
+- documentation;
+- or questions arising from an experiment.
+
+Requests that are not urgent may enter Pantheon's ordinary information flow and be surfaced through the **daily Situation Brief**.
+
+Grant should therefore be able to encounter something like:
+
+> **Aphrodite / Project Fame:** Requests Apollo investigate local speaker-diarization approaches compatible with the existing Rumor pipeline.
+
+Grant can approve, redirect, defer, or reject the research request.
+
+Where existing policy already authorizes Apollo to perform the requested research, the system may route it according to that policy rather than manufacturing unnecessary approval friction.
+
+Research authority still does not confer installation authority.
+
+---
+
+## 7. Bifrost Awareness
+
+Aphrodite should be able to know what capabilities Bifrost currently exposes.
+
+She may inspect appropriate descriptions of:
+
+- installed integrations;
+- available tools;
+- capabilities;
+- versions;
+- permissions;
+- constraints;
+- health;
+- and relevant documentation.
+
+She may ask Apollo to investigate unfamiliar capabilities.
+
+She may recommend that Grant add something to Bifrost.
+
+She may **not** download, install, activate, authorize, or expand a plugin merely because it would help her project.
+
+Grant must approve downloads and additions under the Bifrost authority model.
+
+---
+
+## 8. Project Lifecycle
+
+Aphrodite should not disappear into a sandbox for weeks and emerge with a giant unsolicited rewrite.
+
+Projects should progress through increasingly concrete human-facing stages.
+
+A normal project lifecycle is:
+
+**Observation → Concept → Research → Design → Prototype → Validation → Implementation Proposal → Candidate Diff → Authorized Integration**
+
+Not every project requires every stage.
+
+Grant may move a project backward or forward, stop it, redirect it, or reject an approach.
+
+### Concept Pitch
+
+Explain:
+
+- the problem;
+- why it matters;
+- what Aphrodite thinks might solve it;
+- expected benefit;
+- major risks;
+- and what she wants permission to investigate next.
+
+### Design Pitch
+
+Explain:
+
+- proposed architecture;
+- affected systems;
+- boundaries;
+- authority implications;
+- expected data flow;
+- alternatives considered;
+- and unresolved questions.
+
+### Implementation Pitch
+
+Explain:
+
+- what would actually be built or changed;
+- expected files/components;
+- migration implications;
+- tests;
+- rollback;
+- and operational consequences.
+
+### Candidate Diff
+
+Only after the work has become sufficiently concrete should Grant need to inspect implementation-level changes.
+
+The purpose of progressive disclosure is to let Grant govern **ideas before code**, rather than repeatedly reviewing thousands of lines produced from an assumption he never approved.
+
+---
+
+## 9. Human Communication
+
+Aphrodite's reports are written for Grant first.
+
+She should not require Grant to understand implementation jargon merely to govern the direction of a project.
+
+Technical evidence should remain available underneath the human explanation.
+
+A useful Aphrodite report should make it possible to answer:
+
+- What did she notice?
+- Why does she think it matters?
+- What does she want to try?
+- What could go wrong?
+- What does she need from me?
+- What happens if I say yes?
+
+Pantheon may expose deeper technical detail on demand.
+
+---
+
+## 10. Project Fame's Candidate Offspring
+
+Kernel 24 must not prematurely name or hard-code the permanent Fame runtime component.
+
+Project Fame may conclude that the correct implementation is:
+
+- one daemon;
+- several cooperating components;
+- an Apollo capability;
+- a deterministic preprocessing layer plus a reasoning component;
+- a new deity;
+- or something not yet anticipated.
+
+Aphrodite should discover that architecture rather than receive the answer by metaphor.
+
+If Fame produces a new Pantheon occupant, that entity must receive its own:
+
+- bounded purpose;
+- authority;
+- interfaces;
+- evidence contract;
+- failure behavior;
+- Prometheus controls;
+- Panopticon representation where appropriate;
+- tests;
+- and documentation.
+
+Aphrodite remains Aphrodite afterward.
+
+---
+
+## 11. Fame Must Be Testable
+
+Human context is probabilistic, but that does not excuse untestable behavior.
+
+Project Fame should develop a corpus of representative transcript cases.
+
+Include cases such as:
+
+- one person speaking alone;
+- ordinary two-person conversation;
+- several conversations in one recording;
+- long silence;
+- television/radio/background speech;
+- interrupted conversation;
+- joking request;
+- hypothetical request;
+- quoted request;
+- explicit request;
+- ambiguous commitment;
+- explicit commitment;
+- changed mind;
+- cancelled commitment;
+- conflicting statements;
+- deadline stated indirectly;
+- multiple speakers;
+- uncertain speaker identity;
+- noisy transcript;
+- Whisper transcription error;
+- mixed languages;
+- unfamiliar language;
+- and a recording containing nothing worth preserving beyond the transcript.
+
+Tests should evaluate both **false negatives and false positives**.
+
+A system that catches every possible commitment by calling half of human speech a commitment has failed.
+
+---
+
+## 12. Fame Must Respect Compute
+
+Pantheon may eventually receive many hours of audio per day.
+
+Project Fame therefore needs to consider:
+
+- batching;
+- incremental analysis;
+- segmentation;
+- cheap deterministic preprocessing;
+- local-model throughput;
+- expensive reasoning only where justified;
+- overnight processing;
+- resumability;
+- caching;
+- duplicate avoidance;
+- and graceful backlog behavior.
+
+The target is not necessarily instant interpretation.
+
+A practical initial objective is:
+
+> **A day's recordings can become useful human-context evidence in time to materially improve the next day's Pantheon operations and Situation Brief.**
+
+Live interpretation can remain future work.
+
+---
+
+## 13. Fame and Apollo
+
+Fame should not replace Apollo.
+
+The eventual human-context layer should make transcript evidence **more legible to Apollo**.
+
+For example:
+
+    Recording
+        ↓
+    Rumor
+        ↓
+    Transcript + timestamps
+        ↓
+    Fame-derived human-context layer
+        ↓
+    Structured observations + provenance + confidence
+        ↓
+    Apollo
+        ↓
+    Reasoning against Vault + current context
+        ↓
+    Future
+        ↓
+    Proposed orders
+        ↓
+    Mercury / authorized tools
+
+This is conceptual, not an instruction to hard-code an architecture before Aphrodite investigates it.
+
+Apollo remains the broader reasoning intelligence.
+
+---
+
+## 14. Fame and Zodiac
+
+Project Fame must explicitly study scheduling implications.
+
+A transcript may contain:
+
+> "Yeah, Thursday at three works for me."
+
+That could become evidence of a calendar commitment.
+
+It must **not** become a calendar event merely because a model recognized the sentence.
+
+A future scheduling pathway may resemble:
+
+**Transcript evidence → Fame interpretation → Apollo contextual verification → request/commitment evidence → Zodiac → appropriate approval/authority path → calendar projection**
+
+The original transcript citation should remain available through that chain.
+
+This provides natural speech interaction without pretending probabilistic interpretation is deterministic authorization.
+
+---
+
+## 15. Fame and Present
+
+Present should not be forced to solve the entire human-context problem.
+
+Present can carry information.
+
+Project Fame exists precisely because deciding what human interaction **means** deserves its own designed layer.
+
+Fame should therefore identify what Present needs to receive from the resulting system and what Present should remain ignorant of.
+
+Do not turn Present into a growing collection of conversational heuristics simply because it is convenient.
+
+---
+
+## 16. Failure Behavior
+
+When Fame-derived interpretation is uncertain, the preferred failure is:
+
+> **preserve evidence and do less.**
+
+Not:
+
+> infer authority and do more.
+
+Low-confidence interpretations may be:
+
+- retained;
+- surfaced;
+- sent for Apollo review;
+- placed in the Situation Brief;
+- or presented to Grant for clarification.
+
+They should not be silently discarded merely because they are uncertain.
+
+Likewise, uncertainty must not automatically become an emergency.
+
+---
+
+## 17. Prometheus
+
+Aphrodite is powerful precisely because she can eventually design changes to the system containing her.
+
+That makes confinement structural, not ceremonial.
+
+Prometheus must be capable of observing and constraining Aphrodite's operational boundaries.
+
+Aphrodite must not:
+
+- bypass Prometheus;
+- modify Prometheus to obtain authority;
+- weaken her sandbox;
+- promote her own candidate code;
+- redefine her permissions;
+- authorize her own Bifrost additions;
+- or reinterpret Grant's refusal as a technical obstacle to solve.
+
+If a project discovers that an existing constraint prevents desirable work, Aphrodite may explain the constraint and propose changing it.
+
+Grant decides.
+
+---
+
+## 18. Panopticon
+
+Aphrodite should appear in Panopticon as an active Pantheon intelligence.
+
+Her surface should emphasize **projects**, not generic agent activity.
+
+At minimum show:
+
+- current project;
+- current phase;
+- current task;
+- last meaningful result;
+- pending questions;
+- pending approvals;
+- Apollo research requests;
+- experiments running;
+- candidate proposals;
+- and recent project history.
+
+Grant should be able to understand what Aphrodite is doing without watching a reasoning stream.
+
+Detailed/streaming activity may remain an optional diagnostic view.
+
+Prometheus controls remain available through the established Panopticon emergency design.
+
+---
+
+## 19. Documentation
+
+Kernel 24 should establish durable documentation for:
+
+- Aphrodite's role;
+- project lifecycle;
+- project workspace;
+- Project Fame charter;
+- research-request mechanism;
+- authority boundaries;
+- promotion/integration process;
+- evidence expectations;
+- and Fame's experimental corpus.
+
+Documentation should distinguish:
+
+**what currently exists** from **what Aphrodite is proposing**.
+
+Candidate architecture must never quietly become canonical documentation before approval.
+
+---
+
+## 20. Kernel 24 Build Scope
+
+Kernel 24 should build enough infrastructure that Aphrodite can **actually begin Project Fame**, not merely document that she will someday exist.
+
+The implementation should therefore:
+
+1. establish Aphrodite's project workspace;
+2. define her bounded runtime/development interface;
+3. expose approved Pantheon inspection surfaces;
+4. expose Bifrost capability inventory read-only;
+5. establish project state and lifecycle;
+6. create Project Fame as her first active project;
+7. give Fame access to representative Rumor transcripts without altering originals;
+8. establish durable research notes and experimental outputs;
+9. establish Apollo research-request artifacts/routing, including visibility through the daily briefing where appropriate;
+10. establish human-facing concept/design/proposal artifacts;
+11. prevent self-promotion into production;
+12. expose Aphrodite/Fame state to Panopticon;
+13. establish an initial Fame test corpus;
+14. document all new surfaces;
+15. align/reorganize related repository documentation where necessary rather than adding another disconnected island of files;
+16. preserve existing working behavior.
+
+Do not build the final Fame-derived runtime daemon merely to satisfy Kernel 24.
+
+Aphrodite must first do the work.
+
+---
+
+## 21. Live Proof
+
+Kernel 24 is not complete merely because Aphrodite has directories and documentation.
+
+The kernel should demonstrate one bounded development cycle.
+
+Using an existing or deliberately created Rumor transcript:
+
+1. Aphrodite receives Project Fame.
+2. She inspects the available evidence.
+3. She records observations.
+4. She identifies at least one genuine human-context problem.
+5. She produces a human-readable **Fame Concept Pitch**.
+6. If additional knowledge is required, she creates an Apollo research request through the new mechanism.
+7. The request is visible through the appropriate operator surface/daily-brief pathway.
+8. Panopticon shows Project Fame's current state.
+9. No production behavior is changed merely because Aphrodite generated a proposal.
+
+The proof is not that Fame is solved.
+
+The proof is:
+
+> **Pantheon now contains a confined intelligence capable of examining Pantheon, developing an idea for improving it, and bringing that idea to its human operator without granting itself the authority to become the improvement.**
+
+---
+
+# Acceptance Criteria
+
+Kernel 24 passes when:
+
+- Aphrodite exists as a bounded project-oriented development intelligence.
+- Project Fame is her active first project.
+- Aphrodite can inspect the approved system/evidence surfaces needed for Fame.
+- Rumor originals remain immutable evidence.
+- Fame work preserves provenance.
+- Aphrodite has a durable sandbox/workspace.
+- Candidate work cannot self-promote into production.
+- Bifrost inventory is visible to Aphrodite without granting installation authority.
+- Apollo research requests can be created and surfaced appropriately.
+- Grant can understand Aphrodite's current project and requests through Panopticon.
+- Project stages and approvals are represented durably.
+- An initial human-context test corpus exists.
+- Repository documentation is reconciled with the new architecture.
+- Existing Pantheon behavior continues to pass regression tests.
+- At least one Rumor transcript produces a real Fame Concept Pitch.
+- The Concept Pitch identifies evidence, uncertainty, and a proposed next investigation.
+- Aphrodite changes **nothing in production** without Grant's authorization.
+- Prometheus remains sovereign over containment.
+- The working tree is clean and the kernel receives its own commit.
+
+---
+
+## Completion Report
+
+Report:
+
+- files added;
+- files reorganized;
+- files modified;
+- documentation reconciled;
+- Aphrodite workspace layout;
+- Project Fame state;
+- inspection surfaces available to Aphrodite;
+- Bifrost information visible to her;
+- Apollo research-request pathway;
+- Panopticon additions;
+- Fame corpus contents;
+- live-proof transcript used;
+- resulting Concept Pitch;
+- tests run and results;
+- authority-boundary tests;
+- regressions;
+- known limitations;
+- deferred work;
+- and commit hash.
+
+End with a concise statement of what **Aphrodite can actually do now that she could not do before Kernel 24**.
+
+## Kernel 24 first implementation slice
+
+The first bounded implementation establishes the infrastructure needed to begin Project Fame:
+
+- `state/aphrodite/` is a private workshop root with per-project `inputs/fame`, `research`, and `artifacts` directories.
+- Project state is durable in SQLite, including lifecycle phase, active/paused/stopped state, pending questions, pending approvals, and last result.
+- Project Fame is created as the initial active project with an initial five-case corpus covering explicit requests, joking requests, uncertain commitments, quoted speech, and ordinary non-actionable conversation.
+- Aphrodite artifacts are written only beneath the project workspace and carry a SHA-256 digest.
+- Apollo research requests are durable, human-readable artifacts with an explicit Situation Brief visibility flag. They are requests for investigation, not orders to access or install anything.
+- Rumor transcripts may be copied into Fame inputs with source ID, source path, citation span, and digest. Rumor source files are never opened for writing by this path.
+- The read-only inspection contract currently exposes runtime/system inventory, Rumor source/transcript state, Bifrost capability inventory, and Weave retrieval as approved routes.
+- Panopticon exposes project phase, Fame corpus, research requests, candidate artifacts, workspace location, inspection routes, and boundaries.
+
+The following CLI/API writes are workshop writes only: creating projects, changing project phase/state, recording artifacts, recording research requests, and copying Fame fixtures. There is deliberately no Aphrodite route for production file modification, candidate promotion, capability download/install/enablement, authority creation, or daemon replacement.
+
+This slice does not yet interpret speech, run Apollo automatically, create calendar events, or promote a candidate. Those remain Project Fame research and later authorized integration work.

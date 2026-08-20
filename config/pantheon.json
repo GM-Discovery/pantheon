@@ -41,7 +41,8 @@
       "enabled": true,
       "binary": "/home/brick/whisper.cpp/build/bin/whisper-cli",
       "model": "/home/brick/whisper.cpp/models/ggml-large-v3.bin",
-      "language": "auto"
+      "language": "auto",
+      "vad_model": "/home/brick/whisper.cpp/models/ggml-silero-v6.2.0.bin"
     },
     "media": {
       "converter": ""

@@ -105,6 +105,12 @@ func runClient(args []string) error {
 		if len(args) == 2 && args[1] == "organism" {
 			return clientGET("/v1/organism")
 		}
+		if len(args) == 2 && args[1] == "aphrodite" {
+			return clientGET("/v1/aphrodite")
+		}
+		if len(args) == 2 && args[1] == "echo" {
+			return clientGET("/v1/echo")
+		}
 		if len(args) == 3 && args[1] == "rumor" && args[2] == "queue" {
 			return clientGET("/v1/rumor/queue")
 		}
@@ -148,7 +154,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|aphrodite|echo|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
 		}
 		switch args[1] {
 		case "config":
@@ -181,12 +187,16 @@ func runClient(args []string) error {
 			return clientGET("/v1/mail")
 		case "zodiac":
 			return clientGET("/v1/zodiac")
+		case "aphrodite":
+			return clientGET("/v1/aphrodite")
+		case "echo":
+			return clientGET("/v1/echo")
 		case "plugins":
 			return clientGET("/v1/seshat/plugins")
 		case "packages":
 			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|aphrodite|echo|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -226,6 +236,12 @@ func runClient(args []string) error {
 		return clientPOSTWithControl("/v1/future/round", nil)
 	case "organism":
 		return runOrganismCommand(args[1:])
+	case "aphrodite":
+		return runAphroditeCommand(args[1:])
+	case "echo":
+		return runEchoCommand(args[1:])
+	case "/echo":
+		return runEchoCommand(args[1:])
 	case "prometheus":
 		return runPrometheusCommand(args[1:])
 	case "status":
@@ -272,6 +288,188 @@ func runClient(args []string) error {
 		return fmt.Errorf("pantheon %s remains a direct command during this daemon milestone; it is not yet daemon-routed", command)
 	default:
 		return clientPOST("/v1/input", inputRequest{Input: strings.Join(args, " ")})
+	}
+}
+
+func runAphroditeCommand(args []string) error {
+	if len(args) == 0 || args[0] == "status" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon aphrodite [status|project|phase|artifact|research|fame-fixture]")
+		}
+		return clientGET("/v1/aphrodite")
+	}
+	switch args[0] {
+	case "project":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: pantheon aphrodite project <id>")
+		}
+		return clientGET("/v1/aphrodite/projects/" + url.PathEscape(args[1]))
+	case "phase":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon aphrodite phase <project-id> --phase <phase> [--state <state>] [--result <text>]")
+		}
+		request := aphroditePhaseRequest{}
+		for i := 2; i < len(args); i++ {
+			if i+1 >= len(args) {
+				return fmt.Errorf("missing value for %s", args[i])
+			}
+			switch args[i] {
+			case "--phase":
+				request.Phase = args[i+1]
+			case "--state":
+				request.State = args[i+1]
+			case "--result":
+				request.LastResult = args[i+1]
+			default:
+				return fmt.Errorf("unknown Aphrodite phase option %q", args[i])
+			}
+			i++
+		}
+		return clientPOST("/v1/aphrodite/projects/"+url.PathEscape(args[1])+"/phase", request)
+	case "artifact":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon aphrodite artifact <project-id> --kind <kind> --title <title> --content <text>")
+		}
+		request := aphroditeArtifactRequest{}
+		for i := 2; i < len(args); i++ {
+			if i+1 >= len(args) {
+				return fmt.Errorf("missing value for %s", args[i])
+			}
+			switch args[i] {
+			case "--kind":
+				request.Kind = args[i+1]
+			case "--title":
+				request.Title = args[i+1]
+			case "--content":
+				request.Content = args[i+1]
+			case "--status":
+				request.Status = args[i+1]
+			default:
+				return fmt.Errorf("unknown Aphrodite artifact option %q", args[i])
+			}
+			i++
+		}
+		return clientPOST("/v1/aphrodite/projects/"+url.PathEscape(args[1])+"/artifacts", request)
+	case "research":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon aphrodite research <project-id> --question <text> [--rationale <text>] [--brief]")
+		}
+		request := aphroditeResearchRequestRequest{}
+		for i := 2; i < len(args); i++ {
+			if args[i] == "--brief" {
+				request.SurfaceBrief = true
+				continue
+			}
+			if i+1 >= len(args) {
+				return fmt.Errorf("missing value for %s", args[i])
+			}
+			switch args[i] {
+			case "--question":
+				request.Question = args[i+1]
+			case "--rationale":
+				request.Rationale = args[i+1]
+			default:
+				return fmt.Errorf("unknown Aphrodite research option %q", args[i])
+			}
+			i++
+		}
+		return clientPOST("/v1/aphrodite/projects/"+url.PathEscape(args[1])+"/research-requests", request)
+	case "fame-fixture":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon aphrodite fame-fixture <project-id> --title <title> [--transcript <text>] [--rumor-source <id>]")
+		}
+		request := aphroditeFixtureRequest{}
+		for i := 2; i < len(args); i++ {
+			if i+1 >= len(args) {
+				return fmt.Errorf("missing value for %s", args[i])
+			}
+			switch args[i] {
+			case "--title":
+				request.Title = args[i+1]
+			case "--transcript":
+				request.Transcript = args[i+1]
+			case "--rumor-source":
+				request.RumorSourceID = args[i+1]
+			case "--start":
+				request.CitationStart = args[i+1]
+			case "--end":
+				request.CitationEnd = args[i+1]
+			default:
+				return fmt.Errorf("unknown Fame fixture option %q", args[i])
+			}
+			i++
+		}
+		return clientPOST("/v1/aphrodite/projects/"+url.PathEscape(args[1])+"/fame/fixtures", request)
+	default:
+		return fmt.Errorf("usage: pantheon aphrodite [status|project|phase|artifact|research|fame-fixture]")
+	}
+}
+
+func runEchoCommand(args []string) error {
+	if len(args) == 0 || args[0] == "voices" || args[0] == "status" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon echo [voices|voice add|voice enroll|import|confirm]")
+		}
+		return clientGET("/v1/echo")
+	}
+	switch args[0] {
+	case "voice":
+		if len(args) >= 2 && args[1] == "add" {
+			if len(args) != 3 {
+				return fmt.Errorf("usage: pantheon echo voice add <name>")
+			}
+			return clientPOST("/v1/echo/voices", echoVoiceRequest{Name: args[2]})
+		}
+		if len(args) >= 2 && args[1] == "enroll" {
+			if len(args) < 4 {
+				return fmt.Errorf("usage: pantheon echo voice enroll <voice-id> <audio-path> [--start seconds --end seconds]")
+			}
+			req := echoEnrollRequest{SourcePath: args[3]}
+			for i := 4; i < len(args); i++ {
+				if i+1 >= len(args) {
+					return fmt.Errorf("missing value for %s", args[i])
+				}
+				value, err := strconv.ParseFloat(args[i+1], 64)
+				if err != nil {
+					return fmt.Errorf("invalid seconds %q", args[i+1])
+				}
+				switch args[i] {
+				case "--start":
+					req.StartSeconds = value
+				case "--end":
+					req.EndSeconds = value
+				default:
+					return fmt.Errorf("unknown option %s", args[i])
+				}
+				i++
+			}
+			return clientPOST("/v1/echo/voices/"+url.PathEscape(args[2])+"/samples", req)
+		}
+		return fmt.Errorf("usage: pantheon echo voice [add <name>|enroll <voice-id> <audio-path>]")
+	case "import":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: pantheon echo import <audio-path> <diarization.tsv> [--speakers count]")
+		}
+		req := echoImportRequest{SourcePath: args[1], DiarizationPath: args[2]}
+		for i := 3; i < len(args); i++ {
+			if i+1 >= len(args) || args[i] != "--speakers" {
+				return fmt.Errorf("usage: pantheon echo import <audio-path> <diarization.tsv> [--speakers count]")
+			}
+			count, err := strconv.Atoi(args[i+1])
+			if err != nil || count < 1 {
+				return fmt.Errorf("invalid speaker count")
+			}
+			req.SpeakerCount = count
+			i++
+		}
+		return clientPOST("/v1/echo/runs/import", req)
+	case "confirm":
+		if len(args) != 4 {
+			return fmt.Errorf("usage: pantheon echo confirm <voice-id> <run-id> <anonymous-speaker>")
+		}
+		return clientPOST("/v1/echo/voices/"+url.PathEscape(args[1])+"/confirm", echoConfirmRequest{RunID: args[2], Speaker: args[3]})
+	default:
+		return fmt.Errorf("usage: pantheon echo [voices|voice add|voice enroll|import|confirm]")
 	}
 }
 

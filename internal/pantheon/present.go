@@ -683,24 +683,44 @@ func (d *daemon) normalizeAudio(ctx context.Context, sourcePath string, occurren
 	}
 	defer os.RemoveAll(workDir)
 	inputPath := sourcePath
-	if video {
+	// The installed local processor is whisper.cpp's whisper-cli, which only
+	// accepts decoded audio (wav/flac/mp3/ogg) and uses its own CLI contract.
+	// Keep the older Python-Whisper argument contract available for configured
+	// test/dev binaries that are not named whisper-cli.
+	whisperCLI := strings.Contains(strings.ToLower(filepath.Base(binary)), "whisper-cli")
+	if video || (whisperCLI && strings.ToLower(filepath.Ext(sourcePath)) != ".wav") {
 		converter, convErr := configuredCommand(d.cfg.MediaConverter, "ffmpeg")
 		if convErr != nil {
 			return normalizedArtifact{}, errors.New("local media converter is not configured")
 		}
 		converted := filepath.Join(workDir, "audio.wav")
-		cmd := exec.CommandContext(ctx, converter, "-y", "-i", sourcePath, "-vn", "-acodec", "pcm_s16le", converted)
+		cmd := exec.CommandContext(ctx, converter, "-y", "-i", sourcePath, "-vn", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", converted)
 		if output, runErr := cmd.CombinedOutput(); runErr != nil {
 			return normalizedArtifact{}, fmt.Errorf("media conversion failed: %s", strings.TrimSpace(string(output)))
 		}
 		inputPath = converted
 	}
-	args := []string{inputPath, "--output_format", "txt", "--output_dir", workDir}
-	if d.cfg.WhisperModel != "" {
-		args = append(args, "--model", d.cfg.WhisperModel)
-	}
-	if lang := strings.TrimSpace(d.cfg.WhisperLanguage); lang != "" && lang != "auto" {
-		args = append(args, "--language", lang)
+	outputBase := filepath.Join(workDir, strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath)))
+	var args []string
+	if whisperCLI {
+		args = []string{"-m", d.cfg.WhisperModel, "-f", inputPath, "--output-txt", "--output-file", outputBase, "--no-prints", "--no-timestamps"}
+		if vad := strings.TrimSpace(d.cfg.WhisperVADModel); vad != "" {
+			if info, statErr := os.Stat(vad); statErr != nil || !info.Mode().IsRegular() {
+				return normalizedArtifact{}, errors.New("configured Whisper VAD model is unavailable")
+			}
+			args = append(args, "--vad", "--vad-model", vad, "--no-fallback", "--temperature", "0", "--max-context", "0", "--split-on-word", "--no-speech-thold", "0.60", "--vad-max-speech-duration-s", "30")
+		}
+		if lang := strings.TrimSpace(d.cfg.WhisperLanguage); lang != "" {
+			args = append(args, "-l", lang)
+		}
+	} else {
+		args = []string{inputPath, "--output_format", "txt", "--output_dir", workDir}
+		if d.cfg.WhisperModel != "" {
+			args = append(args, "--model", d.cfg.WhisperModel)
+		}
+		if lang := strings.TrimSpace(d.cfg.WhisperLanguage); lang != "" && lang != "auto" {
+			args = append(args, "--language", lang)
+		}
 	}
 	cmd := exec.CommandContext(ctx, binary, args...)
 	var stderr bytes.Buffer
@@ -709,7 +729,7 @@ func (d *daemon) normalizeAudio(ctx context.Context, sourcePath string, occurren
 	if runErr != nil {
 		return normalizedArtifact{}, fmt.Errorf("Whisper failed: %s", strings.TrimSpace(stderr.String()))
 	}
-	outputPath := filepath.Join(workDir, strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))+".txt")
+	outputPath := outputBase + ".txt"
 	transcript, readErr := os.ReadFile(outputPath)
 	if readErr != nil {
 		transcript = stdout
@@ -717,9 +737,30 @@ func (d *daemon) normalizeAudio(ctx context.Context, sourcePath string, occurren
 	if len(bytes.TrimSpace(transcript)) == 0 {
 		return normalizedArtifact{}, errors.New("Whisper produced no transcript")
 	}
+	if repeated, count := transcriptRepeatedLine(transcript); count >= 25 {
+		return normalizedArtifact{}, fmt.Errorf("Whisper transcript quality gate rejected repeated line %q (%d occurrences)", repeated, count)
+	}
 	title := strings.TrimSuffix(occurrence.OriginalFilename, filepath.Ext(occurrence.OriginalFilename))
 	body := fmt.Sprintf("# %s\n\n**Source:** `%s`\n\n## Transcript\n\n%s", title, occurrence.RelativePath, strings.TrimSpace(string(transcript)))
 	return normalizedArtifact{Body: []byte(body + "\n"), Processor: "pantheon-whisper", ProcessorVersion: filepath.Base(binary), Warnings: nil}, nil
+}
+
+func transcriptRepeatedLine(data []byte) (string, int) {
+	counts := map[string]int{}
+	var repeated string
+	max := 0
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		key := strings.ToLower(strings.Join(strings.Fields(line), " "))
+		counts[key]++
+		if counts[key] > max {
+			max, repeated = counts[key], line
+		}
+	}
+	return repeated, max
 }
 
 func configuredCommand(configured, fallback string) (string, error) {

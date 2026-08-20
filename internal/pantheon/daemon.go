@@ -244,6 +244,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeEchoSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	controlToken, err := loadOrCreateControlToken(filepath.Join(filepath.Dir(opts.DatabasePath), "control.token"))
 	if err != nil {
 		db.Close()
@@ -256,6 +260,14 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 	}
 	d := &daemon{cfg: cfg, capabilities: caps, db: db, databasePath: opts.DatabasePath, configPath: opts.ConfigPath, controlToken: controlToken, seshat: seshat, guiSessions: map[string]time.Time{}}
 	if err := d.ensureZodiacDefaults(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := d.ensureAphroditeDefaults(); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := d.ensureEchoDefaults(); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -323,6 +335,25 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/gui/zodiac/projections/{id}/reconcile", d.handleZodiacProjectionReconcile)
 	mux.HandleFunc("GET /v1/status", d.handleStatus)
 	mux.HandleFunc("GET /v1/system/inventory", d.handleSystemInventory)
+	mux.HandleFunc("GET /v1/aphrodite", d.handleAphroditeSnapshot)
+	mux.HandleFunc("GET /v1/gui/aphrodite", d.handleAphroditeSnapshot)
+	mux.HandleFunc("GET /v1/echo", d.handleEchoSnapshot)
+	mux.HandleFunc("GET /v1/gui/echo", d.handleEchoSnapshot)
+	mux.HandleFunc("GET /v1/echo/voices", d.handleEchoVoices)
+	mux.HandleFunc("POST /v1/echo/voices", d.handleEchoVoices)
+	mux.HandleFunc("POST /v1/echo/voices/{id}/samples", d.handleEchoEnroll)
+	mux.HandleFunc("POST /v1/echo/voices/{id}/confirm", d.handleEchoConfirm)
+	mux.HandleFunc("POST /v1/echo/runs/import", d.handleEchoImport)
+	mux.HandleFunc("POST /v1/echo/command", d.handleEchoCommand)
+	mux.HandleFunc("POST /v1/aphrodite/projects", d.handleAphroditeProjectCreate)
+	mux.HandleFunc("GET /v1/aphrodite/projects/{id}", d.handleAphroditeProject)
+	mux.HandleFunc("POST /v1/aphrodite/projects/{id}/phase", d.handleAphroditePhase)
+	mux.HandleFunc("GET /v1/aphrodite/projects/{id}/artifacts", d.handleAphroditeArtifacts)
+	mux.HandleFunc("POST /v1/aphrodite/projects/{id}/artifacts", d.handleAphroditeArtifacts)
+	mux.HandleFunc("GET /v1/aphrodite/projects/{id}/research-requests", d.handleAphroditeResearch)
+	mux.HandleFunc("POST /v1/aphrodite/projects/{id}/research-requests", d.handleAphroditeResearch)
+	mux.HandleFunc("GET /v1/aphrodite/projects/{id}/fame/fixtures", d.handleAphroditeFixtures)
+	mux.HandleFunc("POST /v1/aphrodite/projects/{id}/fame/fixtures", d.handleAphroditeFixtures)
 	mux.HandleFunc("POST /v1/intake/scan", d.handleIntakeScan)
 	mux.HandleFunc("GET /v1/intake", d.handleShowIntake)
 	mux.HandleFunc("GET /v1/father-time", d.handleShowFatherTime)

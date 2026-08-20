@@ -22,7 +22,8 @@
       "enabled": true,
       "binary": "",
       "model": "",
-      "language": "auto"
+      "language": "auto",
+      "vad_model": ""
     },
     "media": {
       "converter": ""

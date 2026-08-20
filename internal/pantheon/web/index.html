@@ -20,8 +20,11 @@
         <button class="nav-item" data-view="ingestion">Ingestion / Understanding</button>
         <button class="nav-item" data-view="intake">Intake</button>
         <button class="nav-item" data-view="rumor">Rumor</button>
+        <button class="nav-item" data-view="echo">Echo / Voices</button>
         <button class="nav-item" data-view="mail">Mail</button>
         <button class="nav-item" data-view="zodiac">Zodiac</button>
+        <p class="nav-label">Build</p>
+        <button class="nav-item" data-view="aphrodite">Aphrodite</button>
         <p class="nav-label">Act</p>
         <button class="nav-item" data-view="execution">Execution / Capabilities</button>
         <button class="nav-item" data-view="approvals">Approvals</button>
@@ -84,6 +87,24 @@
         <section class="panel"><div class="panel-title"><div><h2>Needs You</h2><p class="muted">Zodiac does not guess through ambiguity, conflict, missing authority, or unavailable providers.</p></div><span id="zodiac-needs-count" class="muted">—</span></div><div id="zodiac-needs" class="zodiac-list"></div></section>
         <section class="panel"><div class="panel-title"><h2>Recurring declarations</h2><span class="tag">deterministic</span></div><div id="zodiac-recurring" class="zodiac-list"></div></section>
         <section class="panel"><div class="panel-title"><h2>Calendar projection health</h2><span class="tag">Bifrost</span></div><div id="zodiac-providers" class="zodiac-provider-grid"></div></section>
+      </section>
+
+      <section class="view" data-panel="aphrodite">
+        <div class="page-heading"><div><p class="eyebrow">BUILD / GOVERNED WORKSHOP</p><h1>Aphrodite</h1><p class="lede">Projects turn ideas into human-reviewable candidates. Project Fame receives copied transcript fixtures; nothing here promotes code or creates authority.</p></div><button id="aphrodite-refresh" class="button quiet">Refresh</button></div>
+        <section class="panel"><div class="panel-title"><div><h2 id="aphrodite-project-name">Project state</h2><p id="aphrodite-project-purpose" class="muted"></p></div><span id="aphrodite-project-state" class="state-chip unknown">unknown</span></div><div id="aphrodite-summary" class="metric-grid"></div><div id="aphrodite-project-meta" class="detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Project Fame corpus</h2><p class="muted">Fixtures are copied inputs with hashes and source provenance. Rumor originals remain untouched.</p></div><span id="aphrodite-fixture-count" class="muted">—</span></div><div id="aphrodite-fixtures" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Research requests</h2><p class="muted">Requests are durable artifacts for Apollo review; they are not capability installation or execution orders.</p></div><span id="aphrodite-research-count" class="muted">—</span></div><div id="aphrodite-research" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Candidate artifacts</h2><p class="muted">All artifacts live beneath the bounded workspace and require an explicit later integration path.</p></div><span id="aphrodite-artifact-count" class="muted">—</span></div><div id="aphrodite-artifacts" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><h2>Boundaries</h2><span class="tag">read-only production</span></div><ul id="aphrodite-boundaries" class="boundary-list"></ul></section>
+      </section>
+
+      <section class="view" data-panel="echo">
+        <div class="page-heading"><div><p class="eyebrow">UNDERSTAND / VOICE IDENTITY</p><h1>Echo</h1><p class="lede">Whisper supplies words and timestamps. Echo separates voices and keeps them anonymous until you confirm who is who.</p></div><button id="echo-refresh" class="button quiet">Refresh</button></div>
+        <section class="panel"><div class="panel-title"><div><h2>Local diarization</h2><p id="echo-model" class="muted">Loading model state…</p></div><span id="echo-state" class="state-chip unknown">unknown</span></div><div id="echo-summary" class="metric-grid"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Latest run</h2><p class="muted">Run provenance and output paths remain visible for inspection.</p></div></div><div id="echo-run" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Voice profiles</h2><p class="muted">Profiles are local references. Enrollment does not train Whisper or upload audio.</p></div></div><div id="echo-profiles" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><div><h2>Anonymous speakers</h2><p class="muted">These labels are the safe starting point for human confirmation.</p></div></div><div id="echo-speakers" class="work-detail-list"></div></section>
+        <section class="panel"><div class="panel-title"><h2>Boundaries</h2><span class="tag">local only</span></div><ul id="echo-boundaries" class="boundary-list"></ul></section>
       </section>
 
       <section class="view" data-panel="bifrost"><div class="page-heading"><div><p class="eyebrow">ACT / GOVERNED BRIDGE</p><h1>Bifrost</h1><p class="lede">Capability cards show registration, approval, and enablement as separate states.</p></div></div><section class="panel"><div class="panel-title"><h2>Capabilities</h2><div class="button-row"><span id="capability-state" class="state-chip">unknown</span><span class="tag">no marketplace</span></div></div><div id="capabilities" class="capability-list"></div></section></section>
