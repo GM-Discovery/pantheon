@@ -143,6 +143,9 @@
     $("echo-speaker-detail").hidden = false;
     $("echo-speaker-identity-form").dataset.echoSpeaker = speaker;
     $("echo-speaker-identity-form").dataset.echoSegment = selectedSegmentID;
+    $("echo-speaker-identity-profile").innerHTML = `<option value="">Create or find by the name below</option>${(body.profiles || []).map((profile) => `<option value="${escapeHTML(profile.voice_id)}">${escapeHTML(profile.name)} · ${escapeHTML(profile.state)}</option>`).join("")}`;
+    $("echo-identity-status").textContent = "";
+    $("echo-identity-status").classList.remove("error");
     $("echo-speaker-detail-title").textContent = speaker;
     $("echo-speaker-detail-intro").textContent = `This is ${speaker} in run ${run.run_id || "without an imported run"}. Select one transcript snippet, listen to that time range, and assign only that segment. Later segments remain independent until confirmed.`;
     const sample = segments.find((segment) => segment.segment_id === selectedSegmentID);
@@ -168,6 +171,7 @@
     const form = event.currentTarget;
     const speaker = form.dataset.echoSpeaker;
     const name = $("echo-speaker-identity-name").value.trim();
+    const selectedVoiceID = $("echo-speaker-identity-profile").value;
     const body = state.echo || {};
     const run = body.latest_run || {};
     const segmentID = form.dataset.echoSegment;
@@ -181,7 +185,7 @@
       const fame = await json("/v1/fame");
       let person = (fame.people || []).find((item) => String(item.preferred_name || "").toLowerCase() === name.toLowerCase());
       if (!person) person = await post("/v1/fame/people", { preferred_name: name, status: "confirmed" });
-      let profile = (body.profiles || []).find((item) => String(item.name || "").toLowerCase() === name.toLowerCase());
+      let profile = (body.profiles || []).find((item) => item.voice_id === selectedVoiceID) || (body.profiles || []).find((item) => String(item.name || "").toLowerCase() === name.toLowerCase());
       if (!profile) profile = await post("/v1/echo/voices", { name });
       await post(`/v1/echo/voices/${encodeURIComponent(profile.voice_id)}/samples`, { source_path: run.source_path, start_seconds: sample.start_seconds, end_seconds: sample.end_seconds });
       await post(`/v1/echo/segments/${encodeURIComponent(sample.segment_id)}/confirm`, { voice_id: profile.voice_id });
@@ -189,10 +193,14 @@
       if (!(fameAfterPerson.conversations || []).some((conversation) => conversation.run_id === run.run_id)) await post("/v1/fame/conversations", { run_id: run.run_id });
       await post("/v1/fame/corrections", { target_type: "segment", target_id: sample.segment_id, kind: "operator_identity_confirmation", statement: `Operator identified this segment of ${speaker} as ${name} in Echo run ${run.run_id}.`, person_id: person.person_id });
       await post(`/v1/fame/people/${encodeURIComponent(person.person_id)}/evidence`, { kind: "operator_correction", source_ref: `${run.run_id}:${sample.segment_id}`, detail: `Human entered ${name} for one Echo segment and confirmed the local voice sample.`, confidence: 1 });
+      $("echo-identity-status").textContent = `Saved ${speaker} as ${name}.`;
+      $("echo-identity-status").classList.remove("error");
       showNotice(`One ${speaker} segment is now assigned to ${name}. Other segments remain unchanged.`);
       await loadEcho(run.run_id);
       renderEchoSpeakerDetail(speaker, sample.segment_id);
     } catch (error) {
+      $("echo-identity-status").textContent = error.message || "The identity could not be saved.";
+      $("echo-identity-status").classList.add("error");
       showNotice(error.message || "The speaker identity could not be saved. No cloud upload was attempted.", true);
     } finally {
       submit.disabled = false;
