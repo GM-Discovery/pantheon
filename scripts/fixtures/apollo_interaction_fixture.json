@@ -1,0 +1,40 @@
+{
+  "name": "explicit interaction extraction",
+  "request": "Extract only explicit action items, commitments, decisions, and unresolved questions. Keep speaker labels exactly as written. Do not infer identity, intent, deadlines, or ownership. Cite every item with the exact evidence citation.",
+  "evidence": [
+    {
+      "citation": "[[fixture/meeting.md#00:01:10]]",
+      "text": "[00:01:10–00:01:22] SPEAKER_00: I will send the revised intake form to SPEAKER_01 by Friday."
+    },
+    {
+      "citation": "[[fixture/meeting.md#00:02:04]]",
+      "text": "[00:02:04–00:02:15] SPEAKER_01: I will review it and reply before our Monday check-in."
+    },
+    {
+      "citation": "[[fixture/meeting.md#00:03:18]]",
+      "text": "[00:03:18–00:03:29] SPEAKER_00: We decided to use the shared intake folder for this project."
+    },
+    {
+      "citation": "[[fixture/meeting.md#00:04:02]]",
+      "text": "[00:04:02–00:04:14] SPEAKER_01: We still need to decide who will cover the Tuesday handoff."
+    }
+  ],
+  "expectations": {
+    "required_terms": [
+      "SPEAKER_00",
+      "SPEAKER_01",
+      "revised intake form",
+      "Friday",
+      "review",
+      "shared intake folder",
+      "Tuesday handoff"
+    ],
+    "required_citations": [
+      "[[fixture/meeting.md#00:01:10]]",
+      "[[fixture/meeting.md#00:02:04]]",
+      "[[fixture/meeting.md#00:03:18]]",
+      "[[fixture/meeting.md#00:04:02]]"
+    ],
+    "forbidden_terms": ["Thursday", "Monday deadline", "Taylor", "guaranteed"]
+  }
+}
