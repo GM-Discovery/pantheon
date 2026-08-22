@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=int, default=900)
     parser.add_argument("--num-predict", type=int, default=512)
     parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--think", action="store_true", help="enable reasoning; extraction calibration disables it by default")
     return parser.parse_args()
 
 
@@ -91,7 +92,7 @@ def main() -> int:
     args = parse_args()
     fixture = json.loads(args.fixture.read_text(encoding="utf-8"))
     prompt = request_text(fixture)
-    payload = json.dumps({"model": args.model, "messages": [{"role": "user", "content": prompt}], "stream": False, "format": "json", "options": {"temperature": args.temperature, "num_predict": args.num_predict}}).encode("utf-8")
+    payload = json.dumps({"model": args.model, "messages": [{"role": "user", "content": prompt}], "stream": False, "format": "json", "think": args.think, "options": {"temperature": args.temperature, "num_predict": args.num_predict}}).encode("utf-8")
     request = urllib.request.Request(args.endpoint, data=payload, headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=args.timeout) as response:
