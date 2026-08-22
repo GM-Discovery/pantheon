@@ -455,6 +455,7 @@ func guiConfigurationFor(cfg config, path string) guiConfigurationResponse {
 			{Key: "paths.vault", Label: "Vault location", Description: "Configured local continuity root used by Past and Weave.", Value: cfg.VaultPath, Editable: false, RestartRequired: true, Safety: "informational"},
 			{Key: "paths.intake", Label: "Intake location", Description: "Folder Pantheon identity-tracks for incoming occurrences.", Value: cfg.IntakePath, Editable: false, RestartRequired: true, Safety: "informational"},
 			{Key: "models.apollo.model", Label: "Apollo local model", Description: "Model used for local cited reasoning.", Value: cfg.LocalModel, Editable: false, RestartRequired: true, Safety: "informational"},
+			{Key: "models.apollo.extraction_model", Label: "Apollo extraction model", Description: "Model reserved for bounded transcript extraction; blank configuration falls back to Apollo's local model.", Value: cfg.ApolloExtractionModel, Editable: false, RestartRequired: true, Safety: "informational"},
 			{Key: "models.archimedes.model", Label: "Archimedes frontier model", Description: "Reserved future frontier path; currently inactive.", Value: cfg.FrontierModel, Editable: false, RestartRequired: false, Safety: "deferred"},
 		},
 	}

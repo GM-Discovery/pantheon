@@ -156,8 +156,9 @@ type canonicalModels struct {
 }
 
 type canonicalApollo struct {
-	Model    *string `json:"model,omitempty"`
-	Endpoint *string `json:"endpoint,omitempty"`
+	Model           *string `json:"model,omitempty"`
+	ExtractionModel *string `json:"extraction_model,omitempty"`
+	Endpoint        *string `json:"endpoint,omitempty"`
 }
 
 type canonicalApolloSettings struct {
@@ -197,6 +198,7 @@ type config struct {
 	Model                             string   `json:"model,omitempty"`
 	OllamaURL                         string   `json:"ollama_url,omitempty"`
 	LocalModel                        string   `json:"local_model,omitempty"`
+	ApolloExtractionModel             string   `json:"apollo_extraction_model,omitempty"`
 	FrontierModel                     string   `json:"frontier_model,omitempty"`
 	VaultPath                         string   `json:"vault_path,omitempty"`
 	RoadmapPath                       string   `json:"roadmap_path,omitempty"`
@@ -428,11 +430,19 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 				resolved.OllamaURL = strings.TrimSpace(*canonical.Models.Apollo.Endpoint)
 				sources["models.apollo.endpoint"] = "user"
 			}
+			if canonical.Models.Apollo.ExtractionModel != nil {
+				resolved.ApolloExtractionModel = strings.TrimSpace(*canonical.Models.Apollo.ExtractionModel)
+				sources["models.apollo.extraction_model"] = "user"
+			}
 		}
 		if canonical.Models.Archimedes != nil && canonical.Models.Archimedes.Model != nil {
 			resolved.FrontierModel = strings.TrimSpace(*canonical.Models.Archimedes.Model)
 			sources["models.archimedes.model"] = "user"
 		}
+	}
+	if strings.TrimSpace(resolved.ApolloExtractionModel) == "" {
+		resolved.ApolloExtractionModel = resolved.LocalModel
+		sources["models.apollo.extraction_model"] = "fallback to models.apollo.model"
 	}
 	if canonical.Apollo != nil {
 		if canonical.Apollo.MaxRetrievalRounds != nil {
@@ -736,18 +746,19 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		localModel = strings.TrimSpace(legacy.Model)
 	}
 	resolved := config{
-		Model:           localModel,
-		LocalModel:      localModel,
-		OllamaURL:       strings.TrimSpace(legacy.OllamaURL),
-		FrontierModel:   strings.TrimSpace(legacy.FrontierModel),
-		VaultPath:       legacy.VaultPath,
-		RoadmapPath:     legacy.RoadmapPath,
-		IntakePath:      filepath.Join(home, "Pantheon Intake"),
-		RawPath:         "",
-		RawInputDays:    30,
-		WhisperEnabled:  true,
-		WhisperLanguage: "auto",
-		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
+		Model:                 localModel,
+		LocalModel:            localModel,
+		ApolloExtractionModel: localModel,
+		OllamaURL:             strings.TrimSpace(legacy.OllamaURL),
+		FrontierModel:         strings.TrimSpace(legacy.FrontierModel),
+		VaultPath:             legacy.VaultPath,
+		RoadmapPath:           legacy.RoadmapPath,
+		IntakePath:            filepath.Join(home, "Pantheon Intake"),
+		RawPath:               "",
+		RawInputDays:          30,
+		WhisperEnabled:        true,
+		WhisperLanguage:       "auto",
+		RumorRetryLimit:       3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
 		MailEnabled: true, MailAdapter: "himalaya", MailAccount: "gmail", MailInbox: "INBOX", MailBacklogEnabled: true, MailBatchSize: 100, MailDirection: "newest_to_oldest", MailMarkReadPolicy: "standing_authority_only", MailAttachmentPolicy: "approval_required", MailActionCapabilityID: "gmail-mail-actions",
@@ -774,6 +785,7 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 	if _, ok := raw["ollama_url"]; ok {
 		sources["models.apollo.endpoint"] = "legacy"
 	}
+	sources["models.apollo.extraction_model"] = "fallback to models.apollo.model"
 	if _, ok := raw["frontier_model"]; ok {
 		sources["models.archimedes.model"] = "legacy"
 	} else {
@@ -1094,6 +1106,7 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 	}
 	fmt.Fprintf(&b, "time.timezone: %s (%s)\n", timezone, sourceOrOptional(resolution.Sources, "time.timezone"))
 	fmt.Fprintf(&b, "models.apollo.model: %s (%s)\n", cfg.LocalModel, sourceOrOptional(resolution.Sources, "models.apollo.model"))
+	fmt.Fprintf(&b, "models.apollo.extraction_model: %s (%s)\n", cfg.ApolloExtractionModel, sourceOrOptional(resolution.Sources, "models.apollo.extraction_model"))
 	fmt.Fprintf(&b, "models.apollo.endpoint: %s (%s)\n", cfg.OllamaURL, sourceOrOptional(resolution.Sources, "models.apollo.endpoint"))
 	fmt.Fprintf(&b, "models.archimedes.model: %s (%s; reserved/inactive)\n", displayConfigValue(cfg.FrontierModel), sourceOrOptional(resolution.Sources, "models.archimedes.model"))
 	fmt.Fprintf(&b, "ingestion.whisper: %s (binary=%s, model=%s, language=%s)\n", readinessConfigBool(cfg.WhisperEnabled), displayConfigValue(cfg.WhisperBinary), displayConfigValue(cfg.WhisperModel), cfg.WhisperLanguage)

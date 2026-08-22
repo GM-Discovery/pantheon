@@ -52,16 +52,17 @@ type daemon struct {
 }
 
 type statusResponse struct {
-	LocalModel    string         `json:"local_model"`
-	FrontierModel string         `json:"frontier_model,omitempty"`
-	OllamaURL     string         `json:"ollama_url"`
-	VaultPath     string         `json:"vault_path,omitempty"`
-	RoadmapPath   string         `json:"roadmap_path,omitempty"`
-	Capabilities  []capability   `json:"capabilities"`
-	ListenAddress string         `json:"listen_address"`
-	AuditRequests int            `json:"audit_requests"`
-	Paused        bool           `json:"paused"`
-	Rumor         map[string]any `json:"rumor"`
+	LocalModel            string         `json:"local_model"`
+	ApolloExtractionModel string         `json:"apollo_extraction_model,omitempty"`
+	FrontierModel         string         `json:"frontier_model,omitempty"`
+	OllamaURL             string         `json:"ollama_url"`
+	VaultPath             string         `json:"vault_path,omitempty"`
+	RoadmapPath           string         `json:"roadmap_path,omitempty"`
+	Capabilities          []capability   `json:"capabilities"`
+	ListenAddress         string         `json:"listen_address"`
+	AuditRequests         int            `json:"audit_requests"`
+	Paused                bool           `json:"paused"`
+	Rumor                 map[string]any `json:"rumor"`
 }
 
 type inputRequest struct {
@@ -770,7 +771,7 @@ func (d *daemon) handleStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, statusResponse{LocalModel: d.cfg.LocalModel, FrontierModel: d.cfg.FrontierModel, OllamaURL: d.cfg.OllamaURL, VaultPath: d.cfg.VaultPath, RoadmapPath: d.cfg.RoadmapPath, Capabilities: d.capabilities.Capabilities, ListenAddress: "127.0.0.1", AuditRequests: requests, Paused: paused, Rumor: d.rumorStatusSummary()})
+	writeJSON(w, http.StatusOK, statusResponse{LocalModel: d.cfg.LocalModel, ApolloExtractionModel: d.cfg.ApolloExtractionModel, FrontierModel: d.cfg.FrontierModel, OllamaURL: d.cfg.OllamaURL, VaultPath: d.cfg.VaultPath, RoadmapPath: d.cfg.RoadmapPath, Capabilities: d.capabilities.Capabilities, ListenAddress: "127.0.0.1", AuditRequests: requests, Paused: paused, Rumor: d.rumorStatusSummary()})
 }
 
 func (d *daemon) handleInput(w http.ResponseWriter, r *http.Request) {

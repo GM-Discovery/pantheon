@@ -70,6 +70,7 @@
   "models": {
     "apollo": {
       "model": "",
+      "extraction_model": "",
       "endpoint": "http://127.0.0.1:11434/api/chat"
     },
     "archimedes": {

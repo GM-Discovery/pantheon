@@ -20,6 +20,7 @@ Copy `pantheon.example.json` to `~/pantheon-runtime/config/pantheon.json` and fi
 - `mercury.round_on_cron_wake`: records the safe scheduled-wake integration point; Kernel 11 provides `pantheon mercury round` but does not install a new scheduler.
 - `apollo`: bounded local reasoning budgets and citation policy. `external_research.enabled` defaults to `false`; Kernel 12 does not grant Apollo Internet access by configuration alone.
 - `models.apollo.model`: the local reasoning model (for example, `mistral-small3.1:latest`).
+- `models.apollo.extraction_model`: the bounded transcript-extraction model (for example, `qwen3.5:9b`); if omitted, it falls back to `models.apollo.model`. The slot is configured now; the production extraction pass will consume it in the Fame increment.
 - `models.apollo.endpoint`: local Ollama chat endpoint, normally `http://127.0.0.1:11434/api/chat`.
 - `models.archimedes.model`: reserved and inactive in Kernel 8; naming a model grants no access or authority.
 - `policy.yaml`: human-readable authority declaration; it does not silently grant capabilities. Code remains the enforcement point.

@@ -148,7 +148,7 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 			"audit_events":   failures["audit_events"],
 		},
 		Models: map[string]any{
-			"apollo":     map[string]any{"model": d.cfg.LocalModel, "endpoint": d.cfg.OllamaURL, "state": localModelState, "local_only_by_default": true},
+			"apollo":     map[string]any{"model": d.cfg.LocalModel, "extraction_model": d.cfg.ApolloExtractionModel, "endpoint": d.cfg.OllamaURL, "state": localModelState, "local_only_by_default": true},
 			"archimedes": map[string]any{"model": d.cfg.FrontierModel, "state": "deferred", "enabled": false, "data_egress": false},
 		},
 		Components: components,

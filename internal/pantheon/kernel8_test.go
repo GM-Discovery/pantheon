@@ -42,6 +42,28 @@ func TestKernel8CurrentConfigLoadsAndAppliesDefaults(t *testing.T) {
 	}
 }
 
+func TestApolloExtractionModelSlotUsesConfiguredValueOrMainModelFallback(t *testing.T) {
+	configuredPath := filepath.Join(t.TempDir(), "pantheon.json")
+	writeTestFile(t, configuredPath, `{"schema_version":1,"models":{"apollo":{"model":"mistral-small3.1:latest","extraction_model":"qwen3.5:9b","endpoint":"http://127.0.0.1:11434/api/chat"}}}`)
+	configured, err := readConfigResolution(configuredPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if configured.Config.ApolloExtractionModel != "qwen3.5:9b" || configured.Sources["models.apollo.extraction_model"] != "user" {
+		t.Fatalf("configured extraction slot = %q (%q)", configured.Config.ApolloExtractionModel, configured.Sources["models.apollo.extraction_model"])
+	}
+
+	fallbackPath := filepath.Join(t.TempDir(), "pantheon.json")
+	writeTestFile(t, fallbackPath, `{"schema_version":1,"models":{"apollo":{"model":"mistral-small3.1:latest","endpoint":"http://127.0.0.1:11434/api/chat"}}}`)
+	fallback, err := readConfigResolution(fallbackPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fallback.Config.ApolloExtractionModel != fallback.Config.LocalModel || fallback.Sources["models.apollo.extraction_model"] != "fallback to models.apollo.model" {
+		t.Fatalf("fallback extraction slot = %q (%q), main model = %q", fallback.Config.ApolloExtractionModel, fallback.Sources["models.apollo.extraction_model"], fallback.Config.LocalModel)
+	}
+}
+
 func TestKernel8ConfigRejectsUnsupportedMalformedAndIncompleteDocuments(t *testing.T) {
 	tests := map[string]struct {
 		contents string

@@ -14,6 +14,7 @@
   "models": {
     "apollo": {
       "model": "mistral-small3.1:latest",
+      "extraction_model": "qwen3.5:9b",
       "endpoint": "http://172.17.0.1:11434/api/chat"
     },
     "archimedes": {
