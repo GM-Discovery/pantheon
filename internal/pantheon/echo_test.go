@@ -249,3 +249,54 @@ func TestEchoRunSelectionAndVoiceArchive(t *testing.T) {
 		t.Fatalf("archived profile state=%q", state)
 	}
 }
+
+func TestEchoBulkConfirmationIsScopedToOneRunAndSpeaker(t *testing.T) {
+	d := kernel15Daemon(t, janusTestPackage("TEST:ECHOBULK", "expire"))
+	defer d.Close()
+	source := filepath.Join(t.TempDir(), "bulk-audio.m4a")
+	if err := os.WriteFile(source, []byte("local audio fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	makeRun := func(id string) echoRun {
+		diarization := filepath.Join(t.TempDir(), id+".tsv")
+		if err := os.WriteFile(diarization, []byte("start_seconds\tend_seconds\tspeaker\tduration_seconds\n0.000\t2.000\tSPEAKER_00\t2.000\n2.000\t4.000\tSPEAKER_01\t2.000\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		run, err := d.importEchoRun(echoImportRequest{RunID: id, SourcePath: source, DiarizationPath: diarization})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return run
+	}
+	first := makeRun("echo-bulk-one")
+	second := makeRun("echo-bulk-two")
+	profile, err := d.createEchoVoice(echoVoiceRequest{Name: "Bulk Person"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := httptest.NewRecorder()
+	d.Handler().ServeHTTP(record, httptest.NewRequest(http.MethodPost, "/v1/echo/voices/"+profile.VoiceID+"/confirm", strings.NewReader(`{"run_id":"echo-bulk-one","speaker":"SPEAKER_00"}`)))
+	if record.Code != http.StatusOK {
+		t.Fatalf("bulk confirmation status=%d body=%s", record.Code, record.Body.String())
+	}
+	var response map[string]any
+	if err := json.Unmarshal(record.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["confirmed"] != float64(1) {
+		t.Fatalf("bulk confirmation response=%s", record.Body.String())
+	}
+	var target, otherSpeaker, otherRun int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM echo_speaker_segments WHERE run_id = ? AND anonymous_speaker = ? AND voice_id = ?`, first.RunID, "SPEAKER_00", profile.VoiceID).Scan(&target); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM echo_speaker_segments WHERE run_id = ? AND anonymous_speaker = ? AND voice_id IS NULL`, first.RunID, "SPEAKER_01").Scan(&otherSpeaker); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM echo_speaker_segments WHERE run_id = ? AND voice_id = ?`, second.RunID, profile.VoiceID).Scan(&otherRun); err != nil {
+		t.Fatal(err)
+	}
+	if target != 1 || otherSpeaker != 1 || otherRun != 0 {
+		t.Fatalf("bulk scope target=%d other speaker remaining=%d other run assigned=%d", target, otherSpeaker, otherRun)
+	}
+}

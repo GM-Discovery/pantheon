@@ -48,8 +48,6 @@
   document.addEventListener("click", (event) => {
     const workTrigger = event.target.closest("[data-work-category]");
     if (workTrigger) { loadWorkContext(workTrigger.dataset.workCategory); return; }
-    const selectSegment = event.target.closest("[data-echo-select-segment]");
-    if (selectSegment) { renderEchoSpeakerDetail(selectSegment.dataset.echoSpeakerForSegment, selectSegment.dataset.echoSelectSegment); return; }
     const clearSegment = event.target.closest("[data-echo-clear-segment]");
     if (clearSegment) { clearEchoSegment(clearSegment.dataset.echoClearSegment); return; }
     const playSegment = event.target.closest("[data-echo-play-segment]");
@@ -150,11 +148,12 @@
       return "<article class=\"work-detail echo-assigned-card\"><div class=\"work-detail-head\"><strong>" + escapeHTML(profile.name) + "</strong>" + stateChip(assigned.length + " assigned") + "</div><ul>" + rows + "</ul>" + note + (visible.length > 10 ? "<p class=\"muted\">Showing 10 of " + visible.length + " visible assigned snippets.</p>" : "") + "</article>";
     }).join("") || "<p class=\"muted\">No snippets have been assigned to a voice profile yet.</p>";
     $("echo-speakers").innerHTML = speakers.map((speaker) => {
-      const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker && !segment.voice_id);
+      const allSpeakerSegments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker);
+      const segments = allSpeakerSegments.filter((segment) => !segment.voice_id);
       if (!segments.length) return "";
       const first = segments[0];
       const firstTime = first ? formatEchoSeconds(first.start_seconds) : "not in the visible segment window";
-      const mapped = segments.filter((segment) => segment.voice_id).map((segment) => profiles.find((profile) => profile.voice_id === segment.voice_id)?.name || segment.voice_id);
+      const mapped = allSpeakerSegments.filter((segment) => segment.voice_id).map((segment) => profiles.find((profile) => profile.voice_id === segment.voice_id)?.name || segment.voice_id);
       const uniqueMapped = [...new Set(mapped)];
       return `<button type="button" class="work-detail echo-speaker-card" data-echo-speaker="${escapeHTML(speaker)}"><div class="work-detail-head"><strong>${escapeHTML(speaker)}</strong>${stateChip(mapped.length ? "review assignments" : "anonymous")}</div><p>${mapped.length ? `Assigned in ${mapped.length} visible segment${mapped.length === 1 ? "" : "s"}: ${escapeHTML(uniqueMapped.join(", "))}.` : "No identity assignment yet."}</p><div class="zodiac-meta">${segments.length} visible segment${segments.length === 1 ? "" : "s"} · first visible timestamp ${escapeHTML(firstTime)} · review snippets and approve deliberately</div></button>`;
     }).join("") || `<p class="muted">No anonymous speaker labels recorded.</p>`;
@@ -195,22 +194,18 @@
     const run = body.latest_run || {};
     const segments = (body.segments || []).filter((segment) => segment.anonymous_speaker === speaker && (includeAssigned || !segment.voice_id));
     const allWindows = buildEchoReviewWindows(segments, includeAssigned);
-    const selectedWindow = allWindows.find((window) => window.segments.some((segment) => segment.segment_id === selectedSegmentID));
-    const usefulWindows = allWindows.filter((window) => window.duration >= 1 || allWindows.every((candidate) => candidate.duration < 1) || window === selectedWindow);
+    $("echo-speaker-detail-intro").textContent = "Each review window below has its own audio, transcript, and assignment controls. Bulk assignment, when used, is limited to this anonymous speaker in this selected run.";
+    const usefulWindows = allWindows.filter((window) => window.duration >= 1 || allWindows.every((candidate) => candidate.duration < 1));
     const reviewWindows = usefulWindows.slice(0, 10);
-    if (selectedWindow && !reviewWindows.includes(selectedWindow)) {
-      reviewWindows.pop();
-      reviewWindows.push(selectedWindow);
-    }
     const hiddenShortWindows = usefulWindows.filter((window) => window.duration < 1).length;
     const omittedWindows = Math.max(0, usefulWindows.length - reviewWindows.length);
     const source = run.source_path || "the latest Echo run";
+    const selectedWindow = null;
     $("echo-speaker-detail").hidden = false;
     $("echo-speaker-detail-title").textContent = speaker;
     $("echo-speaker-detail-intro").textContent = `This is ${speaker} in run ${run.run_id || "without an imported run"}. Select one transcript snippet, listen to that time range, and assign only that segment. Later segments remain independent until confirmed.`;
-    const sample = selectedWindow?.segments?.slice().sort((a, b) => echoSegmentDuration(b) - echoSegmentDuration(a))[0];
     const confirmedSample = (body.segments || []).find((segment) => segment.anonymous_speaker === speaker && segment.voice_id);
-    $("echo-speaker-sample-note").textContent = selectedWindow ? `Selected review window: ${formatEchoSeconds(selectedWindow.start_seconds)}–${formatEchoSeconds(selectedWindow.end_seconds)} (${selectedWindow.duration.toFixed(1)} seconds, ${selectedWindow.segments.length} diarized interval${selectedWindow.segments.length === 1 ? "" : "s"}). The voice sample is derived from this larger window; short fragments are not enrolled separately.` : "Select a review window below before setting an identity. No segment will be changed in bulk.";
+    $("echo-speaker-sample-note").textContent = "Choose a profile or enter a name on the specific review window you want to assign. Nothing is selected implicitly, and other windows remain unchanged.";
     const hiddenNote = [
       hiddenShortWindows ? `${hiddenShortWindows} isolated sub-second fragment${hiddenShortWindows === 1 ? " is" : "s are"} hidden because a longer window is available` : "",
       omittedWindows ? `${omittedWindows} additional review window${omittedWindows === 1 ? " is" : "s are"} omitted; Echo shows at most 10 examples here` : "",
@@ -225,6 +220,14 @@
     }).join("") || `<p class="muted">No review windows for this speaker are currently in the visible Echo snapshot. Longer speech windows are prioritized over isolated fragments.</p>`;
     const approval = confirmedSample ? `<div class="button-row"><button type="button" class="button" data-echo-approve-speaker="${escapeHTML(speaker)}" data-echo-approve-segment="${escapeHTML(confirmedSample.segment_id)}">Approve this speaker label for this run</button><span class="muted">This will apply ${escapeHTML((body.segments || []).filter((segment) => segment.anonymous_speaker === speaker && !segment.voice_id).length)} remaining anonymous snippets to ${escapeHTML((body.profiles || []).find((profile) => profile.voice_id === confirmedSample.voice_id)?.name || confirmedSample.voice_id)} in ${escapeHTML(run.run_id || "this run")}; it requires explicit confirmation.</span></div>` : `<p class="muted">Save one snippet first if you later decide this anonymous label is consistent enough to approve in bulk.</p>`;
     $("echo-speaker-detail-body").innerHTML = `<article class="work-detail"><div class="work-detail-head"><strong>Review substantial speech windows</strong>${stateChip("human confirmation")}</div><p>Echo groups nearby speech from the same anonymous speaker into review windows up to 10 seconds and shows at most 10 examples. Listen before assigning it. Saving enrolls one larger local sample and applies the assignment to the underlying diarized intervals in that window; short fragments are supporting evidence, not separate focal samples.</p>${hiddenNote ? `<p class="muted echo-review-note">${escapeHTML(hiddenNote)}.</p>` : ""}${approval}</article>${segmentList}`;
+    document.querySelectorAll("#echo-speaker-detail [data-echo-select-segment], #echo-speaker-detail .echo-segment-selected").forEach((element) => {
+      if (element.matches("[data-echo-select-segment]")) element.remove();
+      else element.classList.remove("echo-segment-selected");
+    });
+    const bulkButton = document.querySelector("#echo-speaker-detail [data-echo-approve-speaker]");
+    if (bulkButton) bulkButton.textContent = `Assign remaining ${speaker} snippets`;
+    const bulkNote = bulkButton?.parentElement?.querySelector(".muted");
+    if (bulkNote) bulkNote.textContent = `Applies only to ${speaker} in ${run.run_id || "this run"}. Other speakers and runs are untouched.`;
     if (includeAssigned && selectedSegmentID) {
       const selected = segments.find((segment) => segment.segment_id === selectedSegmentID);
       const form = document.querySelector(`[data-echo-segment-form="${CSS.escape(selectedSegmentID)}"]`);
@@ -380,11 +383,11 @@
       const fame = await json("/v1/fame");
       let person = (fame.people || []).find((item) => String(item.preferred_name || "").toLowerCase() === name.toLowerCase());
       if (!person) person = await post("/v1/fame/people", { preferred_name: name, status: "confirmed" });
-      await post(`/v1/echo/voices/${encodeURIComponent(segment.voice_id)}/confirm`, { run_id: run.run_id, speaker });
+      const bulkResult = await post(`/v1/echo/voices/${encodeURIComponent(segment.voice_id)}/confirm`, { run_id: run.run_id, speaker });
       const fameAfterPerson = await json("/v1/fame");
       if (!(fameAfterPerson.conversations || []).some((conversation) => conversation.run_id === run.run_id)) await post("/v1/fame/conversations", { run_id: run.run_id });
       await post("/v1/fame/corrections", { target_type: "speaker", target_id: run.run_id, kind: "operator_speaker_label_confirmation", statement: `Operator approved every ${speaker} segment in Echo run ${run.run_id} as ${name}.`, person_id: person.person_id, run_id: run.run_id, speaker });
-      showNotice(`${speaker} is approved as ${name} for this Echo run. Other runs remain unchanged.`);
+      showNotice(`${bulkResult.confirmed || 0} ${speaker} segment${bulkResult.confirmed === 1 ? "" : "s"} assigned to ${name} in ${run.run_id}. Other speakers and runs remain unchanged.`);
       await loadEcho(run.run_id);
       renderEchoSpeakerDetail(speaker, segment.segment_id);
     } catch (error) {
