@@ -350,6 +350,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/fame/people", d.handleFamePeople)
 	mux.HandleFunc("POST /v1/fame/people/{id}/evidence", d.handleFamePersonEvidence)
 	mux.HandleFunc("POST /v1/fame/conversations", d.handleFameConversation)
+	mux.HandleFunc("POST /v1/fame/conversations/{id}/extract", d.handleFameConversationExtraction)
 	mux.HandleFunc("POST /v1/fame/observations", d.handleFameObservation)
 	mux.HandleFunc("POST /v1/fame/corrections", d.handleFameCorrection)
 	mux.HandleFunc("POST /v1/fame/segments/{id}/clear", d.handleFameSegmentClear)

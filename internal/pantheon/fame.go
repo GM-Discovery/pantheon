@@ -634,6 +634,17 @@ func (d *daemon) handleFameCommand(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, conversation)
+	case "extract":
+		if len(fields) != 3 {
+			writeError(w, http.StatusBadRequest, errors.New("usage: /fame extract <conversation-id>"))
+			return
+		}
+		result, err := d.extractFameConversation(r.Context(), fields[2])
+		if err != nil {
+			writeError(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
 	case "observation":
 		if len(fields) < 6 {
 			writeError(w, http.StatusBadRequest, errors.New("usage: /fame observation <conversation-id> <kind> <source-ref> <content>"))
@@ -673,6 +684,6 @@ func (d *daemon) handleFameCommand(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusCreated, evidence)
 	default:
-		writeError(w, http.StatusBadRequest, errors.New("supported commands: /fame status | /fame people | /fame person add <name> | /fame conversation <echo-run-id> | /fame observation <conversation-id> <kind> <source-ref> <content> | /fame correct <target-type> <kind> <statement>"))
+		writeError(w, http.StatusBadRequest, errors.New("supported commands: /fame status | /fame people | /fame person add <name> | /fame conversation <echo-run-id> | /fame extract <conversation-id> | /fame observation <conversation-id> <kind> <source-ref> <content> | /fame correct <target-type> <kind> <statement>"))
 	}
 }

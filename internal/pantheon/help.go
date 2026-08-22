@@ -39,6 +39,7 @@ var pantheonCommands = []commandHelpEntry{
 	{Group: "FAME / PEOPLE", Command: "pantheon show fame", Purpose: "inspect durable people, conversations, identity evidence, observations, and corrections", Mutates: "no"},
 	{Group: "FAME / PEOPLE", Command: "pantheon fame person add <name>", Purpose: "create a provisional local person record", Args: "name", Mutates: "yes"},
 	{Group: "FAME / PEOPLE", Command: "pantheon fame conversation <echo-run-id>", Purpose: "create a provisional conversation boundary and preserve Echo speaker attribution links", Args: "echo-run-id", Mutates: "yes"},
+	{Group: "FAME / PEOPLE", Command: "pantheon fame extract <conversation-id>", Purpose: "run bounded local interaction extraction with exact transcript citations", Args: "conversation-id", Mutates: "yes"},
 	{Group: "FAME / PEOPLE", Command: "pantheon fame correct <target-type> <kind> <statement>", Purpose: "record a human correction without silently relabeling a recording", Args: "target-type kind statement", Mutates: "yes"},
 	{Group: "CONTROL", Command: "pantheon prometheus protocol --pause", Purpose: "pause autonomous activity for inspection", Mutates: "yes", Control: "local control token"},
 	{Group: "CONTROL", Command: "pantheon prometheus protocol --resume", Purpose: "resume after an explicit inspection pause", Mutates: "yes", Control: "local control token"},

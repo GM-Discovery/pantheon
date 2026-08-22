@@ -1,7 +1,9 @@
 package pantheon
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +11,88 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestFameExtractionUsesConfiguredModelAndPersistsOnlyCitedObservations(t *testing.T) {
+	d := kernel15Daemon(t, janusTestPackage("TEST:FAMEEXTRACT", "expire"))
+	defer d.Close()
+	root := t.TempDir()
+	vault := filepath.Join(root, "Vault")
+	source := filepath.Join(root, "recording.m4a")
+	diarization := filepath.Join(root, "run.tsv")
+	if err := os.WriteFile(source, []byte("local audio fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(diarization, []byte("start_seconds\tend_seconds\tspeaker\tduration_seconds\n0.000\t4.000\tSPEAKER_00\t4.000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	transcript := filepath.Join(vault, "80 Pantheon Raw", "Audio", "2026", "08", "21", "recording.kernel24-safe-test.speaker-transcript.md")
+	if err := os.MkdirAll(filepath.Dir(transcript), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(transcript, []byte("[00:00:00.000–00:00:04.000] **SPEAKER_00:** I will send the revised intake form by Friday.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	run, err := d.importEchoRun(echoImportRequest{RunID: "echo-extract", SourcePath: source, DiarizationPath: diarization})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conversation, err := d.createFameConversation(fameConversationRequest{RunID: run.RunID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.cfg.VaultPath = vault
+	d.cfg.ApolloExtractionModel = "qwen3.5:9b"
+	d.cfg.ApolloMaxReasoningDurationSeconds = 5
+	citation := fameExtractionCitation(vault, transcript, 0)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request fameOllamaRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("request JSON: %v", err)
+		} else {
+			if request.Model != "qwen3.5:9b" || request.Format != "json" || request.Think == nil || *request.Think {
+				t.Errorf("extraction request controls = model %q format %q think=%v", request.Model, request.Format, request.Think)
+			}
+			if len(request.Messages) < 2 || !strings.Contains(request.Messages[1].Content, citation) || !strings.Contains(request.Messages[1].Content, "SPEAKER_00") {
+				t.Errorf("extraction prompt omitted exact source context: %s", request.Messages[1].Content)
+			}
+		}
+		responseContent := fmt.Sprintf("{\"action_items\":[{\"speaker\":\"SPEAKER_00\",\"action\":\"send the revised intake form\",\"time_constraint\":\"Friday\",\"evidence\":%q}],\"commitments\":[],\"decisions\":[],\"unresolved_questions\":[],\"uncertainties\":[]}", citation)
+		_ = json.NewEncoder(w).Encode(ollamaResponse{Message: message{Role: "assistant", Content: responseContent}})
+	}))
+	defer server.Close()
+	d.cfg.OllamaURL = server.URL
+	result, err := d.extractFameConversation(context.Background(), conversation.ConversationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Model != "qwen3.5:9b" || result.Status != "completed" || len(result.Observations) != 1 {
+		t.Fatalf("extraction result=%+v", result)
+	}
+	observation := result.Observations[0]
+	if observation.Kind != "action_item" || observation.SourceRef != citation || observation.ActorPersonID != "" || !strings.Contains(observation.Content, "Friday") {
+		t.Fatalf("extracted observation=%+v", observation)
+	}
+	second, err := d.extractFameConversation(context.Background(), conversation.ConversationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.Observations) != 0 {
+		t.Fatalf("repeat extraction duplicated observations: %+v", second.Observations)
+	}
+}
+
+func TestFameExtractionRejectsUnknownEvidence(t *testing.T) {
+	d := kernel15Daemon(t, janusTestPackage("TEST:FAMEEXTRACTREJECT", "expire"))
+	defer d.Close()
+	conversationID := "conversation-test"
+	if _, err := d.db.Exec("INSERT INTO fame_conversations (conversation_id, source_path, boundary_state, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)", conversationID, "/tmp/transcript", fameBoundaryProvisional, "imported", "now", "now"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := d.persistFameExtraction(conversationID, fameExtractionOutput{ActionItems: []fameExtractionClaim{{Speaker: "SPEAKER_00", Action: "do not persist", Evidence: "[[not-supplied]]"}}}, "qwen3.5:9b", []fameExtractionSource{{Speaker: "SPEAKER_00", Citation: "[[supplied#00:00:00.000]]", Text: "source"}})
+	if err == nil || !strings.Contains(err.Error(), "unknown source") {
+		t.Fatalf("unknown evidence error=%v", err)
+	}
+}
 
 func TestKernel24AFamePreservesIdentityEvidenceAndCorrectionHistory(t *testing.T) {
 	d := kernel15Daemon(t, janusTestPackage("TEST:FAME", "expire"))
