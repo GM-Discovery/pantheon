@@ -14,17 +14,30 @@
   "models": {
     "apollo": {
       "model": "mistral-small3.1:latest",
-      "extraction_model": "qwen3.5:9b",
+      "extraction_model": "granite3.3:8b",
       "endpoint": "http://172.17.0.1:11434/api/chat"
     },
     "archimedes": {
       "model": ""
     }
   },
+  "archimedes": {
+    "enabled": false,
+    "provider": "local-fake",
+    "endpoint": "",
+    "model": "",
+    "route": "passthrough-local-fake",
+    "credential_env": "PANTHEON_ARCHIMEDES_API_KEY",
+    "capability": "archimedes-provider",
+    "timeout_seconds": 60,
+    "max_response_bytes": 1048576
+  },
   "apollo": {
     "max_retrieval_rounds": 12,
     "max_sources": 64,
-    "max_context_bytes": 200000,
+    "max_context_bytes": 48000,
+    "context_tokens": 8192,
+    "max_output_tokens": 2048,
     "max_reasoning_duration_seconds": 900,
     "require_citations": true,
     "external_research": {
@@ -36,6 +49,14 @@
   },
   "retention": {
     "raw_input_days": 30
+  },
+  "zeus": {
+    "enabled": true,
+    "roots": [
+      "/tmp/pantheon-go-cache",
+      "/home/brick/pantheon-runtime/scripts/__pycache__"
+    ],
+    "quarantine_path": "/tmp/pantheon-zeus-quarantine"
   },
   "ingestion": {
     "whisper": {
@@ -61,6 +82,16 @@
     "on_complete": "intake",
     "stability_seconds": 1,
     "poll_seconds": 2
+  },
+  "omi": {
+    "enabled": false,
+    "device": "FC:92:2A:DB:64:79",
+    "adapter": "hci0",
+    "address_type": "random",
+    "sync_interval_seconds": 900,
+    "packet_count": 36,
+    "max_batches": 128,
+    "output_dir": "/home/brick/Pantheon Audio/Omi BLE"
   },
   "mercury": {
     "mode": "hermes",

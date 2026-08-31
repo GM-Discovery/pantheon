@@ -285,6 +285,72 @@ func TestKernel12ApolloCorrectsUnknownCitationsAndPreservesInjectionBoundary(t *
 	}
 }
 
+func TestKernel12ApolloExplicitSourcesAreIsolatedFromVaultRetrieval(t *testing.T) {
+	var sourcePath, sourceCitation string
+	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request ollamaRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		prompt := request.Messages[1].Content
+		if strings.Contains(prompt, "UNRELATED_MARKER") || strings.Contains(prompt, "unrelated.md") || !strings.Contains(prompt, "SOURCE ISOLATION") {
+			t.Errorf("explicit source prompt was not isolated: %s", prompt)
+		}
+		content := `{"answer":"The authorized source is bounded evidence ` + sourceCitation + `.","status":"complete"}`
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"message":{"content":` + strconv.Quote(content) + `},"done":true}`))
+	}))
+	defer model.Close()
+
+	d := testKernel11Daemon(t, t.TempDir())
+	d.cfg.LocalModel, d.cfg.OllamaURL = "apollo-test", model.URL
+	d.cfg.ApolloReportsPath = filepath.Join(d.cfg.VaultPath, "70 Pantheon Reports", "Apollo")
+	sourcePath = filepath.Join(d.cfg.VaultPath, "80 Pantheon Raw", "explicit.md")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("Authorized source content.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	unrelated := filepath.Join(d.cfg.VaultPath, "20 Projects", "unrelated.md")
+	if err := os.MkdirAll(filepath.Dir(unrelated), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(unrelated, []byte("UNRELATED_MARKER should never enter this report."), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sourceCitation = apolloCitation(d.cfg.VaultPath, sourcePath)
+	payload, err := json.Marshal(apolloOrderPayload{SourceRefs: []string{sourcePath}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	order, err := d.createOrder(orderRequest{RequestText: "Summarize only the explicit source.", Recipient: "apollo", Capability: apolloCapability, Scope: "source-isolated:test", Payload: payload}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.mercuryRound(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var reportPath, futureJSON string
+	if err := d.db.QueryRow(`SELECT report_path, future_result_json FROM apollo_reports WHERE order_id = ?`, order.OrderID).Scan(&reportPath, &futureJSON); err != nil {
+		t.Fatal(err)
+	}
+	report, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(report), "UNRELATED_MARKER") || strings.Contains(string(report), "unrelated.md") || !strings.Contains(string(report), sourceCitation) {
+		t.Fatalf("isolated Apollo report=%s", report)
+	}
+	var future futureReadyResult
+	if err := json.Unmarshal([]byte(futureJSON), &future); err != nil {
+		t.Fatal(err)
+	}
+	if len(future.SourceCitations) != 1 || future.SourceCitations[0] != sourceCitation {
+		t.Fatalf("isolated citations=%#v", future.SourceCitations)
+	}
+}
+
 func TestKernel12ApolloPauseStopsWithoutReplayAfterResume(t *testing.T) {
 	var d *daemon
 	model := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

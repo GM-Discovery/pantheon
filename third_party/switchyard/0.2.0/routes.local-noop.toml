@@ -1,0 +1,10 @@
+# Kernel 31 validation profile.
+# This route intentionally has no clients, endpoints, credentials, or provider targets.
+# It exists only to prove that the installed native server can parse a local noop route.
+schema_version = 1
+
+[targets]
+
+[routes.kernel31_noop]
+id = "pantheon/kernel31-noop"
+type = "noop"

@@ -816,7 +816,12 @@ func (d *daemon) executeMailAction(ctx context.Context, order mercuryOrder, comm
 		return errors.New("mail action payload must be a string map")
 	}
 	sourceID := strings.TrimSpace(fields["message_id"])
-	if sourceID == "" || order.Scope != "email:message:"+sourceID {
+	if order.Capability == "email.draft" {
+		if !strings.HasPrefix(order.Scope, "email_draft:") {
+			return errors.New("email draft target does not exactly match its order scope")
+		}
+		sourceID = strings.TrimPrefix(order.Scope, "email_draft:")
+	} else if sourceID == "" || order.Scope != "email:message:"+sourceID {
 		return errors.New("mail action target does not exactly match its order scope")
 	}
 	capability, err := d.authorizeBifrostInvocation(d.cfg.MailActionCapabilityID)
@@ -824,8 +829,12 @@ func (d *daemon) executeMailAction(ctx context.Context, order mercuryOrder, comm
 		_, _ = d.recordMailActionReceipt(sourceID, order.Capability, sourceID, "gmail", order.OrderID, command.GoID, bifrostOutcomeBlocked, "mail action was not invoked", err.Error())
 		return err
 	}
-	if !mailOperationAllowed(capability, order.Capability) {
-		message := "registered Gmail adapter does not declare " + order.Capability
+	operation := order.Capability
+	if order.Capability == "email.draft" {
+		operation = "mail.draft"
+	}
+	if !mailOperationAllowed(capability, operation) {
+		message := "registered Gmail adapter does not declare " + operation
 		_, _ = d.recordMailActionReceipt(sourceID, order.Capability, sourceID, "gmail", order.OrderID, command.GoID, bifrostOutcomeBlocked, "mail action capability is not registered", message)
 		return bifrostGateError{Kind: bifrostFailureUnsupported, Message: message}
 	}
@@ -853,7 +862,7 @@ func (d *daemon) executeMailAction(ctx context.Context, order mercuryOrder, comm
 		}
 		args = append(args, "message", "move", "--from", from, "--to", to, sourceID)
 		summary = "message moved from " + from + " to " + to
-	case "mail.draft":
+	case "mail.draft", "email.draft":
 		to, subject, body := strings.TrimSpace(fields["to"]), strings.TrimSpace(fields["subject"]), strings.TrimSpace(fields["body"])
 		if to == "" || subject == "" || body == "" {
 			return errors.New("mail.draft requires exact to, subject, and body fields")
@@ -864,9 +873,29 @@ func (d *daemon) executeMailAction(ctx context.Context, order mercuryOrder, comm
 		}
 		path := tmp.Name()
 		defer os.Remove(path)
-		if _, err := fmt.Fprintf(tmp, "To: %s\nSubject: %s\nIn-Reply-To: %s\nReferences: %s\nContent-Type: text/plain; charset=utf-8\n\n%s\n", to, subject, sourceID, sourceID, body); err != nil {
+		if order.Capability == "email.draft" {
+			if cc := strings.TrimSpace(fields["cc"]); cc != "" {
+				if _, err := fmt.Fprintf(tmp, "Cc: %s\n", cc); err != nil {
+					_ = tmp.Close()
+					return err
+				}
+			}
+			if bcc := strings.TrimSpace(fields["bcc"]); bcc != "" {
+				if _, err := fmt.Fprintf(tmp, "Bcc: %s\n", bcc); err != nil {
+					_ = tmp.Close()
+					return err
+				}
+			}
+		}
+		var writeErr error
+		if order.Capability == "email.draft" {
+			_, writeErr = fmt.Fprintf(tmp, "To: %s\nSubject: %s\nContent-Type: text/plain; charset=utf-8\n\n%s\n", to, subject, body)
+		} else {
+			_, writeErr = fmt.Fprintf(tmp, "To: %s\nSubject: %s\nIn-Reply-To: %s\nReferences: %s\nContent-Type: text/plain; charset=utf-8\n\n%s\n", to, subject, sourceID, sourceID, body)
+		}
+		if writeErr != nil {
 			_ = tmp.Close()
-			return err
+			return writeErr
 		}
 		if err := tmp.Close(); err != nil {
 			return err

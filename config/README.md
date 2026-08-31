@@ -11,6 +11,9 @@ Copy `pantheon.example.json` to `~/pantheon-runtime/config/pantheon.json` and fi
 - `paths.raw`: Kernel 10 durable source-faithful Markdown root; absent means `paths.vault/80 Pantheon Raw`.
 - `paths.apollo_reports`: Kernel 12 cited Apollo report root; absent means `paths.vault/70 Pantheon Reports/Apollo`.
 - `retention.raw_input_days`: raw-input policy value, default `30`; Kernel 9 does not arm this clock or delete files.
+- `zeus.enabled`: explicit opt-in for Zeus inventory and dry-run sanitation; default `false`.
+- `zeus.roots`: absolute, explicitly machine-owned roots. The first implementation recognizes Go build-cache roots and Python `__pycache__` roots; unknown roots remain protected.
+- `zeus.quarantine_path`: reserved destination for a later recoverable quarantine order. Kernel 29 does not create it or move files.
 - `time.timezone`: optional IANA timezone for Father Time; absent means the machine's local timezone.
 - `ingestion.whisper`: optional local-only Whisper settings. Missing binaries do not invalidate the rest of Pantheon.
 - `ingestion.media.converter`: optional local media converter, normally FFmpeg, used for video audio extraction.
@@ -20,9 +23,22 @@ Copy `pantheon.example.json` to `~/pantheon-runtime/config/pantheon.json` and fi
 - `mercury.round_on_cron_wake`: records the safe scheduled-wake integration point; Kernel 11 provides `pantheon mercury round` but does not install a new scheduler.
 - `apollo`: bounded local reasoning budgets and citation policy. `external_research.enabled` defaults to `false`; Kernel 12 does not grant Apollo Internet access by configuration alone.
 - `models.apollo.model`: the local reasoning model (for example, `mistral-small3.1:latest`).
-- `models.apollo.extraction_model`: the bounded transcript-extraction model (for example, `qwen3.5:9b`); if omitted, it falls back to `models.apollo.model`. The slot is configured now; the production extraction pass will consume it in the Fame increment.
+- `models.apollo.extraction_model`: the bounded transcript-extraction model (for example, `granite3.3:8b`); if omitted, it falls back to `models.apollo.model`.
+- `apollo.context_tokens`: maximum Ollama prompt-plus-output context for Apollo and Fame (default `8192`).
+- `apollo.max_output_tokens`: maximum Apollo report output tokens (default `2048`); Fame extraction remains bounded to `768`.
+- `omi.enabled`: enables the local automatic Omi CV1 storage-sync watcher. It drains bounded stored-record batches into the Rumor audio watch tree; it does not send data to a provider.
+- `omi.device`, `omi.adapter`, and `omi.address_type`: the already-paired local Bluetooth device identity used for storage sync.
+- `omi.sync_interval_seconds`, `omi.packet_count`, and `omi.max_batches`: explicit bounds for retry cadence and one drain attempt.
+- `omi.output_dir`: local folder for WAV, raw-ring, metadata, and sync-receipt artifacts; it should also be beneath a Rumor watch path.
 - `models.apollo.endpoint`: local Ollama chat endpoint, normally `http://127.0.0.1:11434/api/chat`.
-- `models.archimedes.model`: reserved and inactive in Kernel 8; naming a model grants no access or authority.
+- `models.archimedes.model`: compatibility model identifier for Archimedes; it grants no access or authority.
+- `archimedes.enabled`: external transport opt-in; default `false`.
+- `archimedes.provider`: `local-fake` by default, or the explicit `openai-compatible` provider when a real route is deliberately prepared.
+- `archimedes.endpoint`: credential-free HTTPS provider endpoint; loopback HTTP is allowed only for local tests.
+- `archimedes.model`, `archimedes.route`: provider model and exact configured route.
+- `archimedes.credential_env`: environment-variable name only; the credential itself must never be placed in JSON, Vault, SQLite, or chat.
+- `archimedes.capability`: exact Bifrost capability required before any external request.
+- `archimedes.timeout_seconds`, `archimedes.max_response_bytes`: bounded provider request limits.
 - `policy.yaml`: human-readable authority declaration; it does not silently grant capabilities. Code remains the enforcement point.
 - `vault-permissions.yaml`: proposed logical Vault access map. It is not an OS-level permission change.
 

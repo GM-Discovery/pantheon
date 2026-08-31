@@ -412,6 +412,18 @@ func (d *daemon) guiControlRequired(w http.ResponseWriter, r *http.Request) bool
 	return false
 }
 
+func (d *daemon) handleGUIZodiacRound(w http.ResponseWriter, r *http.Request) {
+	if !d.guiControlRequired(w, r) {
+		return
+	}
+	result, err := d.zodiacRound(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": bifrostSafeError(err.Error()), "result": result})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (d *daemon) handleGUIConfiguration(w http.ResponseWriter, r *http.Request) {
 	d.configMu.Lock()
 	response := guiConfigurationFor(d.cfg, d.configPath)
@@ -422,6 +434,9 @@ func (d *daemon) handleGUIConfiguration(w http.ResponseWriter, r *http.Request) 
 func guiConfigurationFor(cfg config, path string) guiConfigurationResponse {
 	minZero, minOne, maxOneDay, maxRetention := 0, 1, 86400, 36500
 	maxMailBatch := 100
+	maxOmiPacketCount, maxOmiBatches := 4096, 1024
+	minContextTokens, maxContextTokens := 1024, 131072
+	minOutputTokens, maxOutputTokens := 128, 8192
 	return guiConfigurationResponse{
 		SchemaVersion: cfg.SchemaVersion,
 		Path:          path,
@@ -440,6 +455,14 @@ func guiConfigurationFor(cfg config, path string) guiConfigurationResponse {
 			{Key: "rumor.poll_seconds", Label: "Rumor check interval", Description: "How often Rumor checks configured audio locations.", Value: cfg.RumorPollSeconds, Default: 5, Min: &minOne, Max: &maxOneDay, Editable: true, RestartRequired: true, Safety: "routine"},
 			{Key: "rumor.stability_seconds", Label: "Recording stability wait", Description: "How long a file must remain unchanged before Rumor processes it.", Value: cfg.RumorStabilitySeconds, Default: 2, Min: &minZero, Max: &maxOneDay, Editable: true, RestartRequired: false, Safety: "routine"},
 			{Key: "rumor.language", Label: "Whisper language mode", Description: "Language hint for the local Whisper processor.", Value: cfg.RumorLanguage, Default: "auto", Editable: true, RestartRequired: true, Safety: "routine"},
+			{Key: "omi.enabled", Label: "Automatic Omi storage sync", Description: "Periodically drain stored Omi recordings into the local Rumor audio path; no provider egress.", Value: cfg.OmiEnabled, Default: false, Editable: true, RestartRequired: true, Safety: "significant"},
+			{Key: "omi.device", Label: "Omi device", Description: "Paired Omi Bluetooth address used by the local storage reader.", Value: cfg.OmiDevice, Editable: false, RestartRequired: false, Safety: "informational"},
+			{Key: "omi.sync_interval_seconds", Label: "Omi sync interval", Description: "How often Pantheon attempts a bounded local Omi ring drain.", Value: cfg.OmiSyncIntervalSeconds, Default: 900, Min: &minOne, Max: &maxOneDay, Editable: true, RestartRequired: true, Safety: "routine"},
+			{Key: "omi.packet_count", Label: "Omi records per batch", Description: "Maximum ring records requested in one Bluetooth batch.", Value: cfg.OmiPacketCount, Default: 36, Min: &minOne, Max: &maxOmiPacketCount, Editable: true, RestartRequired: true, Safety: "routine"},
+			{Key: "omi.max_batches", Label: "Omi maximum batches", Description: "Maximum batches attempted during one automatic drain; the next wake can continue a backlog.", Value: cfg.OmiMaxBatches, Default: 128, Min: &minOne, Max: &maxOmiBatches, Editable: true, RestartRequired: true, Safety: "routine"},
+			{Key: "omi.output_dir", Label: "Omi local audio folder", Description: "Local Rumor watch folder receiving WAVs and sync provenance sidecars.", Value: cfg.OmiOutputDir, Editable: false, RestartRequired: false, Safety: "informational"},
+			{Key: "apollo.context_tokens", Label: "Apollo context tokens", Description: "Maximum prompt-plus-output context sent to the local Ollama model.", Value: cfg.ApolloContextTokens, Default: 8192, Min: &minContextTokens, Max: &maxContextTokens, Editable: true, RestartRequired: true, Safety: "routine"},
+			{Key: "apollo.max_output_tokens", Label: "Apollo output tokens", Description: "Maximum tokens the local Apollo model may generate for one report.", Value: cfg.ApolloMaxOutputTokens, Default: 2048, Min: &minOutputTokens, Max: &maxOutputTokens, Editable: true, RestartRequired: true, Safety: "routine"},
 			{Key: "apollo.require_citations", Label: "Require Apollo citations", Description: "Keep material Apollo claims tied to cited evidence.", Value: cfg.ApolloRequireCitations, Default: true, Editable: true, RestartRequired: false, Safety: "significant"},
 			{Key: "mercury.deterministic_fallback", Label: "Local execution fallback", Description: "Allow exact local order execution when no optional external Mercury helper is available.", Value: cfg.MercuryDeterministicFallback, Default: true, Editable: true, RestartRequired: false, Safety: "significant"},
 			{Key: "bifrost.enabled", Label: "Bifrost capability bridge", Description: "Enable governed external-capability surfaces; individual capabilities still require their own approvals.", Value: cfg.BifrostEnabled, Default: true, Editable: true, RestartRequired: true, Safety: "restricted"},
@@ -456,7 +479,7 @@ func guiConfigurationFor(cfg config, path string) guiConfigurationResponse {
 			{Key: "paths.intake", Label: "Intake location", Description: "Folder Pantheon identity-tracks for incoming occurrences.", Value: cfg.IntakePath, Editable: false, RestartRequired: true, Safety: "informational"},
 			{Key: "models.apollo.model", Label: "Apollo local model", Description: "Model used for local cited reasoning.", Value: cfg.LocalModel, Editable: false, RestartRequired: true, Safety: "informational"},
 			{Key: "models.apollo.extraction_model", Label: "Apollo extraction model", Description: "Model reserved for bounded transcript extraction; blank configuration falls back to Apollo's local model.", Value: cfg.ApolloExtractionModel, Editable: false, RestartRequired: true, Safety: "informational"},
-			{Key: "models.archimedes.model", Label: "Archimedes frontier model", Description: "Reserved future frontier path; currently inactive.", Value: cfg.FrontierModel, Editable: false, RestartRequired: false, Safety: "deferred"},
+			{Key: "models.archimedes.model", Label: "Archimedes frontier model", Description: "Reserved external provider path; Kernel 30 currently permits only a local fake exchange and keeps frontier transport inactive.", Value: cfg.FrontierModel, Editable: false, RestartRequired: false, Safety: "deferred"},
 		},
 	}
 }
@@ -636,6 +659,60 @@ func applyGUIConfigurationChange(canonical *canonicalConfig, key string, raw jso
 			canonical.Rumor = &canonicalRumor{}
 		}
 		canonical.Rumor.Language = &value
+	case "omi.enabled":
+		value, err := decodeBool()
+		if err != nil {
+			return err
+		}
+		if canonical.Omi == nil {
+			canonical.Omi = &canonicalOmi{}
+		}
+		canonical.Omi.Enabled = &value
+	case "omi.sync_interval_seconds":
+		value, err := decodeInt()
+		if err != nil {
+			return err
+		}
+		if canonical.Omi == nil {
+			canonical.Omi = &canonicalOmi{}
+		}
+		canonical.Omi.SyncIntervalSeconds = &value
+	case "omi.packet_count":
+		value, err := decodeInt()
+		if err != nil {
+			return err
+		}
+		if canonical.Omi == nil {
+			canonical.Omi = &canonicalOmi{}
+		}
+		canonical.Omi.PacketCount = &value
+	case "omi.max_batches":
+		value, err := decodeInt()
+		if err != nil {
+			return err
+		}
+		if canonical.Omi == nil {
+			canonical.Omi = &canonicalOmi{}
+		}
+		canonical.Omi.MaxBatches = &value
+	case "apollo.context_tokens":
+		value, err := decodeInt()
+		if err != nil {
+			return err
+		}
+		if canonical.Apollo == nil {
+			canonical.Apollo = &canonicalApolloSettings{}
+		}
+		canonical.Apollo.ContextTokens = &value
+	case "apollo.max_output_tokens":
+		value, err := decodeInt()
+		if err != nil {
+			return err
+		}
+		if canonical.Apollo == nil {
+			canonical.Apollo = &canonicalApolloSettings{}
+		}
+		canonical.Apollo.MaxOutputTokens = &value
 	case "apollo.require_citations":
 		value, err := decodeBool()
 		if err != nil {
@@ -769,7 +846,7 @@ func (d *daemon) handleGUIConfigurationApply(w http.ResponseWriter, r *http.Requ
 
 func guiChangesRequireRestart(changed []string) bool {
 	for _, key := range changed {
-		if key == "rumor.enabled" || key == "rumor.poll_seconds" || key == "rumor.language" || key == "bifrost.enabled" || key == "zodiac.enabled" || key == "zodiac.wake_seconds" {
+		if key == "rumor.enabled" || key == "rumor.poll_seconds" || key == "rumor.language" || key == "omi.enabled" || key == "omi.sync_interval_seconds" || key == "omi.packet_count" || key == "omi.max_batches" || key == "bifrost.enabled" || key == "zodiac.enabled" || key == "zodiac.wake_seconds" {
 			return true
 		}
 	}
@@ -852,7 +929,7 @@ func (d *daemon) handleGUINotifications(w http.ResponseWriter, r *http.Request) 
 	if value, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && value > 0 && value <= 100 {
 		limit = value
 	}
-	rows, err := d.db.Query(`SELECT id, occurred_at, COALESCE(input, ''), outcome, COALESCE(result, ''), COALESCE(error, '') FROM audit_events WHERE endpoint = 'POST /v1/notify' OR endpoint LIKE 'POST /v1/gui/notifications%' ORDER BY occurred_at DESC LIMIT ?`, limit)
+	rows, err := d.db.Query(`SELECT id, occurred_at, COALESCE(input, ''), outcome, COALESCE(result, ''), COALESCE(error, '') FROM audit_events WHERE endpoint = 'POST /v1/notify' OR endpoint LIKE 'POST /v1/gui/notifications%' OR endpoint = 'libra.report.notification' ORDER BY occurred_at DESC LIMIT ?`, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return

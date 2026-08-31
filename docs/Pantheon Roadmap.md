@@ -2,7 +2,7 @@
 type: governing-document
 status: active
 owner: Grant A. Murray
-updated: 2026-08-17
+updated: 2026-08-23
 ---
 
 # Pantheon Roadmap
@@ -852,6 +852,37 @@ Grant’s permissions outside the proposing intelligence. Aphrodite remains
 post-core, after Pantheon has demonstrated useful ordinary operation and can
 govern a self-modifying construction component safely.
 
+## 8.23 Kernel 24 — Aphrodite and Project Fame workshop
+
+Kernel 24 establishes Aphrodite as a bounded project workshop and Project Fame
+as the research boundary for human-context continuity. The workspace can hold
+provenance-bearing fixtures, research requests, and candidate artifacts. It
+does not promote code, install capabilities, grant authority, or replace the
+running daemon.
+
+See the [Kernel 24 reportback](reportbacks/kernel-24-aphrodite-project-fame.md).
+
+## 8.24 Kernel 25 — Echo to Fame ingestion
+
+Kernel 25 connects reviewed Echo speaker evidence to durable Fame conversations
+and cited interaction observations. Anonymous segments remain anonymous until a
+reviewed mapping is supplied. Extraction is bounded and deterministic citation
+and speaker checks protect persistence.
+
+See the [Kernel 25 reportback](reportbacks/kernel-25-echo-fame-ingestion.md).
+
+## 8.25 Kernel 26 — Omi Intake Bridge
+
+Kernel 26 passes its bounded acceptance proof. Native BlueZ D-Bus capture now
+provides the proven Linux live-Omi route, while the external-intake contract
+preserves Omi payloads, labels, transcript material, hashes, replay state, and
+Vault conversion receipts. The verified live path reached Rumor, Present,
+Apollo, and local notification. n8n remains optional and uninstalled; it is not
+part of the core bridge.
+
+The next boundary is report assembly and daily continuity, not another opaque
+transport layer. See the [Kernel 26 reportback](reportbacks/kernel-26-omi-intake-bridge.md).
+
 # 9. Authority model
 
 Pantheon uses explicit deterministic authority rather than inferred trust.
@@ -1003,8 +1034,8 @@ Implemented work through the current kernel series includes substantial portions
 - Intake;
 - Father Time;
 - Present;
-- local Whisper configuration/processor foundations; Rumor orchestration remains
-  planned for Kernel 18;
+- local Whisper configuration and Rumor orchestration with durable audio
+  evidence, bounded retries, and Intake handoff;
 - Mercury orders;
 - immutable seals;
 - Go Commands;
@@ -1137,11 +1168,77 @@ Kernel 20 publishes current inventories, approval classifications, runtime
 ownership, and the GUI readiness contract. The live systemd activation state
 was not claimed from the restricted audit environment.
 
+### Kernel 21 — Panopticon — complete
+
+The embedded local operator surface is implemented and acceptance repairs are
+recorded in the Kernel 21 and 21A reportbacks.
+
+### Kernel 22 — mail intelligence — complete
+
+Mail is preserved and understood through bounded local Apollo rounds. Mail
+actions remain separately governed and are not implied by understanding.
+
+### Kernel 23 — Zodiac — complete
+
+Recurring schedules, due instances, catch-up policy, and provider-neutral
+calendar projection boundaries are implemented. No external calendar adapter
+is claimed as installed.
+
+### Kernel 24 — Aphrodite / Project Fame — complete bounded workshop
+
+Aphrodite has a durable project workspace and Project Fame has a provenance-
+preserving research corpus. Candidate construction is not production
+promotion.
+
+### Kernel 25 — Echo / Fame ingestion — complete bounded path
+
+Reviewed speaker mappings can produce cited, accountable Fame observations.
+Anonymous evidence remains intact until reviewed identity evidence exists.
+
+### Kernel 26 — Omi Intake Bridge — PASS / bounded acceptance
+
+Native Linux Omi capture, Rumor, Present, Vault, Apollo, and local notification
+were proven end-to-end. The optional n8n gateway remains uninstalled. The full
+daily item/alert assembler is the next continuity boundary, not part of Kernel
+26 completion.
+
+See the [Kernel 26 reportback](reportbacks/kernel-26-omi-intake-bridge.md).
+
+## 8.26 Kernel 27 — Report Assembler and Daily Continuity
+
+Kernel 27 adds the deterministic continuity seam after Omi, Rumor, Present,
+Echo/Fame, and Apollo. It creates replay-safe event and daily evidence
+manifests with exact Vault citations, source hashes, and durable receipts. The
+assembler selects evidence; Apollo remains responsible for prose reasoning,
+and no calendar, email, notification, or retention action is implied.
+
+See the [Kernel 27 specification](building%20kernels/Kernel%2027%20-%20Report%20Assembler%20and%20Daily%20Continuity.md).
+See the [Kernel 27 reportback](reportbacks/kernel-27-report-assembler.md).
+
+## 8.27 Kernel 28 — Zodiac Constellations and Configurable Reporting
+
+Kernel 28 is implemented through the bounded end-to-end report chain and its
+first recipe expansion. Panopticon owns Libra recipe configuration: scheduled
+or verified-intake triggers, daily/weekly windows, source families and path
+selectors, minimum evidence, report sections/instructions, multiple Vault
+outputs, enable/pause state, and receipt inspection. Scheduled definitions
+create linked Zodiac schedules; intake definitions use a durable bounded job
+queue.
+The Panopticon Zodiac evaluate action uses the local GUI session correctly;
+it no longer mistakenly demands a CLI control token.
+
+A due Libra instance now performs report assembly → isolated Apollo reasoning
+through Mercury → verified Vault Markdown → optional local notification, with
+deterministic source windows, missing-evidence Needs You states, and replay
+protection. See the [Kernel 28 specification](building%20kernels/Kernel%2028%20-%20Zodiac%20Constellations%20and%20Configurable%20Reporting.md).
+
 ---
 
 ## Milestone B — Operate Pantheon
 
-After Kernel 17, pause architecture expansion long enough to use Pantheon in ordinary life/work.
+After Kernel 27, pause broad architecture expansion long enough to use
+Pantheon in ordinary life/work and validate whether reports, schedules,
+retention, and frontier escalation are actually the next constraints.
 
 Evaluate real workflows such as:
 
@@ -1165,7 +1262,8 @@ Measure:
 - usefulness of autonomous preparation;
 - reliability after pause/resume.
 
-The next kernel after 18 should be selected from actual operating friction.
+New numbered kernels should be selected from actual operating friction rather
+than assumed from the old pre-Kernel-24 sequence.
 
 ---
 
@@ -1190,6 +1288,73 @@ Likely early proofs may include:
 - notifications;
 - search/research;
 - document systems.
+
+### Report assembler and daily continuity
+
+The immediate continuity candidate is the report assembler implied by Kernel 25
+and the Kernel 26 Omi conversation. It should produce an event transcript/
+identity archive, a cited event report, and a separately identifiable daily
+aggregation. It must name extracted requests and observations plainly, preserve
+citations, and keep calendar, email, and notification outputs separate.
+
+### Zeus — deterministic sanitation
+
+Zeus is a practical next daemon because retention metadata and raw-artifact
+growth now exist in real workflows. Begin with an inventory and dry-run report:
+what is eligible, why, which policy authorizes it, and what would be retained.
+Only later should a deterministic Future/Mercury order permit deletion. Zeus
+must never classify human Vault documents as garbage by itself.
+
+### Archimedes — frontier reasoning boundary
+
+Archimedes should begin with the existing Frontier Contract, not with a new
+provider or unrestricted model call. The first implementation boundary is a
+privacy/redaction manifest, curated outbound evidence bundle, local receipt,
+return-ingestion path, and explicit referral when Apollo is insufficient.
+Archimedes receives no raw Vault access and no operational authority.
+
+### Why Zeus precedes Archimedes
+
+This is an operational sequence, not a claim that Zeus performs Archimedes'
+privacy reasoning. Apollo and the Archimedes privacy gate decide what may cross
+the frontier. Zeus owns the later lifecycle of the temporary sanitized packets,
+provider responses, privacy-gate traces, and exchange diagnostics that the
+frontier boundary creates.
+
+Kernel 29 therefore begins with retention inventory, dry-run sanitation, and a
+narrow explicit quarantine proof. Kernel 30 can define and test the frontier
+exchange with a fake provider, but real provider use should remain disabled
+until Zeus can account for those temporary artifacts. The two kernels may be
+designed in parallel; their implementation order protects operational
+containment.
+
+### Switchyard and the later application layer
+
+Switchyard was omitted from the first draft of this sequence. If the intended
+project is NVIDIA-NeMo/Switchyard, it is a possible Archimedes application
+layer: a replaceable local proxy for routing already-sanitized frontier
+requests across explicitly configured providers. It is not a replacement for
+Bifrost, Future, Mercury, Apollo, or the privacy gate.
+
+The safe placement is:
+
+```text
+Archimedes privacy gate → Future/Mercury → Bifrost approval → Switchyard → provider
+```
+
+Switchyard may translate protocols, select an already-authorized target, and
+record transport metrics. It may not decide to escalate, add context, create
+authority, or invoke tools. Because the upstream project currently identifies
+itself as pre-alpha, Switchyard should be a later isolated application proof,
+not a Kernel 30 live dependency. The Bifrost application layer (n8n, MCP, and
+other bounded adapters) remains a separate track.
+
+### Other candidates
+
+Other provisional work includes external calendar projection, Hermes cutover
+proof, Aphrodite candidate-construction promotion, Nostalgia resurfacing, and
+additional Bifrost adapters. Each remains subordinate to demonstrated use,
+authority review, and the Core Value Hierarchy.
 
 ### Archimedes
 
@@ -1429,37 +1594,73 @@ A future maintainer or assistant should be able to answer:
 
 # 21. Current next work
 
-The committed sequence is:
+The old committed sequence through Kernel 23 is now historical context. The
+active implementation state is:
 
 ```text
-Kernel 14 — Seshat
+Kernel 24 — Aphrodite / Project Fame workshop       PASS
         ↓
-Kernel 15 — Janus
+Kernel 25 — Echo / Fame ingestion                    PASS
         ↓
-Kernel 16 — Future
+Kernel 26 — Omi Intake Bridge                        PASS
         ↓
-Kernel 17 — whole-animal integration and usable-work proof
+Kernel 27 — report assembler / daily continuity       PASS / first increment
         ↓
-Kernel 18 — Rumor local audio intake
+Kernel 28 — Zodiac constellations / configurable reports  PASS / bounded end-to-end chain
         ↓
-Kernel 19 — Bifrost external capability bridge and bounded mail intake
+Kernel 29 — Zeus retention and sanitation            PASS / inventory and dry-run sanitation
         ↓
-Kernel 20 — canonical reconciliation, configuration audit, and GUI preparation
+Kernel 30 — Archimedes frontier exchange             PASS / local fake exchange; external transport disabled
         ↓
-Kernel 21 — GUI
+Kernel 31 — Switchyard application boundary          PASS / native process + Archimedes typed-handoff proof; live transport inactive
         ↓
-Kernel 22 — manual mail intelligence and governed action proposals
+Kernel 32 — Omi/Apollo action handoff                 PASS / typed drafts and explicit Future handoff
         ↓
-Kernel 23 — Zodiac deterministic schedules and due-state ownership
+Kernel 33 — Archimedes external provider gate         PASS / provider-neutral transport; live egress disabled
         ↓
-Aphrodite / Archimedes / post-build organism reconciliation as later horizons
+Operational increment — automatic Omi storage sync + Libra cosmic forecast  IMPLEMENTED / live device retry pending
+        ↓
+Later Bifrost applications — calendar providers, n8n, MCP, Switchyard, and other bounded adapters
 ```
 
-Likely later candidates include Aphrodite (Project Fame first, Project Purity
-later), Archimedes, additional external adapters, Hermes cutover proof, Zeus,
-Nostalgia, and post-build organism reconciliation. Kernel 23 must not begin
-Aphrodite or infer these boundaries from historical kernel documents.
+The immediate post-Kernel-33 work is operational and choice-sensitive rather
+than another automatic kernel:
 
-They are not permission to build them automatically.
+| Workstream | First safe increment | Explicit boundary |
+|---|---|---|
+| Operate Pantheon | use Omi → Apollo → typed action drafts, Libra daily/weekly reports, and Zeus dry-runs against ordinary work | measure usefulness and corrections before expanding automation |
+| Select frontier provider | review retention/training terms, configure a provider endpoint, register the exact Bifrost capability, and perform one sanitized live exchange | no credential in chat; no raw Vault access; no automatic fallback or authority |
+| Build Bifrost applications | calendar adapter, Switchyard, MCP, n8n, or another bounded connector as individually justified | each application remains optional, separately licensed, registered, approved, and scoped |
 
-**Pantheon must begin earning its keep.**
+Kernel 27 is implemented, Kernel 28's Libra report chain and recipe expansion
+are implemented and tested, Kernel 29 is live for deterministic dry-run
+sanitation, Kernel 30 passes its local-only fake-provider boundary, Kernel 31
+has a pinned, license-audited Switchyard staging install plus a native-process
+local application-boundary proof, and Kernel 33 passes the provider-neutral
+local HTTP transport proof. No real frontier provider has been enabled;
+implementing the exchange is not automatic permission to deploy frontier
+access.
+
+The saved roadmap artifacts are:
+
+- `docs/Pantheon Roadmap.md` — active governing roadmap;
+- `docs/building kernels/Pantheon Roadmap — Draft 0.1.md` — earlier draft;
+- `docs/building kernels/Pantheon Roadmap — Aphrodite Addition.md` — Aphrodite
+  supplement; and
+- `docs/reportbacks/` — implementation evidence, now including Kernels 26–29.
+- `docs/building kernels/Kernel 28 - Zodiac Constellations and Configurable Reporting.md` — Libra implementation contract and receipt-chain proof.
+- `docs/building kernels/Kernel 29 - Zeus Retention Inventory and Sanitation.md` — Zeus implementation draft.
+- `docs/building kernels/Kernel 30 - Archimedes Frontier Exchange.md` — Archimedes implementation draft.
+- `docs/building kernels/Kernel 30 - Archimedes Implementation Preparation.md` — fake-provider-first implementation sequence and proof obligations.
+- `docs/reportbacks/kernel-30-archimedes-frontier-exchange.md` — local-only implementation and acceptance proof.
+- `docs/building kernels/Kernel 31 - Switchyard Application Boundary.md` — optional transport application boundary and licensing gate.
+- `docs/reportbacks/kernel-31-switchyard-install.md` — pinned native install, license audit, and no-op dry-run evidence.
+- Switchyard remains an optional application-layer artifact, not a dependency of Kernel 30 or the live daemon.
+- `docs/building kernels/Kernel 32 - Omi Action Handoff.md` — typed Apollo action drafts and explicit Future handoff.
+- `docs/reportbacks/kernel-32-omi-action-handoff.md` — action-draft and authority-boundary evidence.
+- `docs/building kernels/Kernel 33 - Archimedes External Provider Gate.md` — opt-in provider transport and secret boundary.
+- `docs/reportbacks/kernel-33-archimedes-external-provider-gate.md` — local transport proof with live egress disabled.
+- `docs/reportbacks/kernel-34-omi-automatic-storage-sync.md` — automatic local Omi ring synchronization and Libra forecast presentation increment.
+
+**Pantheon has reached the point where it should earn its keep while the next
+deterministic and frontier boundaries are designed carefully.**

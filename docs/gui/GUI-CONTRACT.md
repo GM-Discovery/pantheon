@@ -1,12 +1,12 @@
 ---
 type: gui-readiness-contract
 status: active
-updated: 2026-08-18
+updated: 2026-08-23
 ---
 
 # Pantheon GUI Contract
 
-This is the stable contract for Kernel 21. It is an audit output, not a
+This is the stable contract for Kernel 25. It is an audit output, not a
 required visual layout. The Panopticon implementation is a plain HTML/CSS/JS
 surface embedded in the Pantheon Go daemon and served from the existing local
 listener. It does not require Docker, Node, Electron, Tauri, or a second web
@@ -40,8 +40,11 @@ authorization to mutate anything.
 | Prometheus | **Pause Pantheon**, Resume, blocked activity, approvals | `/v1/status`, grants, Future, audit | Emergency controls with unmistakable confirmation; hard stop remains terminal/service-manager only |
 | Intake | Incoming items, source, identity, processing state, warnings | `/v1/intake`, `/v1/present` | scan/process; never overwrite protected artifacts |
 | Rumor | Audio watch, queue, transcription attempts, failures, raw retention | `/v1/rumor*`, processors | scan, transcribe, retry, ignore; local-only |
+| Echo | Completed diarization runs, anonymous speakers, transcript snippets, voice-review evidence | `/v1/gui/echo`, `/v1/echo*` | inspect and explicitly review/confirm speaker evidence; local-only |
+| Fame / People | Durable people, conversations, identity evidence, attributions, observations, corrections | `/v1/gui/fame`, `/v1/fame*` | inspect; record bounded identity/observation corrections; no authority |
+| Aphrodite / Project Fame | Project phase, copied fixtures, research requests, candidate artifacts, workshop boundaries | `/v1/gui/aphrodite`, `/v1/aphrodite*` | inspect bounded workshop state; no promotion or installation |
 | Mail | recorded messages, Apollo understanding, backlog, deterministic filters, and governed action receipts | `/v1/gui/mail*`, `/v1/mail*` | inspect; explicit Check mail now; disable a deterministic filter |
-| Zodiac | Today, recurring declarations, due instances, Needs You, provider health, projections, and correction state | `/v1/gui/zodiac*`, `/v1/zodiac*` | inspect; evaluate explicitly; declare/disable schedules through the local control boundary; reconcile approved provider results |
+| Zodiac | Due schedules, Libra report recipes/runs, Needs You, provider health, projections, and correction state | `/v1/gui/zodiac*`, `/v1/zodiac*` | inspect; evaluate explicitly through the GUI session; configure/pause scheduled or intake-triggered Libra recipes and inspect per-output receipts; low-level schedule mutation remains the local control boundary; reconcile approved provider results |
 | Bifrost | capabilities, installation/presence, approvals, enablement, receipts, mail crossing | `/v1/bifrost*` | inspect/register/enable/disable; external use is Restricted |
 | Models | Apollo local model, endpoint locality, citation policy, future Archimedes state | inventory, `/v1/apollo`, config | inspect/change config; frontier access stays disabled |
 | Notifications | adapter health, destination label, recent failures | inventory, audit | send only through the fixed audited adapter |
@@ -50,8 +53,9 @@ authorization to mutate anything.
 | System | service/runtime health, logs/audit, version/build, diagnostics | systemd + inventory + audit | inspect and diagnostics; no hidden service mutation |
 
 The implemented human-facing navigation is Home, Ingestion / Understanding,
-Intake, Rumor, Mail, Zodiac, Execution / Capabilities, Approvals,
-Notifications, Bifrost, Models, Configuration, and System. Home puts the notification banner, Radio
+Intake, Rumor, Echo, Fame / People, Mail, Zodiac, Aphrodite, Execution /
+Capabilities, Approvals, Notifications, Bifrost, Models, Configuration, and
+System. Home puts the notification banner, Radio
 Prometheus, current work, component cells, and the live Father Time watch
 first. Father Time is displayed as a watch, not as an occupant or scheduler.
 
@@ -67,6 +71,9 @@ POST /v1/gui/configuration/validate
 POST /v1/gui/configuration/apply
 GET  /v1/gui/work[?category=active|waiting|needs_grant|blocked|needs_attention|upcoming]
 GET  /v1/gui/notifications
+GET  /v1/gui/echo[?run_id=...]
+GET  /v1/gui/fame
+GET  /v1/gui/aphrodite
 POST /v1/gui/prometheus/pause|resume
 POST /v1/gui/rumor/scan
 POST /v1/gui/rumor/sources/{id}/retry|ignore
@@ -79,12 +86,38 @@ POST /v1/gui/mail/rules/{id}/disable
 GET  /v1/gui/zodiac
 GET  /v1/gui/zodiac/today|upcoming|needs-you
 POST /v1/gui/zodiac/round
+GET  /v1/gui/zodiac/constellations
+POST /v1/gui/zodiac/constellations
+GET  /v1/gui/zodiac/report-definitions
+GET  /v1/gui/zodiac/report-runs
+POST /v1/gui/zodiac/report-definitions
+POST /v1/gui/zodiac/report-definitions/{id}/enable|disable
 POST /v1/gui/zodiac/schedules
 POST /v1/gui/zodiac/schedules/{id}/disable
 POST /v1/gui/zodiac/attestations
 POST /v1/gui/zodiac/projections/{id}/reconcile
 POST /v1/gui/bifrost/capabilities/{id}/enable|disable
 ```
+
+Libra report recipes are created through `POST /v1/gui/zodiac/report-definitions`.
+The typed payload covers `trigger` (`schedule` or `on_ingestion`), cadence and
+time settings, `window_policy`, `source_families`, Vault-relative
+`include_paths`, `minimum_sources`, report `sections`, report-only
+`instructions`, one or more `outputs`, notification preference, and catch-up
+policy. `GET /v1/gui/zodiac/report-runs` returns the assembly, Apollo, per-output
+Vault, notification, and error receipts.
+
+Kernel 25's interface presents the runtime handoff explicitly:
+
+```text
+Echo review → Fame attribution/observation → bounded Apollo context
+           → event archive + report → calendar/notification downstream
+```
+
+The GUI must show the event archive, integrated Apollo report, calendar, and
+notification destinations as unavailable or not connected until those outputs
+actually exist. A Fame observation is never displayed as a completed report or
+an authorized calendar action.
 
 Configuration edits are typed and validated against the complete current
 schema before a backup and atomic write. Secrets are omitted, protected path

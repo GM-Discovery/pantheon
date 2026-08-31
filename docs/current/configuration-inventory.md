@@ -1,7 +1,7 @@
 ---
 type: canonical-configuration-inventory
 status: active
-updated: 2026-08-18
+updated: 2026-08-23
 ---
 
 # Configuration Inventory
@@ -33,7 +33,12 @@ configured path from a default.
 | `retention.raw_input_days` | Raw retention policy | `30` | positive bounded integer | no; policy is not armed until verified Markdown | significant; never silently deletes |
 | `models.apollo.model` | Local reasoning model | `mistral-small3.1:latest` | non-empty local model identifier | yes | significant; no approval by itself |
 | `models.apollo.endpoint` | Local model endpoint | Docker-host Ollama endpoint | approved local host only; credentials rejected | yes | significant; network/privacy impact shown |
-| `models.archimedes.model` | Frontier model placeholder | empty | empty until Archimedes exists | no current behavior | informational; external access disabled |
+| `models.archimedes.model` | Frontier model compatibility identifier | empty | model name only; no authority | no external transport by itself | informational |
+| `archimedes.enabled` | External transport opt-in | `false` | must be explicitly true; live route remains Bifrost-gated | restart | significant; possible data egress |
+| `archimedes.provider` | Provider protocol | `local-fake` | `local-fake` or `openai-compatible` | restart | significant |
+| `archimedes.endpoint` | Provider endpoint | empty | credential-free HTTPS; loopback HTTP only for tests | restart | significant; network/privacy impact |
+| `archimedes.credential_env` | Credential variable name | `PANTHEON_ARCHIMEDES_API_KEY` | variable name only; secret never stored by Pantheon | service restart | secret reference only |
+| `archimedes.capability` | Bifrost egress capability | `archimedes-provider` | exact registered, approved, enabled capability | restart | significant; explicit egress approval |
 | `apollo.*` | Apollo budgets and citation policy | rounds `12`, sources `64`, context `200000`, duration `900`, citations `true` | positive bounded values; citations boolean | yes | significant; no authority |
 | `apollo.external_research.enabled` | Public research request boundary | `false` | boolean; does not itself execute research | yes | restricted when enabled; Archimedes remains separate |
 | `ingestion.whisper.enabled` | Local Whisper availability | `true` | boolean | yes | safe/routine |
@@ -62,16 +67,28 @@ configured path from a default.
 | `zodiac.brief_catch_up_policy` | Missed daily brief behavior | `run_once` | `skip`, `run_once`, `reconcile`, or `needs_you` | no | significant |
 | `zodiac.conflict_policy` | Calendar conflict behavior | `needs_you` | fixed until an explicit deterministic rule exists | no | restricted safety boundary |
 | `zodiac.wake_seconds` | Internal schedule evaluation interval | `30` | bounded `5..86400` seconds | yes | routine |
+| `zeus.enabled` | Enable machine-root inventory and dry-run sanitation | `true` | boolean; disabled by default in examples | yes | significant; no deletion in Kernel 29 |
+| `zeus.roots` | Explicit machine-owned roots | Go cache and `scripts/__pycache__` | absolute paths; unknown roots remain protected | yes | significant; source/Vault roots are prohibited by policy |
+| `zeus.quarantine_path` | Later recoverable quarantine destination | `/tmp/pantheon-zeus-quarantine` | absolute path; not created by Kernel 29 | yes | informational until an exact Future/Mercury order exists |
 
 ## Reserved or informational namespaces
 
 The typed schema preserves `meta`, `present`, `past`, `weave`, `future`,
-`prometheus`, `notifications`, `zeus`, `panopticon`, `setup`, and `organs` so
+`prometheus`, `notifications`, `panopticon`, `setup`, and `organs` so
 future kernels have stable names. Their presence does not activate behavior.
-There is no active operator setting for live transcription, plugins as an
-autonomous installer, Archimedes network access, or Zeus sanitation. Zodiac
-settings activate deterministic scheduling only; they do not install calendar
-connectors or grant external write authority.
+There is no active operator setting for live transcription or plugins as an
+autonomous installer. Kernel 30's local fake exchange is available only
+through an exact Archimedes order. Kernel 33 provides a disabled-by-default
+external transport; it can proceed only through an exact configured Bifrost
+capability after local minimization and the privacy gate. Zeus settings activate
+only deterministic inventory and dry-run receipts; Zodiac settings activate
+deterministic scheduling only. Neither installs connectors or grants external
+write authority.
+
+Kernel 32 action drafts are not a configuration switch. A completed Apollo
+report may create a typed local draft; accepting it is a separate control-bound
+operation. Calendar provider presence and email-draft use remain governed by
+Seshat, Future, Bifrost, and Mercury.
 
 ## Safe configuration contract
 

@@ -133,6 +133,40 @@ func TestKernel18ManualRumorIsLocalDurableAndIdempotent(t *testing.T) {
 	}
 }
 
+func TestKernel18RumorPreservesTimestampedWhisperJSON(t *testing.T) {
+	fixture := kernel18FixtureDaemon(t)
+	d := fixture.Daemon
+	defer d.Close()
+	audio := kernel18Audio(t, fixture.Watch, "timestamped.wav", "stable audio bytes")
+	source, err := d.rumorRegisterPath(audio, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	timestamped := []byte(`{"transcription":[{"offsets":{"from":0,"to":1250},"text":"A timestamped utterance."}]}`)
+	if err := d.persistRumorArtifacts(source, rumorTranscription{Text: "A timestamped utterance.", TimestampedJSON: timestamped, DetectedLanguage: "en", Binary: fixture.Whisper, Model: fixture.Model}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := d.loadRumorSource(source.SourceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.TimestampedJSONPath == "" {
+		t.Fatalf("Rumor source lost timestamped JSON path: %#v", loaded)
+	}
+	content, err := os.ReadFile(loaded.TimestampedJSONPath)
+	if err != nil || string(content) != string(timestamped) {
+		t.Fatalf("timestamped JSON=%q err=%v", content, err)
+	}
+	metadata, err := os.ReadFile(loaded.MetadataPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(metadata, &document); err != nil || document["timestamped_json_path"] != loaded.TimestampedJSONPath {
+		t.Fatalf("metadata=%s err=%v", metadata, err)
+	}
+}
+
 func TestKernel18SupportedFormatsMissingModelIgnoreAndConcurrentManualRequests(t *testing.T) {
 	fixture := kernel18FixtureDaemon(t)
 	d := fixture.Daemon

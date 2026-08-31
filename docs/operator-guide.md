@@ -178,6 +178,81 @@ Prometheus pause prevents new Rumor scans and transcription. In-flight local
 decoding is allowed to finish, but a paused completion does not hand off to
 Intake. Resume does not replay a completed or ignored source.
 
+## Omi Intake Bridge
+
+The proven Linux live-audio route uses native BlueZ D-Bus and system `libopus`;
+it does not require n8n or a Python package install:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/omi_dbus_capture.py \
+  --device <omi-mac-address> \
+  --duration 30 \
+  --output "/home/<user>/Pantheon Audio/Omi BLE/omi-live.wav"
+```
+
+Place the completed non-empty WAV under a configured Rumor watch path, or use
+the output directory directly. The native receiver connects through BlueZ,
+synchronizes the Omi clock, subscribes to live Opus notifications, decodes the
+audio, and refuses to publish an empty capture. The resulting path is:
+
+```text
+native Omi → WAV → Rumor → transcript → Intake → Present → Apollo
+```
+
+The webhook lane is separate:
+
+```text
+POST /v1/intake/omi
+POST /v1/intake/external
+```
+
+Both lanes preserve source material and hashes. Omi labels and speaker claims
+remain source evidence; they do not silently become Fame identity or authority.
+Inspect the full acceptance evidence in
+`docs/reportbacks/kernel-26-omi-intake-bridge.md`.
+
+## Echo and Fame review
+
+Echo and Fame are separate from Rumor's transcription boundary. Echo imports a
+completed local diarization run and keeps speaker labels anonymous until a
+human reviews them. Fame then records the conversation, attaches only reviewed
+speaker/person mappings, and can run a bounded extraction of cited action
+items, commitments, decisions, and unresolved questions.
+
+```text
+pantheon echo import <audio-path> <diarization.tsv>
+pantheon show echo
+pantheon fame person add <name>
+pantheon fame conversation <echo-run-id>
+pantheon fame process <echo-run-id> <speaker> <person-id>
+pantheon fame extract <conversation-id>
+pantheon show fame
+```
+
+Fame observations are evidence for later Apollo work. They are not calendar
+events, notifications, email orders, or authority. Exact transcript citations,
+anonymous labels, identity evidence, and human corrections remain inspectable.
+
+## Report assembly and daily continuity
+
+Kernel 27 adds a deterministic source-selection boundary for event and daily
+reports:
+
+```text
+pantheon report assemble --date 2026-08-23
+pantheon report assemble --kind event --date 2026-08-23 \
+  --source "80 Pantheon Raw/Audio Transcripts/2026/08/example.md"
+pantheon report assemblies
+```
+
+The daily form collects same-day verified Vault artifacts, Apollo reports, and
+integrated event reports when no explicit source is supplied. It writes a
+hash-checked evidence manifest under `10 Operations/Situation Briefs/`; event
+assemblies go under `70 Pantheon Reports/Integrated Events/`. These manifests
+record the exact source set for Apollo but do not compose prose or execute
+calendar, email, notification, or retention actions. An identical replay
+returns the existing receipt instead of overwriting it.
+
 ## Add a package
 
 ```text

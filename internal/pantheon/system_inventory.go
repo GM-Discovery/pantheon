@@ -20,17 +20,21 @@ type systemComponent struct {
 }
 
 type systemWorkSummary struct {
-	Intake    map[string]any `json:"intake"`
-	Rumor     map[string]any `json:"rumor"`
-	Apollo    map[string]any `json:"apollo"`
-	Future    map[string]any `json:"future"`
-	Janus     map[string]any `json:"janus"`
-	Mercury   map[string]any `json:"mercury"`
-	Bifrost   map[string]any `json:"bifrost"`
-	Mail      map[string]any `json:"mail"`
-	Zodiac    map[string]any `json:"zodiac"`
-	Aphrodite map[string]any `json:"aphrodite"`
-	Failures  map[string]any `json:"failures"`
+	Intake     map[string]any `json:"intake"`
+	Rumor      map[string]any `json:"rumor"`
+	Omi        map[string]any `json:"omi"`
+	Apollo     map[string]any `json:"apollo"`
+	Future     map[string]any `json:"future"`
+	Janus      map[string]any `json:"janus"`
+	Mercury    map[string]any `json:"mercury"`
+	Bifrost    map[string]any `json:"bifrost"`
+	Mail       map[string]any `json:"mail"`
+	Zodiac     map[string]any `json:"zodiac"`
+	Aphrodite  map[string]any `json:"aphrodite"`
+	Zeus       map[string]any `json:"zeus"`
+	Archimedes map[string]any `json:"archimedes"`
+	Actions    map[string]any `json:"actions"`
+	Failures   map[string]any `json:"failures"`
 }
 
 type systemInventoryResponse struct {
@@ -49,11 +53,21 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 	if err != nil {
 		return systemInventoryResponse{}, err
 	}
+	archimedesComponentState := "local-only"
+	archimedesRole := "privacy-minimized local fake frontier exchange; external transport remains disabled by default"
+	if d.cfg.ArchimedesEnabled {
+		archimedesComponentState = "configured"
+		archimedesRole = "privacy-minimized frontier exchange; external transport is opt-in and Bifrost-gated"
+	}
 	intake, err := d.systemIntakeSummary()
 	if err != nil {
 		return systemInventoryResponse{}, err
 	}
 	rumor, err := d.systemRumorSummary()
+	if err != nil {
+		return systemInventoryResponse{}, err
+	}
+	omi, err := d.systemOmiSummary()
 	if err != nil {
 		return systemInventoryResponse{}, err
 	}
@@ -86,6 +100,18 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 		return systemInventoryResponse{}, err
 	}
 	aphrodite, err := d.systemAphroditeSummary()
+	if err != nil {
+		return systemInventoryResponse{}, err
+	}
+	zeus, err := d.systemZeusSummary()
+	if err != nil {
+		return systemInventoryResponse{}, err
+	}
+	archimedes, err := d.systemArchimedesSummary()
+	if err != nil {
+		return systemInventoryResponse{}, err
+	}
+	actions, err := d.actionDraftInspection()
 	if err != nil {
 		return systemInventoryResponse{}, err
 	}
@@ -129,13 +155,14 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 		{ID: "mercury", Label: "Mercury", Kind: "deterministic", State: mercuryState, Role: "sealed-order transport, Go, and bounded execution", InspectionRoute: "/v1/mercury", Controls: []string{"POST /v1/mercury/round"}},
 		{ID: "prometheus", Label: "Prometheus", Kind: "control", State: map[bool]string{true: "paused", false: "running"}[paused], Role: "emergency pause, resume, approval, and revocation", InspectionRoute: "/v1/status", Controls: []string{"pantheon prometheus protocol --pause", "pantheon prometheus protocol --resume", "pantheon prometheus protocol --hard-stop"}},
 		{ID: "rumor", Label: "Rumor", Kind: "deterministic", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.RumorEnabled], Role: "local audio stability, transcription, and Intake handoff", InspectionRoute: "/v1/rumor", Controls: []string{"POST /v1/rumor/scan", "POST /v1/rumor/transcribe"}},
+		{ID: "omi", Label: "Omi", Kind: "intake", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.OmiEnabled], Role: "automatic local Omi ring synchronization into Rumor", InspectionRoute: "/v1/system/inventory"},
 		{ID: "bifrost", Label: "Bifrost", Kind: "integration", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.BifrostEnabled], Role: "governed external-capability registry and adapters", InspectionRoute: "/v1/bifrost"},
 		{ID: "mail", Label: "Mail", Kind: "workflow", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.MailEnabled], Role: "manual bounded mail intake, understanding, backlog, and governed actions", InspectionRoute: "/v1/mail", Controls: []string{"POST /v1/mail/round"}},
 		{ID: "notifications", Label: "Notifications", Kind: "integration", State: notifyState, Role: "fixed local notification adapter", InspectionRoute: "/v1/notify", Controls: []string{"POST /v1/notify"}},
-		{ID: "archimedes", Label: "Archimedes", Kind: "reasoning", State: "deferred", Role: "future frontier reasoning boundary"},
+		{ID: "archimedes", Label: "Archimedes", Kind: "reasoning", State: archimedesComponentState, Role: archimedesRole, InspectionRoute: "/v1/archimedes"},
 		{ID: "zodiac", Label: "Zodiac", Kind: "deterministic", State: map[bool]string{true: "enabled", false: "disabled"}[d.cfg.ZodiacEnabled], Role: "explicit schedules, recurrence, due instances, and calendar projections", InspectionRoute: "/v1/zodiac", Controls: []string{"POST /v1/zodiac/round"}},
 		{ID: "aphrodite", Label: "Aphrodite", Kind: "development intelligence", State: "bounded workshop", Role: "project lifecycle, research, experiments, and candidate construction outside production", InspectionRoute: "/v1/aphrodite"},
-		{ID: "zeus", Label: "Zeus", Kind: "deterministic", State: "deferred", Role: "future explicitly identified machine-garbage sanitation"},
+		{ID: "zeus", Label: "Zeus", Kind: "deterministic", State: map[bool]string{true: "ready", false: "deferred"}[d.cfg.ZeusEnabled], Role: "deterministic inventory and dry-run sanitation of explicitly identified machine garbage", InspectionRoute: "/v1/zeus", Controls: []string{"POST /v1/zeus/inventory"}},
 	}
 
 	return systemInventoryResponse{
@@ -149,10 +176,10 @@ func (d *daemon) systemInventory() (systemInventoryResponse, error) {
 		},
 		Models: map[string]any{
 			"apollo":     map[string]any{"model": d.cfg.LocalModel, "extraction_model": d.cfg.ApolloExtractionModel, "endpoint": d.cfg.OllamaURL, "state": localModelState, "local_only_by_default": true},
-			"archimedes": map[string]any{"model": d.cfg.FrontierModel, "state": "deferred", "enabled": false, "data_egress": false},
+			"archimedes": map[string]any{"model": d.cfg.ArchimedesModel, "state": archimedesComponentState, "enabled": d.cfg.ArchimedesEnabled, "data_egress": d.cfg.ArchimedesEnabled && d.cfg.ArchimedesProvider != archimedesProviderFake},
 		},
 		Components: components,
-		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Mail: mailSummary, Zodiac: zodiac, Aphrodite: aphrodite, Failures: failures},
+		Work:       systemWorkSummary{Intake: intake, Rumor: rumor, Omi: omi, Apollo: apollo, Future: map[string]any{"state_counts": future}, Janus: map[string]any{"state_counts": janus}, Mercury: map[string]any{"state_counts": mercury}, Bifrost: bifrost, Mail: mailSummary, Zodiac: zodiac, Aphrodite: aphrodite, Zeus: zeus, Archimedes: archimedes, Actions: actions, Failures: failures},
 		Security: map[string]any{
 			"control_token":          "omitted",
 			"secrets":                "omitted",
@@ -184,6 +211,20 @@ func (d *daemon) systemIntakeSummary() (map[string]any, error) {
 	return map[string]any{"present_occurrences": present, "pending_chronicle_writes": pendingChronicle, "failed_scans": failedScans, "latest_activity_at": latestScanAt}, nil
 }
 
+func (d *daemon) systemZeusSummary() (map[string]any, error) {
+	run, err := d.latestZeusRun()
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]any{
+		"enabled":         d.cfg.ZeusEnabled,
+		"root_count":      len(d.cfg.ZeusRoots),
+		"quarantine_path": d.cfg.ZeusQuarantinePath,
+		"latest_run":      run,
+	}
+	return result, nil
+}
+
 func (d *daemon) systemRumorSummary() (map[string]any, error) {
 	counts, err := d.systemStateCounts("rumor_sources", "state")
 	if err != nil {
@@ -194,6 +235,22 @@ func (d *daemon) systemRumorSummary() (map[string]any, error) {
 		return nil, err
 	}
 	return map[string]any{"enabled": d.cfg.RumorEnabled, "state_counts": counts, "pending_intake_handoffs": pendingHandoffs, "watch_path_count": len(d.cfg.RumorWatchPaths), "live_transcription": false}, nil
+}
+
+func (d *daemon) systemOmiSummary() (map[string]any, error) {
+	return map[string]any{
+		"enabled":               d.cfg.OmiEnabled,
+		"device":                d.cfg.OmiDevice,
+		"adapter":               d.cfg.OmiAdapter,
+		"address_type":          d.cfg.OmiAddressType,
+		"sync_interval_seconds": d.cfg.OmiSyncIntervalSeconds,
+		"packet_count":          d.cfg.OmiPacketCount,
+		"max_batches":           d.cfg.OmiMaxBatches,
+		"output_dir":            d.cfg.OmiOutputDir,
+		"local_only":            true,
+		"handoff":               "Omi ring -> WAV -> Rumor -> Intake",
+		"provider_egress":       false,
+	}, nil
 }
 
 func (d *daemon) systemApolloSummary() (map[string]any, error) {

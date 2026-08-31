@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -173,7 +174,7 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 	if err := os.MkdirAll(filepath.Dir(opts.DatabasePath), 0o700); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite", opts.DatabasePath)
+	db, err := sql.Open("sqlite", sqliteDatabaseDSN(opts.DatabasePath))
 	if err != nil {
 		return nil, err
 	}
@@ -213,6 +214,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeExternalIntakeSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := initializeMercurySchema(db); err != nil {
 		db.Close()
 		return nil, err
@@ -245,7 +250,31 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := initializeLibraSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := initializeEchoSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := initializeReportAssemblySchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := initializeZeusSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := initializeArchimedesSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := initializeActionDraftSchema(db); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := initializeActionJobSchema(db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -264,6 +293,10 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := d.ensureLibraDefaults(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := d.ensureAphroditeDefaults(); err != nil {
 		db.Close()
 		return nil, err
@@ -277,6 +310,12 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		return nil, err
 	}
 	return d, nil
+}
+
+func sqliteDatabaseDSN(path string) string {
+	query := url.Values{}
+	query.Set("_pragma", "busy_timeout(5000)")
+	return (&url.URL{Scheme: "file", Path: path, RawQuery: query.Encode()}).String()
 }
 
 func loadOrCreateControlToken(path string) (string, error) {
@@ -319,6 +358,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/gui/prometheus/resume", d.handleGUIPrometheusResume)
 	mux.HandleFunc("POST /v1/gui/bifrost/capabilities/{id}/enable", func(w http.ResponseWriter, r *http.Request) { d.handleGUIBifrostEnable(w, r, true) })
 	mux.HandleFunc("POST /v1/gui/bifrost/capabilities/{id}/disable", func(w http.ResponseWriter, r *http.Request) { d.handleGUIBifrostEnable(w, r, false) })
+	mux.HandleFunc("POST /v1/gui/bifrost/capabilities/{id}/configuration", d.handleGUIBifrostApplicationConfiguration)
 	mux.HandleFunc("POST /v1/gui/rumor/scan", d.handleGUIRumorScan)
 	mux.HandleFunc("POST /v1/gui/rumor/sources/{id}/retry", func(w http.ResponseWriter, r *http.Request) { d.handleGUIRumorSource(w, r, true) })
 	mux.HandleFunc("POST /v1/gui/rumor/sources/{id}/ignore", func(w http.ResponseWriter, r *http.Request) { d.handleGUIRumorSource(w, r, false) })
@@ -333,13 +373,31 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/gui/zodiac/today", d.handleZodiacToday)
 	mux.HandleFunc("GET /v1/gui/zodiac/upcoming", d.handleZodiacUpcoming)
 	mux.HandleFunc("GET /v1/gui/zodiac/needs-you", d.handleZodiacNeedsYou)
-	mux.HandleFunc("POST /v1/gui/zodiac/round", d.handleZodiacRound)
+	mux.HandleFunc("POST /v1/gui/zodiac/round", d.handleGUIZodiacRound)
+	mux.HandleFunc("GET /v1/gui/zodiac/constellations", d.handleListZodiacConstellations)
+	mux.HandleFunc("POST /v1/gui/zodiac/constellations", d.handleCreateZodiacConstellation)
+	mux.HandleFunc("GET /v1/gui/zodiac/report-definitions", d.handleListLibraReportDefinitions)
+	mux.HandleFunc("GET /v1/gui/zodiac/report-runs", d.handleListLibraReportRuns)
+	mux.HandleFunc("POST /v1/gui/zodiac/report-definitions", d.handleCreateLibraReportDefinition)
+	mux.HandleFunc("POST /v1/gui/zodiac/report-definitions/{id}/enable", func(w http.ResponseWriter, r *http.Request) { d.handleSetLibraReportEnabled(w, r, true) })
+	mux.HandleFunc("POST /v1/gui/zodiac/report-definitions/{id}/disable", func(w http.ResponseWriter, r *http.Request) { d.handleSetLibraReportEnabled(w, r, false) })
 	mux.HandleFunc("POST /v1/gui/zodiac/schedules", d.handleCreateZodiacSchedule)
 	mux.HandleFunc("POST /v1/gui/zodiac/schedules/{id}/disable", d.handleDisableZodiacSchedule)
 	mux.HandleFunc("POST /v1/gui/zodiac/attestations", d.handleZodiacAttestation)
 	mux.HandleFunc("POST /v1/gui/zodiac/projections/{id}/reconcile", d.handleZodiacProjectionReconcile)
 	mux.HandleFunc("GET /v1/status", d.handleStatus)
 	mux.HandleFunc("GET /v1/system/inventory", d.handleSystemInventory)
+	mux.HandleFunc("GET /v1/zeus", d.handleZeusInspection)
+	mux.HandleFunc("POST /v1/zeus/inventory", d.handleZeusInventory)
+	mux.HandleFunc("POST /v1/zeus/dry-run", d.handleZeusInventory)
+	mux.HandleFunc("GET /v1/archimedes", d.handleArchimedesInspection)
+	mux.HandleFunc("GET /v1/archimedes/referrals", d.handleArchimedesReferrals)
+	mux.HandleFunc("POST /v1/archimedes/referrals", d.handleCreateArchimedesReferral)
+	mux.HandleFunc("GET /v1/archimedes/exchanges", d.handleArchimedesExchanges)
+	mux.HandleFunc("GET /v1/archimedes/exchanges/{id}", d.handleArchimedesExchange)
+	mux.HandleFunc("GET /v1/actions", d.handleShowActionDrafts)
+	mux.HandleFunc("GET /v1/actions/{id}", d.handleShowActionDraft)
+	mux.HandleFunc("POST /v1/actions/{id}/accept", d.handleAcceptActionDraft)
 	mux.HandleFunc("GET /v1/aphrodite", d.handleAphroditeSnapshot)
 	mux.HandleFunc("GET /v1/gui/aphrodite", d.handleAphroditeSnapshot)
 	mux.HandleFunc("GET /v1/echo", d.handleEchoSnapshot)
@@ -350,6 +408,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/fame/people", d.handleFamePeople)
 	mux.HandleFunc("POST /v1/fame/people/{id}/evidence", d.handleFamePersonEvidence)
 	mux.HandleFunc("POST /v1/fame/conversations", d.handleFameConversation)
+	mux.HandleFunc("POST /v1/fame/process", d.handleFameProcess)
 	mux.HandleFunc("POST /v1/fame/conversations/{id}/extract", d.handleFameConversationExtraction)
 	mux.HandleFunc("POST /v1/fame/observations", d.handleFameObservation)
 	mux.HandleFunc("POST /v1/fame/corrections", d.handleFameCorrection)
@@ -377,6 +436,9 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/aphrodite/projects/{id}/fame/fixtures", d.handleAphroditeFixtures)
 	mux.HandleFunc("POST /v1/intake/scan", d.handleIntakeScan)
 	mux.HandleFunc("GET /v1/intake", d.handleShowIntake)
+	mux.HandleFunc("POST /v1/intake/external", d.handleExternalIntake)
+	mux.HandleFunc("GET /v1/intake/external", d.handleExternalIntakeReceipts)
+	mux.HandleFunc("GET /v1/intake/external/{source_id}", d.handleExternalIntakeReceipts)
 	mux.HandleFunc("GET /v1/father-time", d.handleShowFatherTime)
 	mux.HandleFunc("POST /v1/present", d.handlePresent)
 	mux.HandleFunc("GET /v1/present", d.handleShowPresent)
@@ -410,6 +472,10 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/apollo", d.handleShowApollo)
 	mux.HandleFunc("GET /v1/apollo/reports", d.handleShowApolloReports)
 	mux.HandleFunc("GET /v1/apollo/reports/{id}", d.handleShowApolloReport)
+	mux.HandleFunc("GET /v1/reports/assemblies", d.handleReportAssembly)
+	mux.HandleFunc("POST /v1/reports/assemble", d.handleReportAssembly)
+	mux.HandleFunc("GET /v1/reports/assemblies/{id}", d.handleShowReportAssembly)
+	mux.HandleFunc("POST /v1/intake/omi", d.handleOmiWebhook)
 	mux.HandleFunc("POST /v1/input", d.handleInput)
 	mux.HandleFunc("POST /v1/route", d.handleRoute)
 	mux.HandleFunc("POST /v1/notify", d.handleNotify)
@@ -448,6 +514,7 @@ func (d *daemon) Handler() http.Handler {
 	})
 	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/enable", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostEnable(w, r, true) })
 	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/disable", func(w http.ResponseWriter, r *http.Request) { d.handleBifrostEnable(w, r, false) })
+	mux.HandleFunc("POST /v1/bifrost/capabilities/{id}/configuration", d.handleBifrostApplicationConfiguration)
 	mux.HandleFunc("GET /v1/bifrost/approvals", d.handleBifrostApprovals)
 	mux.HandleFunc("GET /v1/bifrost/invocations", d.handleBifrostInvocations)
 	mux.HandleFunc("GET /v1/bifrost/mail/status", d.handleBifrostMailStatus)
@@ -459,6 +526,9 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/mail/rules", d.handleShowMailRules)
 	mux.HandleFunc("POST /v1/mail/rules/{id}/disable", d.handleDisableMailRule)
 	mux.HandleFunc("GET /v1/zodiac", d.handleShowZodiac)
+	mux.HandleFunc("GET /v1/zodiac/constellations", d.handleListZodiacConstellations)
+	mux.HandleFunc("GET /v1/zodiac/report-definitions", d.handleListLibraReportDefinitions)
+	mux.HandleFunc("GET /v1/zodiac/report-runs", d.handleListLibraReportRuns)
 	mux.HandleFunc("GET /v1/zodiac/today", d.handleZodiacToday)
 	mux.HandleFunc("GET /v1/zodiac/upcoming", d.handleZodiacUpcoming)
 	mux.HandleFunc("GET /v1/zodiac/needs-you", d.handleZodiacNeedsYou)

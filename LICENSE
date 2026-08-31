@@ -1,0 +1,13 @@
+Pantheon is licensed under the GNU Affero General Public License, version 3
+(AGPLv3), as published by the Free Software Foundation.
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+Copyright (C) 2026 Pantheon project contributors.
+
+The authoritative license text is available at:
+https://www.gnu.org/licenses/agpl-3.0.html
+
+This file identifies the license for Pantheon's own source code. It does not
+change the licenses of third-party software, model weights, or system
+dependencies described in NOTICE and docs/licensing.md.

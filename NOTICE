@@ -1,0 +1,32 @@
+Pantheon
+Copyright (C) 2026 Pantheon project contributors.
+
+Pantheon's own source code is licensed under the GNU Affero General Public
+License, version 3 (AGPLv3). See LICENSE.
+
+Third-party components and runtime dependencies retain their original terms.
+The principal components currently used by the repository or documented
+runtime are:
+
+* Go module dependencies: retain their individual licenses, primarily BSD,
+  MIT, and SQLite's public-domain dedication. See go.mod and go.sum.
+* whisper.cpp: MIT, when used by the Echo local audio workflow.
+* OpenAI Whisper code and model assets: MIT, subject to the terms that ship
+  with the selected asset.
+* Silero VAD: MIT, when used by the Echo local audio workflow.
+* libopus: BSD license, when used by the native Linux Omi BLE receiver.
+* pyannote.audio and related pyannote Python packages: MIT.
+* The pyannote speaker-diarization-community-1 model: CC BY 4.0, with the
+  model-card terms and attribution requirements applying separately from the
+  Pantheon source license.
+* FFmpeg: an external system dependency whose effective license depends on
+  how it was built. A GPL-enabled build must be treated separately from
+  Pantheon's source distribution.
+* Ollama and selected language-model weights: retain their own licenses;
+  model licenses are not changed by Pantheon's AGPL license.
+* BlueZ/gatttool: external Linux Bluetooth tooling with its own GPL terms;
+  the Omi receiver invokes it as a system command and does not bundle it.
+
+See docs/licensing.md for the current dependency boundary and distribution
+guidance. Before publishing a binary bundle, regenerate the dependency notice
+from the exact versions and assets included in that bundle.

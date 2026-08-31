@@ -795,6 +795,33 @@ func (d *daemon) zodiacPrepareInstance(schedule zodiacSchedule, instance zodiacI
 		updated, loadErr := d.loadZodiacInstance(instance.ID)
 		return updated, false, errOr(err, loadErr)
 	}
+	if schedule.Owner == "libra" && schedule.Action == zodiacActionBriefGenerate {
+		run, reportErr := d.processLibraReportInstance(context.Background(), schedule, instance)
+		if reportErr != nil {
+			state, authority, message := zodiacInstanceFailed, "report_pipeline_failed", reportErr.Error()
+			if errors.Is(reportErr, libraNeedsEvidence) || strings.Contains(strings.ToLower(reportErr.Error()), "apollo did not complete") {
+				state, authority = zodiacInstanceNeedsYou, "report_needs_decision"
+			}
+			_, updateErr := d.db.Exec(`UPDATE zodiac_instances SET state = ?, authority_state = ?, last_error = ?, updated_at = ? WHERE instance_id = ?`, state, authority, message, d.zodiacNow().Format(time.RFC3339Nano), instance.ID)
+			updated, loadErr := d.loadZodiacInstance(instance.ID)
+			if updateErr != nil {
+				return instance, false, updateErr
+			}
+			if loadErr != nil {
+				return instance, false, loadErr
+			}
+			_ = run
+			return updated, false, nil
+		}
+		completedAt := d.zodiacNow().Format(time.RFC3339Nano)
+		lastError := run.Error
+		_, updateErr := d.db.Exec(`UPDATE zodiac_instances SET state = ?, authority_state = ?, last_error = ?, completed_at = ?, updated_at = ? WHERE instance_id = ?`, zodiacInstanceCompleted, "report_complete", nullableString(lastError), completedAt, completedAt, instance.ID)
+		updated, loadErr := d.loadZodiacInstance(instance.ID)
+		if updateErr != nil {
+			return instance, false, updateErr
+		}
+		return updated, false, loadErr
+	}
 	proposalID, err := d.zodiacProposalForInstance(schedule, instance)
 	if err != nil {
 		return instance, false, err
@@ -1234,6 +1261,9 @@ func (d *daemon) startZodiacWatcher() func() {
 		interval = 30 * time.Second
 	}
 	go func() {
+		if err := d.processLibraIngestionQueue(ctx, 4); err != nil {
+			d.audit("libra.ingestion.watcher", "", "libra.report", "", "failed", "", err.Error(), 0)
+		}
 		if _, err := d.zodiacRound(ctx); err != nil {
 			d.audit("zodiac.watcher", "", "zodiac.round", "", "failed", "", err.Error(), 0)
 		}
@@ -1244,6 +1274,9 @@ func (d *daemon) startZodiacWatcher() func() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				if err := d.processLibraIngestionQueue(ctx, 4); err != nil {
+					d.audit("libra.ingestion.watcher", "", "libra.report", "", "failed", "", err.Error(), 0)
+				}
 				if _, err := d.zodiacRound(ctx); err != nil {
 					d.audit("zodiac.watcher", "", "zodiac.round", "", "failed", "", err.Error(), 0)
 				}

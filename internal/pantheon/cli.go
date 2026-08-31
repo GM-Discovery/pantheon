@@ -33,9 +33,10 @@ type message struct {
 	Content string `json:"content"`
 }
 type ollamaRequest struct {
-	Model    string    `json:"model"`
-	Messages []message `json:"messages"`
-	Stream   bool      `json:"stream"`
+	Model    string         `json:"model"`
+	Messages []message      `json:"messages"`
+	Stream   bool           `json:"stream"`
+	Options  map[string]any `json:"options,omitempty"`
 }
 type ollamaResponse struct {
 	Message message `json:"message"`
@@ -83,8 +84,12 @@ func runDaemon() {
 	defer d.Close()
 	stopRumor := d.startRumorWatcher()
 	defer stopRumor()
+	stopOmi := d.startOmiStorageWatcher()
+	defer stopOmi()
 	stopZodiac := d.startZodiacWatcher()
 	defer stopZodiac()
+	stopActions := d.startActionWatcher()
+	defer stopActions()
 	server := &http.Server{Addr: defaultListenAddress, Handler: d.Handler(), ReadHeaderTimeout: 5 * time.Second}
 	fmt.Println("Pantheon daemon listening on", defaultListenAddress)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -129,6 +134,9 @@ func runClient(args []string) error {
 		if len(args) == 3 && args[1] == "apollo" && args[2] == "reports" {
 			return clientGET("/v1/apollo/reports")
 		}
+		if len(args) == 3 && args[1] == "report" && args[2] == "assemblies" {
+			return clientGET("/v1/reports/assemblies")
+		}
 		if len(args) == 3 && args[1] == "future" && args[2] == "proposals" {
 			return clientGET("/v1/future/proposals")
 		}
@@ -144,6 +152,18 @@ func runClient(args []string) error {
 		if len(args) == 2 && args[1] == "zodiac" {
 			return clientGET("/v1/zodiac")
 		}
+		if len(args) == 2 && args[1] == "zeus" {
+			return clientGET("/v1/zeus")
+		}
+		if len(args) == 2 && args[1] == "archimedes" {
+			return clientGET("/v1/archimedes")
+		}
+		if len(args) == 2 && args[1] == "actions" {
+			return clientGET("/v1/actions")
+		}
+		if len(args) == 3 && args[1] == "action" {
+			return clientGET("/v1/actions/" + url.PathEscape(args[2]))
+		}
 		if len(args) == 4 && args[1] == "apollo" && args[2] == "report" {
 			return clientGET("/v1/apollo/reports/" + url.PathEscape(args[3]))
 		}
@@ -157,7 +177,7 @@ func runClient(args []string) error {
 			return clientGET("/v1/janus/transitions/" + url.PathEscape(args[2]))
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|aphrodite|echo|fame|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|zeus|archimedes|actions|action <id>|aphrodite|echo|fame|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|report assemblies|future|bifrost|future proposals|future proposal <id>]")
 		}
 		switch args[1] {
 		case "config":
@@ -186,6 +206,10 @@ func runClient(args []string) error {
 			return clientGET("/v1/future")
 		case "bifrost":
 			return clientGET("/v1/bifrost")
+		case "archimedes":
+			return clientGET("/v1/archimedes")
+		case "actions":
+			return clientGET("/v1/actions")
 		case "mail":
 			return clientGET("/v1/mail")
 		case "zodiac":
@@ -201,7 +225,7 @@ func runClient(args []string) error {
 		case "packages":
 			return clientGET("/v1/seshat/packages")
 		default:
-			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|aphrodite|echo|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|future|bifrost|future proposals|future proposal <id>]")
+			return fmt.Errorf("usage: pantheon show [config|intake|father-time|present|processors|rumor|rumor queue|rumor source <id>|mail|mail messages|mail rules|zodiac|zeus|archimedes|actions|action <id>|aphrodite|echo|fame|orders|order <id>|grant <id>|plugins|packages|codes|organism|package <subject-code>|janus|transitions|transition <id>|mercury|apollo|report assemblies|future|bifrost|future proposals|future proposal <id>]")
 		}
 	case "intake":
 		if len(args) != 2 || args[1] != "scan" {
@@ -218,10 +242,18 @@ func runClient(args []string) error {
 		return runPresentCommand(args[1:])
 	case "rumor":
 		return runRumorCommand(args[1:])
+	case "report":
+		return runReportCommand(args[1:])
 	case "mail":
 		return runMailCommand(args[1:])
 	case "zodiac":
 		return runZodiacCommand(args[1:])
+	case "zeus":
+		return runZeusCommand(args[1:])
+	case "archimedes":
+		return runArchimedesCommand(args[1:])
+	case "actions":
+		return runActionCommand(args[1:])
 	case "order":
 		return runOrderCommand(args[1:])
 	case "mercury":
@@ -485,7 +517,7 @@ func runEchoCommand(args []string) error {
 func runFameCommand(args []string) error {
 	if len(args) == 0 || args[0] == "status" || args[0] == "people" {
 		if len(args) > 1 {
-			return fmt.Errorf("usage: pantheon fame [status|people|person add|evidence|conversation|observation|correct]")
+			return fmt.Errorf("usage: pantheon fame [status|people|person add|evidence|conversation|process|observation|correct]")
 		}
 		return clientGET("/v1/fame")
 	}
@@ -509,6 +541,11 @@ func runFameCommand(args []string) error {
 			return fmt.Errorf("usage: pantheon fame conversation <echo-run-id>")
 		}
 		return clientPOST("/v1/fame/conversations", fameConversationRequest{RunID: args[1]})
+	case "process":
+		if len(args) != 4 {
+			return fmt.Errorf("usage: pantheon fame process <echo-run-id> <speaker> <person-id>")
+		}
+		return clientPOST("/v1/fame/process", fameProcessRequest{RunID: args[1], Confirmations: []fameSpeakerConfirmation{{Speaker: args[2], PersonID: args[3]}}})
 	case "observation":
 		if len(args) < 5 {
 			return fmt.Errorf("usage: pantheon fame observation <conversation-id> <kind> <source-ref> <content>")
@@ -520,7 +557,7 @@ func runFameCommand(args []string) error {
 		}
 		return clientPOST("/v1/fame/corrections", fameCorrectionRequest{TargetType: args[1], Kind: args[2], Statement: strings.Join(args[3:], " ")})
 	default:
-		return fmt.Errorf("usage: pantheon fame [status|people|person add|evidence|conversation|observation|correct]")
+		return fmt.Errorf("usage: pantheon fame [status|people|person add|evidence|conversation|process|observation|correct]")
 	}
 }
 
@@ -612,6 +649,101 @@ func runZodiacCommand(args []string) error {
 		return clientPOSTWithControl("/v1/zodiac/schedules", request)
 	default:
 		return fmt.Errorf("usage: pantheon zodiac [status|round|today|upcoming|needs-you|schedule ...]")
+	}
+}
+
+func runZeusCommand(args []string) error {
+	if len(args) == 0 || args[0] == "status" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon zeus [status|inventory|dry-run]")
+		}
+		return clientGET("/v1/zeus")
+	}
+	switch args[0] {
+	case "inventory":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon zeus inventory")
+		}
+		return clientPOST("/v1/zeus/inventory", zeusRunRequest{Mode: zeusModeInventory})
+	case "dry-run":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon zeus dry-run")
+		}
+		return clientPOST("/v1/zeus/dry-run", zeusRunRequest{Mode: zeusModeDryRun})
+	default:
+		return fmt.Errorf("usage: pantheon zeus [status|inventory|dry-run]")
+	}
+}
+
+func runArchimedesCommand(args []string) error {
+	if len(args) == 0 || args[0] == "status" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon archimedes [status|referrals|exchanges|refer ...]")
+		}
+		return clientGET("/v1/archimedes")
+	}
+	switch args[0] {
+	case "referrals":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon archimedes referrals")
+		}
+		return clientGET("/v1/archimedes/referrals")
+	case "exchanges":
+		if len(args) != 1 {
+			return fmt.Errorf("usage: pantheon archimedes exchanges")
+		}
+		return clientGET("/v1/archimedes/exchanges")
+	case "refer":
+		request := archimedesReferralRequest{}
+		for i := 1; i < len(args); i++ {
+			if i+1 >= len(args) || !strings.HasPrefix(args[i], "--") {
+				return fmt.Errorf("usage: pantheon archimedes refer --reason <text> --question <text> [--product <text>] [--source <ref>] [--constraint <text>] [--uncertainty <text>]")
+			}
+			value := args[i+1]
+			switch args[i] {
+			case "--reason":
+				request.Reason = value
+			case "--question":
+				request.Question = value
+			case "--product":
+				request.DesiredProduct = value
+			case "--source":
+				request.SourceRefs = append(request.SourceRefs, value)
+			case "--constraint":
+				request.Constraints = append(request.Constraints, value)
+			case "--uncertainty":
+				request.Uncertainties = append(request.Uncertainties, value)
+			default:
+				return fmt.Errorf("unknown Archimedes referral option %q", args[i])
+			}
+			i++
+		}
+		return clientPOSTWithControl("/v1/archimedes/referrals", request)
+	default:
+		return fmt.Errorf("usage: pantheon archimedes [status|referrals|exchanges|refer ...]")
+	}
+}
+
+func runActionCommand(args []string) error {
+	if len(args) == 0 || args[0] == "list" {
+		if len(args) > 1 {
+			return fmt.Errorf("usage: pantheon actions [list|show <id>|accept <id>]")
+		}
+		return clientGET("/v1/actions")
+	}
+	switch args[0] {
+	case "show":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: pantheon actions show <id>")
+		}
+		return clientGET("/v1/actions/" + url.PathEscape(args[1]))
+	case "accept":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: pantheon actions accept <id>")
+		}
+		return clientPOSTWithControl("/v1/actions/"+url.PathEscape(args[1])+"/accept", nil)
+	default:
+		return fmt.Errorf("usage: pantheon actions [list|show <id>|accept <id>]")
 	}
 }
 
@@ -824,6 +956,40 @@ func runRumorCommand(args []string) error {
 		return clientPOSTWithControl("/v1/rumor/sources/"+url.PathEscape(args[1])+"/ignore", nil)
 	}
 	return fmt.Errorf("usage: pantheon rumor [scan|transcribe <audio-path>|retry <source-id>|ignore <source-id>]")
+}
+
+func runReportCommand(args []string) error {
+	if len(args) == 2 && args[0] == "assemblies" {
+		return clientGET("/v1/reports/assemblies?limit=" + url.QueryEscape(args[1]))
+	}
+	if len(args) == 1 && args[0] == "assemblies" {
+		return clientGET("/v1/reports/assemblies")
+	}
+	if len(args) == 0 || args[0] != "assemble" {
+		return fmt.Errorf("usage: pantheon report assemble [--kind event|daily] --date YYYY-MM-DD [--source <Vault-relative-path>] | pantheon report assemblies")
+	}
+	request := reportAssemblyRequest{Kind: reportAssemblyDaily}
+	for i := 1; i < len(args); i++ {
+		if i+1 >= len(args) || !strings.HasPrefix(args[i], "--") {
+			return fmt.Errorf("usage: pantheon report assemble [--kind event|daily] --date YYYY-MM-DD [--source <Vault-relative-path>]")
+		}
+		value := args[i+1]
+		switch args[i] {
+		case "--kind":
+			request.Kind = value
+		case "--date", "--period-date":
+			request.PeriodDate = value
+		case "--source":
+			request.SourceRefs = append(request.SourceRefs, value)
+		default:
+			return fmt.Errorf("unknown report option %q", args[i])
+		}
+		i++
+	}
+	if request.PeriodDate == "" {
+		return errors.New("report assembly requires --date YYYY-MM-DD")
+	}
+	return clientPOSTWithControl("/v1/reports/assemble", request)
 }
 
 func runOrderCommand(args []string) error {

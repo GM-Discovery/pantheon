@@ -174,7 +174,11 @@ func rawRelativePath(occurrence intakeOccurrence) (string, error) {
 	classification := ""
 	switch ext {
 	case ".md", ".txt":
-		classification = "Text"
+		if strings.Contains(strings.ToLower(relative), "transcript") {
+			classification = "Transcripts"
+		} else {
+			classification = "Text"
+		}
 	case ".pdf", ".docx":
 		classification = "Documents"
 	case ".wav", ".mp3", ".m4a", ".flac", ".ogg", ".mp4", ".mov":

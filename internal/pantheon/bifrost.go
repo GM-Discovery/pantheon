@@ -61,31 +61,32 @@ var bifrostCapabilityTypes = map[string]bool{
 }
 
 type bifrostCapability struct {
-	CapabilityID           string   `json:"capability_id"`
-	Name                   string   `json:"name"`
-	Type                   string   `json:"type"`
-	Source                 string   `json:"source"`
-	Version                string   `json:"version"`
-	Description            string   `json:"description"`
-	Invocation             string   `json:"invocation,omitempty"`
-	Resources              []string `json:"resources,omitempty"`
-	Operations             []string `json:"operations,omitempty"`
-	ProhibitedOperations   []string `json:"prohibited_operations,omitempty"`
-	PantheonComponents     []string `json:"pantheon_components,omitempty"`
-	NetworkAccess          bool     `json:"network_access"`
-	SendsDataOffMachine    bool     `json:"sends_data_off_machine"`
-	AuthenticationRequired bool     `json:"authentication_required"`
-	Installed              bool     `json:"installed"`
-	Enabled                bool     `json:"enabled"`
-	DownloadApproved       bool     `json:"download_approved"`
-	InstallationApproved   bool     `json:"installation_approved"`
-	RegistrationApproved   bool     `json:"registration_approved"`
-	UseApproved            bool     `json:"use_approved"`
-	AutoUpdateApproved     bool     `json:"auto_update_approved"`
-	RegisteredAt           string   `json:"registered_at"`
-	LastInvokedAt          string   `json:"last_invoked_at,omitempty"`
-	LastChangedAt          string   `json:"last_changed_at,omitempty"`
-	DisabledAt             string   `json:"disabled_at,omitempty"`
+	CapabilityID           string                           `json:"capability_id"`
+	Name                   string                           `json:"name"`
+	Type                   string                           `json:"type"`
+	Source                 string                           `json:"source"`
+	Version                string                           `json:"version"`
+	Description            string                           `json:"description"`
+	Invocation             string                           `json:"invocation,omitempty"`
+	Resources              []string                         `json:"resources,omitempty"`
+	Operations             []string                         `json:"operations,omitempty"`
+	ProhibitedOperations   []string                         `json:"prohibited_operations,omitempty"`
+	PantheonComponents     []string                         `json:"pantheon_components,omitempty"`
+	NetworkAccess          bool                             `json:"network_access"`
+	SendsDataOffMachine    bool                             `json:"sends_data_off_machine"`
+	AuthenticationRequired bool                             `json:"authentication_required"`
+	Installed              bool                             `json:"installed"`
+	Enabled                bool                             `json:"enabled"`
+	DownloadApproved       bool                             `json:"download_approved"`
+	InstallationApproved   bool                             `json:"installation_approved"`
+	RegistrationApproved   bool                             `json:"registration_approved"`
+	UseApproved            bool                             `json:"use_approved"`
+	AutoUpdateApproved     bool                             `json:"auto_update_approved"`
+	RegisteredAt           string                           `json:"registered_at"`
+	LastInvokedAt          string                           `json:"last_invoked_at,omitempty"`
+	LastChangedAt          string                           `json:"last_changed_at,omitempty"`
+	DisabledAt             string                           `json:"disabled_at,omitempty"`
+	ApplicationConfig      *bifrostApplicationConfiguration `json:"application_config,omitempty"`
 }
 
 type bifrostRegistrationRequest struct {
@@ -226,6 +227,11 @@ func initializeBifrostSchema(db *sql.DB) error {
 			requesting_component TEXT NOT NULL, authorization_ref TEXT, operation TEXT NOT NULL,
 			outcome TEXT NOT NULL, failure_kind TEXT, network_activity INTEGER NOT NULL,
 			result_summary TEXT, error TEXT, source_id TEXT
+		)`,
+		`CREATE TABLE IF NOT EXISTS bifrost_application_configurations (
+			capability_id TEXT PRIMARY KEY, application TEXT NOT NULL, endpoint TEXT NOT NULL,
+			route TEXT NOT NULL, model TEXT NOT NULL, credential_env TEXT, config_path TEXT,
+			updated_at TEXT NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS bifrost_mail_state (
 			account TEXT NOT NULL, mailbox TEXT NOT NULL, initial_baseline_at TEXT NOT NULL,
@@ -403,6 +409,11 @@ func (d *daemon) loadBifrostCapability(id string) (bifrostCapability, error) {
 	capability.NetworkAccess, capability.SendsDataOffMachine, capability.AuthenticationRequired = bifrostBool(network), bifrostBool(offMachine), bifrostBool(auth)
 	capability.Installed, capability.Enabled, capability.DownloadApproved, capability.InstallationApproved = bifrostBool(installed), bifrostBool(enabled), bifrostBool(download), bifrostBool(installation)
 	capability.RegistrationApproved, capability.UseApproved, capability.AutoUpdateApproved = bifrostBool(registration), bifrostBool(use), bifrostBool(automatic)
+	applicationConfig, err := d.loadBifrostApplicationConfiguration(id)
+	if err != nil {
+		return bifrostCapability{}, err
+	}
+	capability.ApplicationConfig = applicationConfig
 	return capability, nil
 }
 

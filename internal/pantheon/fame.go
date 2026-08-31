@@ -5,9 +5,11 @@ package pantheon
 // what evidence, if any, supports saying who that speaker is.
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -159,6 +161,24 @@ type fameCorrectionRequest struct {
 	Speaker    string `json:"speaker,omitempty"`
 }
 
+type fameSpeakerConfirmation struct {
+	Speaker  string `json:"speaker"`
+	PersonID string `json:"person_id"`
+}
+
+type fameProcessRequest struct {
+	RunID         string                    `json:"run_id"`
+	BoundaryState string                    `json:"boundary_state,omitempty"`
+	Confirmations []fameSpeakerConfirmation `json:"confirmations"`
+	Extract       *bool                     `json:"extract,omitempty"`
+}
+
+type fameProcessResult struct {
+	Conversation fameConversation      `json:"conversation"`
+	Corrections  []fameCorrection      `json:"corrections,omitempty"`
+	Extraction   *fameExtractionResult `json:"extraction,omitempty"`
+}
+
 func initializeFameSchema(db *sql.DB) error {
 	statements := []string{
 		`CREATE TABLE IF NOT EXISTS fame_persons (
@@ -299,6 +319,9 @@ func (d *daemon) createFameConversation(request fameConversationRequest) (fameCo
 	if err := d.db.QueryRow(`SELECT run_id, source_path, COALESCE(source_sha256,''), speaker_count, status, diarization_path, segment_count, created_at, COALESCE(completed_at,''), COALESCE(last_error,'') FROM echo_runs WHERE run_id = ?`, strings.TrimSpace(request.RunID)).Scan(&run.RunID, &run.SourcePath, &run.SourceSHA256, &run.SpeakerCount, &run.Status, &run.DiarizationPath, &run.SegmentCount, &run.CreatedAt, &run.CompletedAt, &run.LastError); err != nil {
 		return fameConversation{}, errors.New("unknown Echo run")
 	}
+	if run.Status != "completed" {
+		return fameConversation{}, fmt.Errorf("Echo run is not completed: %s", run.Status)
+	}
 	if request.EndSeconds > 0 && request.EndSeconds <= request.StartSeconds {
 		return fameConversation{}, errors.New("conversation time bounds are invalid")
 	}
@@ -339,6 +362,80 @@ func (d *daemon) createFameConversation(request fameConversationRequest) (fameCo
 		}
 	}
 	return fameConversation{ConversationID: conversationID, RunID: run.RunID, SourcePath: run.SourcePath, SourceSHA256: run.SourceSHA256, StartSeconds: request.StartSeconds, EndSeconds: request.EndSeconds, BoundaryState: boundary, Status: "imported", CreatedAt: now, UpdatedAt: now}, nil
+}
+
+func (d *daemon) processFameConversation(ctx context.Context, request fameProcessRequest) (fameProcessResult, error) {
+	request.RunID = strings.TrimSpace(request.RunID)
+	if request.RunID == "" {
+		return fameProcessResult{}, errors.New("run_id is required")
+	}
+	if len(request.Confirmations) == 0 {
+		return fameProcessResult{}, errors.New("at least one known-speaker confirmation is required")
+	}
+
+	// Preflight all confirmations before changing any attribution. Repeating
+	// the same confirmation is safe; replacing a prior human assignment is not.
+	confirmedSpeakers := make(map[string]string, len(request.Confirmations))
+	for index := range request.Confirmations {
+		confirmation := &request.Confirmations[index]
+		confirmation.Speaker = strings.TrimSpace(confirmation.Speaker)
+		confirmation.PersonID = strings.TrimSpace(confirmation.PersonID)
+		if confirmation.Speaker == "" || confirmation.PersonID == "" {
+			return fameProcessResult{}, errors.New("each confirmation requires speaker and person_id")
+		}
+		if priorPersonID, exists := confirmedSpeakers[confirmation.Speaker]; exists && priorPersonID != confirmation.PersonID {
+			return fameProcessResult{}, fmt.Errorf("speaker %s has conflicting confirmations", confirmation.Speaker)
+		}
+		confirmedSpeakers[confirmation.Speaker] = confirmation.PersonID
+		var personExists int
+		if err := d.db.QueryRow(`SELECT COUNT(*) FROM fame_persons WHERE person_id = ?`, confirmation.PersonID).Scan(&personExists); err != nil {
+			return fameProcessResult{}, err
+		}
+		if personExists == 0 {
+			return fameProcessResult{}, fmt.Errorf("unknown Fame person: %s", confirmation.PersonID)
+		}
+		var speakerExists int
+		if err := d.db.QueryRow(`SELECT COUNT(*) FROM echo_speaker_segments WHERE run_id = ? AND anonymous_speaker = ?`, request.RunID, confirmation.Speaker).Scan(&speakerExists); err != nil {
+			return fameProcessResult{}, err
+		}
+		if speakerExists == 0 {
+			return fameProcessResult{}, fmt.Errorf("unknown speaker %s in Echo run %s", confirmation.Speaker, request.RunID)
+		}
+		var conflictingPerson string
+		err := d.db.QueryRow(`SELECT COALESCE(person_id, '') FROM fame_segment_attributions WHERE conversation_id = ? AND anonymous_speaker = ? AND person_id IS NOT NULL AND person_id <> ? LIMIT 1`, "conversation-"+request.RunID, confirmation.Speaker, confirmation.PersonID).Scan(&conflictingPerson)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fameProcessResult{}, err
+		}
+		if conflictingPerson != "" {
+			return fameProcessResult{}, fmt.Errorf("speaker %s already has a conflicting person assignment", confirmation.Speaker)
+		}
+	}
+	conversation, err := d.createFameConversation(fameConversationRequest{RunID: request.RunID, BoundaryState: request.BoundaryState})
+	if err != nil {
+		return fameProcessResult{}, err
+	}
+
+	result := fameProcessResult{Conversation: conversation, Corrections: []fameCorrection{}}
+	for _, confirmation := range request.Confirmations {
+		correction, err := d.createFameCorrection(fameCorrectionRequest{
+			TargetType: "speaker", TargetID: request.RunID, Kind: "kernel25_speaker_confirmation",
+			Statement: fmt.Sprintf("Kernel 25 test confirmed %s as person %s in Echo run %s.", confirmation.Speaker, confirmation.PersonID, request.RunID),
+			PersonID:  confirmation.PersonID, RunID: request.RunID, Speaker: confirmation.Speaker,
+		})
+		if err != nil {
+			return fameProcessResult{}, err
+		}
+		result.Corrections = append(result.Corrections, correction)
+	}
+	shouldExtract := request.Extract == nil || *request.Extract
+	if shouldExtract {
+		extraction, err := d.extractFameConversation(ctx, conversation.ConversationID)
+		if err != nil {
+			return fameProcessResult{Conversation: conversation, Corrections: result.Corrections}, err
+		}
+		result.Extraction = &extraction
+	}
+	return result, nil
 }
 
 func (d *daemon) createFameObservation(request fameObservationRequest) (fameObservation, error) {
@@ -554,6 +651,20 @@ func (d *daemon) handleFameConversation(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, conversation)
 }
 
+func (d *daemon) handleFameProcess(w http.ResponseWriter, r *http.Request) {
+	var request fameProcessRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := d.processFameConversation(r.Context(), request)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (d *daemon) handleFameObservation(w http.ResponseWriter, r *http.Request) {
 	var request fameObservationRequest
 	if err := decodeJSON(r, &request); err != nil {
@@ -634,6 +745,17 @@ func (d *daemon) handleFameCommand(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, conversation)
+	case "process":
+		if len(fields) != 5 {
+			writeError(w, http.StatusBadRequest, errors.New("usage: /fame process <echo-run-id> <speaker> <person-id>"))
+			return
+		}
+		result, err := d.processFameConversation(r.Context(), fameProcessRequest{RunID: fields[2], Confirmations: []fameSpeakerConfirmation{{Speaker: fields[3], PersonID: fields[4]}}})
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
 	case "extract":
 		if len(fields) != 3 {
 			writeError(w, http.StatusBadRequest, errors.New("usage: /fame extract <conversation-id>"))
@@ -684,6 +806,6 @@ func (d *daemon) handleFameCommand(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusCreated, evidence)
 	default:
-		writeError(w, http.StatusBadRequest, errors.New("supported commands: /fame status | /fame people | /fame person add <name> | /fame conversation <echo-run-id> | /fame extract <conversation-id> | /fame observation <conversation-id> <kind> <source-ref> <content> | /fame correct <target-type> <kind> <statement>"))
+		writeError(w, http.StatusBadRequest, errors.New("supported commands: /fame status | /fame people | /fame person add <name> | /fame conversation <echo-run-id> | /fame process <echo-run-id> <speaker> <person-id> | /fame extract <conversation-id> | /fame observation <conversation-id> <kind> <source-ref> <content> | /fame correct <target-type> <kind> <statement>"))
 	}
 }

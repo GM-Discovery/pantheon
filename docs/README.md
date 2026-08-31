@@ -37,5 +37,27 @@ This directory contains the human-readable papers that govern Pantheon's constru
 - [Mini-Kernel 21A reportback](reportbacks/kernel-21a-panopticon-acceptance-repairs.md): acceptance repairs for capability fallback, Fates grouping, and Current Work prominence.
 - [Kernel 22 reportback](reportbacks/kernel-22-mail-intelligence.md): manual mail intelligence, durable backlog accounting, and governed action proposals.
 - [Kernel 23 reportback](reportbacks/kernel-23-zodiac-scheduler.md): deterministic schedules, due instances, catch-up, authority handoff, and calendar projection boundaries.
+- [Kernel 24 specification](building%20kernels/Kernel%2024%20-%20Aphrodite): governed Aphrodite development and the Project Fame research boundary.
+- [Kernel 24 reportback](reportbacks/kernel-24-aphrodite-project-fame.md): bounded Aphrodite workspace, Project Fame corpus, artifact provenance, and promotion boundary.
+- [Kernel 24A specification](building%20kernels/Kernel%2024A%20-%20Fame): human identity and relational continuity design within Project Fame.
+- [Kernel 25 specification](building%20kernels/Kernel%2025%20-%20First%20End-to-End%20Fame%20Ingestion.md): first bounded Echo-to-Fame runtime path and evidence contract.
+- [Kernel 25 reportback](reportbacks/kernel-25-echo-fame-ingestion.md): implementation status for reviewed speaker attribution and cited Fame observations.
+- [Kernel 26 specification](building%20kernels/Kernel%2026%20-%20Omi%20and%20n8n%20Intake%20Gateway.md): native Omi webhook and Linux BLE intake, the general gateway, lossless preservation, Vault conversion proof, and downstream report boundary.
+- [Kernel 26 reportback](reportbacks/kernel-26-omi-intake-bridge.md): bounded native Omi BLE proof, lossless external intake, Rumor/Vault/Apollo handoff, report-quality repair, and explicit non-claims.
+- [Kernel 27 specification](building%20kernels/Kernel%2027%20-%20Report%20Assembler%20and%20Daily%20Continuity.md): deterministic event and daily evidence assembly, replay-safe source manifests, and the Apollo handoff boundary.
+- [Kernel 27 reportback](reportbacks/kernel-27-report-assembler.md): live daily/event assembly receipts, replay proof, Vault manifests, and explicit remaining boundaries.
+- [Kernel 28 specification](building%20kernels/Kernel%2028%20-%20Zodiac%20Constellations%20and%20Configurable%20Reporting.md): Libra constellations, Panopticon-managed report definitions, typed Zodiac links, daily/weekly recap templates, and catch-up contracts.
+- [Kernel 28 reportback](reportbacks/kernel-28-zodiac-libra-reporting.md): bounded daily/weekly Libra execution, Apollo/Vault/notification receipts, replay protection, and live deployment proof.
+- [Kernel 29 specification](building%20kernels/Kernel%2029%20-%20Zeus%20Retention%20Inventory%20and%20Sanitation.md): deterministic machine-root inventory, dry-run sanitation, protected material, and later quarantine boundary.
+- [Kernel 29 reportback](reportbacks/kernel-29-zeus-retention-sanitation.md): implementation and live dry-run proof.
+- [Kernel 30 specification](building%20kernels/Kernel%2030%20-%20Archimedes%20Frontier%20Exchange.md): governed frontier exchange, privacy gate, temporary aliases, return path, and Zeus handoff.
+- [Kernel 30 implementation preparation](building%20kernels/Kernel%2030%20-%20Archimedes%20Implementation%20Preparation.md): fake-provider-first build sequence and acceptance proof.
+- [Kernel 30 reportback](reportbacks/kernel-30-archimedes-frontier-exchange.md): local-only exchange implementation, privacy-gate proof, rehydration, receipts, and disabled external transport.
+- [Kernel 31 Switchyard boundary](building%20kernels/Kernel%2031%20-%20Switchyard%20Application%20Boundary.md): optional Bifrost transport application after Archimedes privacy and authority checks.
+- [Kernel 31 reportback](reportbacks/kernel-31-switchyard-install.md): pinned native staging install, license audit, native-process boundary proof, and no-op dry-run evidence.
+- [Kernel 32 Omi action handoff](building%20kernels/Kernel%2032%20-%20Omi%20Action%20Handoff.md): typed Apollo action drafts, clarification states, and explicit Future handoff for calendar/email work.
+- [Kernel 32 reportback](reportbacks/kernel-32-omi-action-handoff.md): action-draft replay proof, control boundary, and provider limits.
+- [Kernel 33 Archimedes external provider gate](building%20kernels/Kernel%2033%20-%20Archimedes%20External%20Provider%20Gate.md): opt-in provider-neutral transport, Bifrost egress authorization, secret-free receipts, and local fake HTTP proof.
+- [Kernel 33 reportback](reportbacks/kernel-33-archimedes-external-provider-gate.md): external transport implementation with live egress still disabled.
 
 When a paper changes, the change should be deliberate, attributable, and reviewable.

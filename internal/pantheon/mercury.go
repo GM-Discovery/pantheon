@@ -437,8 +437,9 @@ func (d *daemon) orderSealValid(order mercuryOrder) bool {
 func (d *daemon) mercuryCapabilityAvailable(recipient, capability string) bool {
 	return (recipient == "present" && capability == "present.process") ||
 		(recipient == "apollo" && capability == apolloCapability) ||
+		(recipient == "archimedes" && capability == archimedesCapability) ||
 		(recipient == "local-notify" && capability == "notify.send") ||
-		(recipient == "gmail" && (capability == "mail.mark_read" || capability == "mail.label" || capability == "mail.move" || capability == "mail.draft")) ||
+		(recipient == "gmail" && (capability == "mail.mark_read" || capability == "mail.label" || capability == "mail.move" || capability == "mail.draft" || capability == "email.draft")) ||
 		(recipient == "pantheon" && capability == "mail.round")
 }
 
@@ -716,6 +717,14 @@ func (d *daemon) dispatchOrder(ctx context.Context, order mercuryOrder, command 
 			resultSummaryBytes, _ := json.Marshal(apolloResult)
 			resultSummary, evidence = string(resultSummaryBytes), apolloResult.ReportPath
 		}
+	} else if order.Recipient == "archimedes" && order.Capability == archimedesCapability {
+		archimedesResult, archimedesErr := d.runArchimedesExchange(ctx, order, command, attemptID)
+		if archimedesErr != nil {
+			dispatchErr = archimedesErr.Error()
+		} else {
+			resultSummaryBytes, _ := json.Marshal(archimedesResult)
+			resultSummary, evidence = string(resultSummaryBytes), archimedesResult.Exchange.DurableResultPath
+		}
 	} else if order.Recipient == "local-notify" && order.Capability == "notify.send" {
 		var payload struct {
 			Message string `json:"message"`
@@ -735,7 +744,7 @@ func (d *daemon) dispatchOrder(ctx context.Context, order mercuryOrder, command 
 				resultSummary = "local notification delivered"
 			}
 		}
-	} else if order.Recipient == "gmail" && strings.HasPrefix(order.Capability, "mail.") {
+	} else if order.Recipient == "gmail" && (strings.HasPrefix(order.Capability, "mail.") || order.Capability == "email.draft") {
 		if actionErr := d.executeMailAction(ctx, order, command); actionErr != nil {
 			dispatchErr = actionErr.Error()
 		} else {

@@ -54,7 +54,12 @@ Active fields in Kernel 8 are:
 | `paths.roadmap` | absolute path | empty | active/optional | Apollo context | yes |
 | `models.apollo.model` | string | none | active/required | Apollo | yes |
 | `models.apollo.endpoint` | URL | none | active/required | Apollo | yes |
-| `models.archimedes.model` | string | empty | reserved/inactive | Archimedes | no current behavior |
+| `models.archimedes.model` | string | empty | compatibility model identifier | Archimedes | no authority |
+| `archimedes.enabled` | boolean | `false` | opt-in external transport | Archimedes/Bifrost | yes |
+| `archimedes.provider` | string | `local-fake` | `local-fake` or `openai-compatible` | Archimedes | yes |
+| `archimedes.endpoint` | URL | empty | credential-free HTTPS; loopback HTTP only for tests | Archimedes | yes |
+| `archimedes.credential_env` | environment variable name | `PANTHEON_ARCHIMEDES_API_KEY` | name only; secret is external to config | service boundary | no |
+| `archimedes.capability` | string | `archimedes-provider` | exact enabled Bifrost capability | Bifrost | yes |
 
 Apollo remains restricted to HTTP endpoints on approved local hosts: loopback, localhost, and the configured Docker-host bridge. Endpoint credentials are not accepted as ordinary configuration.
 
@@ -74,6 +79,27 @@ Kernel 9 activates the following fields while preserving the same explicit migra
 When `paths.intake` is absent, Pantheon resolves `~/Pantheon Intake` at runtime and may create that default when `pantheon intake scan` is explicitly invoked. A configured but missing custom Intake path is reported rather than created. When `paths.father_time_chronicles` is absent, it resolves beneath `paths.vault` at `00 Pantheon Core/Chronicles/Father Time/`. An empty timezone uses the machine's local timezone. Invalid explicit timezones and non-positive or implausibly large retention values fail validation.
 
 The raw retention value is policy only. New Intake occurrences begin as `awaiting_verified_markdown` with no eligibility or due date; Kernel 9 never moves or deletes source material.
+
+## Kernel 29 Zeus fields
+
+Zeus is an explicit machine-garbage boundary. It is disabled by default and
+does nothing unless `zeus.enabled` is true and `zeus.roots` contains absolute,
+machine-owned roots:
+
+```json
+"zeus": {
+  "enabled": true,
+  "roots": ["/tmp/pantheon-go-cache", "/home/example/pantheon-runtime/scripts/__pycache__"],
+  "quarantine_path": "/tmp/pantheon-zeus-quarantine"
+}
+```
+
+Kernel 29 recognizes only Go build caches and Python `__pycache__` roots as
+recreatable cache candidates. Unknown roots, symlinks, source material,
+Vault/Intake files, and non-regular objects remain protected. `pantheon zeus
+inventory` and `pantheon zeus dry-run` write durable receipts and hashes but do
+not quarantine or delete files. A later quarantine action requires a separate
+exact Future/Mercury order.
 
 Legacy flat configuration remains readable and receives these Kernel 9 defaults in memory. The canonical file is not silently rewritten; use the explicit migration command when you choose to persist the current schema.
 
@@ -113,9 +139,16 @@ transcription and failed Intake handoff remain distinct durable states.
 
 The following namespaces have a documented place but are not active merely because they appear in the schema model or this table:
 
-`meta`, `time`, `retention`, `ingestion`, `present`, `past`, `weave`, `future`, `mercury`, `prometheus`, `notifications`, `zeus`, `archimedes`, `panopticon`, `setup`, and `organs`.
+`meta`, `present`, `past`, `weave`, `future`, `prometheus`, `notifications`, `archimedes`, `panopticon`, `setup`, and `organs`.
 
 Future examples include Intake paths under `paths`, raw retention under `retention`, work windows under `time`, attention defaults under `notifications`, Mercury rounds under `mercury`, provider settings under `archimedes`, and display preferences under `panopticon`. Kernel 8 does not activate those behaviors, scheduling, purge, frontier calls, or an installer.
+
+Kernel 33 adds an opt-in OpenAI-compatible Archimedes transport behind the
+existing privacy gate and Future/Mercury path. It remains disabled unless the
+endpoint is valid, the named credential is present at invocation time, and the
+exact Bifrost capability is installed, approved, and enabled. No credential
+belongs in this file; use a user-owned secret mechanism attached to
+`pantheon.service`.
 
 Kernel 11 activates this small Mercury namespace:
 

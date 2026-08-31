@@ -14,6 +14,11 @@
   "retention": {
     "raw_input_days": 30
   },
+  "zeus": {
+    "enabled": false,
+    "roots": [],
+    "quarantine_path": ""
+  },
   "time": {
     "timezone": ""
   },
@@ -28,6 +33,16 @@
     "media": {
       "converter": ""
     }
+  },
+  "omi": {
+    "enabled": false,
+    "device": "AA:BB:CC:DD:EE:FF",
+    "adapter": "hci0",
+    "address_type": "random",
+    "sync_interval_seconds": 900,
+    "packet_count": 36,
+    "max_batches": 128,
+    "output_dir": "/absolute/path/Pantheon Audio/Omi BLE"
   },
   "mercury": {
     "mode": "hermes",
@@ -63,6 +78,8 @@
     "max_retrieval_rounds": 12,
     "max_sources": 64,
     "max_context_bytes": 200000,
+    "context_tokens": 8192,
+    "max_output_tokens": 2048,
     "max_reasoning_duration_seconds": 900,
     "require_citations": true,
     "external_research": { "enabled": false }
@@ -76,5 +93,16 @@
     "archimedes": {
       "model": ""
     }
+  },
+  "archimedes": {
+    "enabled": false,
+    "provider": "local-fake",
+    "endpoint": "",
+    "model": "",
+    "route": "passthrough-local-fake",
+    "credential_env": "PANTHEON_ARCHIMEDES_API_KEY",
+    "capability": "archimedes-provider",
+    "timeout_seconds": 60,
+    "max_response_bytes": 1048576
   }
 }

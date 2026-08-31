@@ -572,6 +572,9 @@ func (d *daemon) intakeInspectionWithQuery(limit int, relativePath, extension, t
 	if err := initializeIntakeSchema(d.db); err != nil {
 		return nil, err
 	}
+	if err := initializeExternalIntakeSchema(d.db); err != nil {
+		return nil, err
+	}
 	var latest intakeScanResult
 	var started, ended, chronology string
 	err := d.db.QueryRow(`SELECT scan_id, started_at, COALESCE(ended_at, ''), intake_path, new_count, unchanged_count, departed_count, deferred_count, skipped_count, failed_count, father_time_year, chronology FROM intake_scans ORDER BY started_at DESC LIMIT 1`).Scan(&latest.ScanID, &started, &ended, &latest.IntakePath, &latest.New, &latest.Unchanged, &latest.Departed, &latest.Deferred, &latest.Skipped, &latest.Failed, &latest.FatherTimeYear, &chronology)
@@ -601,7 +604,11 @@ func (d *daemon) intakeInspectionWithQuery(limit int, relativePath, extension, t
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"intake_path": d.cfg.IntakePath, "latest_scan": latest, "latest_scan_started_at": started, "latest_scan_ended_at": ended, "present": present, "pending_chronicle_writes": pending, "failed_scans": failed, "recent_occurrences": recent}, nil
+	externalReceipts, err := d.listExternalIntakeReceipts(20)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"intake_path": d.cfg.IntakePath, "latest_scan": latest, "latest_scan_started_at": started, "latest_scan_ended_at": ended, "present": present, "pending_chronicle_writes": pending, "failed_scans": failed, "recent_occurrences": recent, "external_receipts": externalReceipts}, nil
 }
 
 func (d *daemon) recentIntakeOccurrences(limit int) ([]intakeOccurrence, error) {

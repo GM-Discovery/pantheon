@@ -36,32 +36,33 @@ var rumorAudioExtensions = map[string]bool{
 }
 
 type rumorSource struct {
-	SourceID         string `json:"source_id"`
-	SourcePath       string `json:"source_path"`
-	SourceFilename   string `json:"source_filename"`
-	SourceHash       string `json:"source_hash"`
-	Size             int64  `json:"size"`
-	ModifiedAt       string `json:"modified_at"`
-	DetectedAt       string `json:"detected_at"`
-	QueuedAt         string `json:"queued_at,omitempty"`
-	CompletedAt      string `json:"completed_at,omitempty"`
-	State            string `json:"state"`
-	Attempts         int    `json:"attempts"`
-	NextAttemptAt    string `json:"next_attempt_at,omitempty"`
-	LastError        string `json:"last_error,omitempty"`
-	FailureKind      string `json:"failure_kind,omitempty"`
-	TranscriptPath   string `json:"transcript_path,omitempty"`
-	MetadataPath     string `json:"metadata_path,omitempty"`
-	DetectedLanguage string `json:"detected_language,omitempty"`
-	WhisperBinary    string `json:"whisper_binary,omitempty"`
-	WhisperModel     string `json:"whisper_model,omitempty"`
-	IntakeOccurrence string `json:"intake_occurrence_id,omitempty"`
-	IntakeState      string `json:"intake_state,omitempty"`
-	IntakeError      string `json:"intake_error,omitempty"`
-	AlertSent        bool   `json:"alert_sent"`
-	DuplicateOf      string `json:"duplicate_of,omitempty"`
-	IgnoredAt        string `json:"ignored_at,omitempty"`
-	UpdatedAt        string `json:"updated_at"`
+	SourceID            string `json:"source_id"`
+	SourcePath          string `json:"source_path"`
+	SourceFilename      string `json:"source_filename"`
+	SourceHash          string `json:"source_hash"`
+	Size                int64  `json:"size"`
+	ModifiedAt          string `json:"modified_at"`
+	DetectedAt          string `json:"detected_at"`
+	QueuedAt            string `json:"queued_at,omitempty"`
+	CompletedAt         string `json:"completed_at,omitempty"`
+	State               string `json:"state"`
+	Attempts            int    `json:"attempts"`
+	NextAttemptAt       string `json:"next_attempt_at,omitempty"`
+	LastError           string `json:"last_error,omitempty"`
+	FailureKind         string `json:"failure_kind,omitempty"`
+	TranscriptPath      string `json:"transcript_path,omitempty"`
+	MetadataPath        string `json:"metadata_path,omitempty"`
+	TimestampedJSONPath string `json:"timestamped_json_path,omitempty"`
+	DetectedLanguage    string `json:"detected_language,omitempty"`
+	WhisperBinary       string `json:"whisper_binary,omitempty"`
+	WhisperModel        string `json:"whisper_model,omitempty"`
+	IntakeOccurrence    string `json:"intake_occurrence_id,omitempty"`
+	IntakeState         string `json:"intake_state,omitempty"`
+	IntakeError         string `json:"intake_error,omitempty"`
+	AlertSent           bool   `json:"alert_sent"`
+	DuplicateOf         string `json:"duplicate_of,omitempty"`
+	IgnoredAt           string `json:"ignored_at,omitempty"`
+	UpdatedAt           string `json:"updated_at"`
 }
 
 type rumorAttempt struct {
@@ -142,7 +143,7 @@ func initializeRumorSchema(db *sql.DB) error {
 	}
 	for column, definition := range map[string]string{
 		"failure_kind": "TEXT", "intake_error": "TEXT", "completed_at": "TEXT",
-		"duplicate_of": "TEXT", "ignored_at": "TEXT",
+		"duplicate_of": "TEXT", "ignored_at": "TEXT", "timestamped_json_path": "TEXT",
 	} {
 		if err := ensureRumorColumn(db, "rumor_sources", column, definition); err != nil {
 			return err
@@ -167,7 +168,7 @@ func rumorSourceScanColumns() string {
 	return `source_id, source_path, source_filename, source_hash, size, modified_at, detected_at,
 		COALESCE(queued_at, ''), COALESCE(completed_at, ''), state, attempts,
 		COALESCE(next_attempt_at, ''), COALESCE(last_error, ''), COALESCE(failure_kind, ''),
-		COALESCE(transcript_path, ''), COALESCE(metadata_path, ''), COALESCE(detected_language, ''),
+		COALESCE(transcript_path, ''), COALESCE(metadata_path, ''), COALESCE(timestamped_json_path, ''), COALESCE(detected_language, ''),
 		COALESCE(whisper_binary, ''), COALESCE(whisper_model, ''), COALESCE(intake_occurrence_id, ''),
 		COALESCE(intake_state, ''), COALESCE(intake_error, ''), alert_sent,
 		COALESCE(duplicate_of, ''), COALESCE(ignored_at, ''), updated_at`
@@ -176,7 +177,7 @@ func rumorSourceScanColumns() string {
 func scanRumorSource(scanner interface{ Scan(...any) error }) (rumorSource, error) {
 	var source rumorSource
 	var alert int
-	err := scanner.Scan(&source.SourceID, &source.SourcePath, &source.SourceFilename, &source.SourceHash, &source.Size, &source.ModifiedAt, &source.DetectedAt, &source.QueuedAt, &source.CompletedAt, &source.State, &source.Attempts, &source.NextAttemptAt, &source.LastError, &source.FailureKind, &source.TranscriptPath, &source.MetadataPath, &source.DetectedLanguage, &source.WhisperBinary, &source.WhisperModel, &source.IntakeOccurrence, &source.IntakeState, &source.IntakeError, &alert, &source.DuplicateOf, &source.IgnoredAt, &source.UpdatedAt)
+	err := scanner.Scan(&source.SourceID, &source.SourcePath, &source.SourceFilename, &source.SourceHash, &source.Size, &source.ModifiedAt, &source.DetectedAt, &source.QueuedAt, &source.CompletedAt, &source.State, &source.Attempts, &source.NextAttemptAt, &source.LastError, &source.FailureKind, &source.TranscriptPath, &source.MetadataPath, &source.TimestampedJSONPath, &source.DetectedLanguage, &source.WhisperBinary, &source.WhisperModel, &source.IntakeOccurrence, &source.IntakeState, &source.IntakeError, &alert, &source.DuplicateOf, &source.IgnoredAt, &source.UpdatedAt)
 	source.AlertSent = alert == 1
 	return source, err
 }
@@ -296,12 +297,12 @@ func (d *daemon) rumorRegisterPath(path string, explicit bool) (rumorSource, err
 	}
 	var duplicate rumorSource
 	if err := d.db.QueryRow(`SELECT `+rumorSourceScanColumns()+` FROM rumor_sources WHERE source_hash = ? AND state IN (?, ?) ORDER BY completed_at, source_id LIMIT 1`, hashed.ContentID, rumorStateCompleted, rumorStateDuplicate).Scan(
-		&duplicate.SourceID, &duplicate.SourcePath, &duplicate.SourceFilename, &duplicate.SourceHash, &duplicate.Size, &duplicate.ModifiedAt, &duplicate.DetectedAt, &duplicate.QueuedAt, &duplicate.CompletedAt, &duplicate.State, &duplicate.Attempts, &duplicate.NextAttemptAt, &duplicate.LastError, &duplicate.FailureKind, &duplicate.TranscriptPath, &duplicate.MetadataPath, &duplicate.DetectedLanguage, &duplicate.WhisperBinary, &duplicate.WhisperModel, &duplicate.IntakeOccurrence, &duplicate.IntakeState, &duplicate.IntakeError, new(int), &duplicate.DuplicateOf, &duplicate.IgnoredAt, &duplicate.UpdatedAt); err == nil {
+		&duplicate.SourceID, &duplicate.SourcePath, &duplicate.SourceFilename, &duplicate.SourceHash, &duplicate.Size, &duplicate.ModifiedAt, &duplicate.DetectedAt, &duplicate.QueuedAt, &duplicate.CompletedAt, &duplicate.State, &duplicate.Attempts, &duplicate.NextAttemptAt, &duplicate.LastError, &duplicate.FailureKind, &duplicate.TranscriptPath, &duplicate.MetadataPath, &duplicate.TimestampedJSONPath, &duplicate.DetectedLanguage, &duplicate.WhisperBinary, &duplicate.WhisperModel, &duplicate.IntakeOccurrence, &duplicate.IntakeState, &duplicate.IntakeError, new(int), &duplicate.DuplicateOf, &duplicate.IgnoredAt, &duplicate.UpdatedAt); err == nil {
 		id, idErr := newLocalID("rumor-")
 		if idErr != nil {
 			return rumorSource{}, idErr
 		}
-		_, err = d.db.Exec(`INSERT INTO rumor_sources (source_id, source_path, source_filename, source_hash, size, modified_at, detected_at, completed_at, state, attempts, transcript_path, metadata_path, detected_language, whisper_binary, whisper_model, intake_occurrence_id, intake_state, duplicate_of, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, path, filepath.Base(path), hashed.ContentID, hashed.Size, modified, now.Format(time.RFC3339Nano), duplicate.CompletedAt, rumorStateDuplicate, 0, duplicate.TranscriptPath, duplicate.MetadataPath, duplicate.DetectedLanguage, duplicate.WhisperBinary, duplicate.WhisperModel, duplicate.IntakeOccurrence, duplicate.IntakeState, duplicate.SourceID, now.Format(time.RFC3339Nano))
+		_, err = d.db.Exec(`INSERT INTO rumor_sources (source_id, source_path, source_filename, source_hash, size, modified_at, detected_at, completed_at, state, attempts, transcript_path, metadata_path, timestamped_json_path, detected_language, whisper_binary, whisper_model, intake_occurrence_id, intake_state, duplicate_of, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, path, filepath.Base(path), hashed.ContentID, hashed.Size, modified, now.Format(time.RFC3339Nano), duplicate.CompletedAt, rumorStateDuplicate, 0, duplicate.TranscriptPath, duplicate.MetadataPath, duplicate.TimestampedJSONPath, duplicate.DetectedLanguage, duplicate.WhisperBinary, duplicate.WhisperModel, duplicate.IntakeOccurrence, duplicate.IntakeState, duplicate.SourceID, now.Format(time.RFC3339Nano))
 		if err != nil {
 			return rumorSource{}, err
 		}
@@ -383,6 +384,13 @@ func (d *daemon) rumorScanWatchPaths() (int, error) {
 			if entry.IsDir() || !rumorSupportedAudio(path) {
 				return nil
 			}
+			if strings.HasPrefix(entry.Name(), "omi-ring-") {
+				// Omi ring batches are raw three-second evidence. The storage
+				// sync assembles them into omi-cutting files before Rumor sees
+				// them; explicit `rumor transcribe` remains available when
+				// someone intentionally wants one raw batch.
+				return nil
+			}
 			if _, err := d.rumorRegisterPath(path, false); err != nil {
 				if firstErr == nil && !strings.Contains(err.Error(), "unsupported") {
 					firstErr = err
@@ -401,7 +409,12 @@ func (d *daemon) rumorScanWatchPaths() (int, error) {
 
 func (d *daemon) rumorDueSources() ([]rumorSource, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	rows, err := d.db.Query(`SELECT `+rumorSourceScanColumns()+` FROM rumor_sources WHERE state = ? OR (state = ? AND (next_attempt_at = '' OR next_attempt_at <= ?)) ORDER BY detected_at, source_id`, rumorStateQueued, rumorStateRetryWait, now)
+	// Omi's legacy three-second ring chunks can already be queued when the
+	// longer cutting pipeline is enabled. They are retained as raw evidence,
+	// but are no longer eligible for automatic Rumor work: otherwise silence
+	// chunks keep generating alerts after their consolidated cutting exists.
+	// Prefer the cuttings before any other eligible audio as well.
+	rows, err := d.db.Query(`SELECT `+rumorSourceScanColumns()+` FROM rumor_sources WHERE (state = ? OR (state = ? AND (next_attempt_at = '' OR next_attempt_at <= ?))) AND source_filename NOT LIKE 'omi-ring-%' ORDER BY CASE WHEN source_path LIKE '%/omi-cutting-%' OR source_filename LIKE 'omi-cutting-%' THEN 0 ELSE 1 END, detected_at, source_id`, rumorStateQueued, rumorStateRetryWait, now)
 	if err != nil {
 		return nil, err
 	}
@@ -512,6 +525,7 @@ func (d *daemon) processRumorSource(ctx context.Context, source rumorSource) err
 
 type rumorTranscription struct {
 	Text             string
+	TimestampedJSON  []byte
 	DetectedLanguage string
 	Binary           string
 	Model            string
@@ -615,10 +629,12 @@ func (d *daemon) runRumorWhisper(ctx context.Context, source rumorSource) (rumor
 		return rumorTranscription{}, fmt.Errorf("Whisper transcript quality gate rejected repeated line %q (%d occurrences)", repeated, count)
 	}
 	detectedLanguage := rumorDetectedLanguage(stderr.String() + "\n" + stdout.String() + "\n" + string(transcript))
+	var timestampedJSON []byte
 	if metadata, readErr := os.ReadFile(outputBase + ".json"); readErr == nil {
+		timestampedJSON = append([]byte(nil), metadata...)
 		detectedLanguage = firstNonEmpty(rumorJSONLanguage(metadata), detectedLanguage)
 	}
-	return rumorTranscription{Text: string(transcript), DetectedLanguage: detectedLanguage, Binary: binary, Model: model}, nil
+	return rumorTranscription{Text: string(transcript), TimestampedJSON: timestampedJSON, DetectedLanguage: detectedLanguage, Binary: binary, Model: model}, nil
 }
 
 func rumorJSONLanguage(data []byte) string {
@@ -705,6 +721,7 @@ func (d *daemon) persistRumorArtifacts(source rumorSource, transcription rumorTr
 	base := rumorSafeName(source.SourceFilename) + "--" + digest
 	transcriptPath := filepath.Join(destination, base+".md")
 	metadataPath := filepath.Join(destination, base+".json")
+	timestampedJSONPath := filepath.Join(destination, base+".timestamps.json")
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	var body strings.Builder
 	fmt.Fprintf(&body, "---\npantheon:\n  kind: rumor-transcript\n  source_id: %s\n  source_path: %s\n  source_filename: %s\n  source_hash: %s\n  transcribed_at: %s\n  whisper_binary: %s\n  whisper_model: %s\n  language: %s\n---\n\n# Transcript — %s\n\n%s\n", yamlQuote(source.SourceID), yamlQuote(source.SourcePath), yamlQuote(source.SourceFilename), yamlQuote(source.SourceHash), yamlQuote(now), yamlQuote(transcription.Binary), yamlQuote(transcription.Model), yamlQuote(firstNonEmpty(transcription.DetectedLanguage, d.cfg.RumorLanguage)), yamlQuote(source.SourceFilename), transcription.Text)
@@ -712,6 +729,12 @@ func (d *daemon) persistRumorArtifacts(source rumorSource, transcription rumorTr
 		return err
 	}
 	metadata := map[string]any{"source_id": source.SourceID, "source_path": source.SourcePath, "source_filename": source.SourceFilename, "source_hash": source.SourceHash, "size": source.Size, "modified_at": source.ModifiedAt, "transcribed_at": now, "whisper_binary": transcription.Binary, "whisper_model": transcription.Model, "language": firstNonEmpty(transcription.DetectedLanguage, d.cfg.RumorLanguage), "transcript_path": transcriptPath}
+	if len(transcription.TimestampedJSON) > 0 {
+		if err := writeRumorArtifact(timestampedJSONPath, transcription.TimestampedJSON); err != nil {
+			return err
+		}
+		metadata["timestamped_json_path"] = timestampedJSONPath
+	}
 	metadataBytes, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
 		return err
@@ -720,7 +743,11 @@ func (d *daemon) persistRumorArtifacts(source rumorSource, transcription rumorTr
 	if err := writeRumorArtifact(metadataPath, metadataBytes); err != nil {
 		return err
 	}
-	_, err = d.db.Exec(`UPDATE rumor_sources SET transcript_path = ?, metadata_path = ?, detected_language = ?, whisper_binary = ?, whisper_model = ?, updated_at = ? WHERE source_id = ?`, transcriptPath, metadataPath, firstNonEmpty(transcription.DetectedLanguage, d.cfg.RumorLanguage), transcription.Binary, transcription.Model, now, source.SourceID)
+	var persistedTimestampedJSONPath string
+	if len(transcription.TimestampedJSON) > 0 {
+		persistedTimestampedJSONPath = timestampedJSONPath
+	}
+	_, err = d.db.Exec(`UPDATE rumor_sources SET transcript_path = ?, metadata_path = ?, timestamped_json_path = ?, detected_language = ?, whisper_binary = ?, whisper_model = ?, updated_at = ? WHERE source_id = ?`, transcriptPath, metadataPath, nullableString(persistedTimestampedJSONPath), firstNonEmpty(transcription.DetectedLanguage, d.cfg.RumorLanguage), transcription.Binary, transcription.Model, now, source.SourceID)
 	return err
 }
 
@@ -769,8 +796,8 @@ func (d *daemon) finishRumorFailure(source rumorSource, attemptID string, attemp
 	if _, dbErr := d.db.Exec(`UPDATE rumor_attempts SET ended_at = ?, state = 'failed', failure_kind = ?, error = ? WHERE attempt_id = ?`, now.Format(time.RFC3339Nano), kind, message, attemptID); dbErr != nil {
 		return dbErr
 	}
-	if state == rumorStateFailed {
-		if alertErr := d.alertRumorFailure(source.SourceID, message); alertErr != nil {
+	if state == rumorStateFailed && !rumorExpectedOmiSilence(source, kind, message) {
+		if alertErr := d.alertRumorFailure(source.SourceID, kind, message); alertErr != nil {
 			return alertErr
 		}
 	}
@@ -778,7 +805,11 @@ func (d *daemon) finishRumorFailure(source rumorSource, attemptID string, attemp
 	return failure
 }
 
-func (d *daemon) alertRumorFailure(sourceID, message string) error {
+func rumorExpectedOmiSilence(source rumorSource, failureKind, message string) bool {
+	return failureKind == "transcription" && message == "Whisper produced no transcript" && strings.HasPrefix(source.SourceFilename, "omi-cutting-")
+}
+
+func (d *daemon) alertRumorFailure(sourceID, failureKind, message string) error {
 	source, err := d.loadRumorSource(sourceID)
 	if err != nil {
 		return err
@@ -786,7 +817,11 @@ func (d *daemon) alertRumorFailure(sourceID, message string) error {
 	if source.AlertSent {
 		return nil
 	}
-	output, commandErr := exec.Command(notifyCommand, "pantheon-alerts", "Rumor paper jam", fmt.Sprintf("Rumor source %s failed after %d attempt(s): %s", sourceID, source.Attempts, message)).CombinedOutput()
+	title := "Rumor paper jam"
+	if failureKind == "transcription" {
+		title = "Rumor transcription failed"
+	}
+	output, commandErr := exec.Command(notifyCommand, "pantheon-alerts", title, fmt.Sprintf("Rumor source %s failed after %d attempt(s): %s", sourceID, source.Attempts, message)).CombinedOutput()
 	if commandErr != nil {
 		d.audit("rumor.alert", sourceID, "notify", "", "failed", "", strings.TrimSpace(string(output)), 0)
 	} else {
@@ -839,7 +874,10 @@ func (d *daemon) handoffRumorSource(sourceID string) error {
 		return err
 	}
 	_, err = d.db.Exec(`UPDATE rumor_sources SET intake_occurrence_id = ?, intake_state = 'received', intake_error = '', updated_at = ? WHERE source_id = ?`, occurrenceID, time.Now().UTC().Format(time.RFC3339Nano), sourceID)
-	return err
+	if err != nil {
+		return err
+	}
+	return d.enqueueActionJob("rumor", sourceID, occurrenceID)
 }
 
 func (d *daemon) markRumorHandoffFailure(sourceID string, handoffErr error) error {

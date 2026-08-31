@@ -1,6 +1,14 @@
 # Compiled binaries
 bin/
 
+# Local model and Python environments/caches
+.echo-model-cache/
+.echo-venv/
+**/__pycache__/
+third_party/switchyard/0.2.0/.venv/
+third_party/switchyard/0.2.0/native/.crates*.toml
+third_party/switchyard/0.2.0/native/.crates*.json
+
 # Runtime logs/state
 logs/
 state/

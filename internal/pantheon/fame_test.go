@@ -94,6 +94,67 @@ func TestFameExtractionRejectsUnknownEvidence(t *testing.T) {
 	}
 }
 
+func TestKernel25FameProcessConfirmsSpeakerAndExtracts(t *testing.T) {
+	d := kernel15Daemon(t, janusTestPackage("TEST:KERNEL25PROCESS", "expire"))
+	defer d.Close()
+	root := t.TempDir()
+	vault := filepath.Join(root, "Vault")
+	source := filepath.Join(root, "recording.m4a")
+	diarization := filepath.Join(root, "run.tsv")
+	transcript := filepath.Join(vault, "80 Pantheon Raw", "Audio", "2026", "08", "22", "recording.kernel25-safe-test.speaker-transcript.md")
+	for path, content := range map[string][]byte{
+		source:      []byte("local audio fixture"),
+		diarization: []byte("start_seconds\tend_seconds\tspeaker\tduration_seconds\n0.000\t4.000\tSPEAKER_00\t4.000\n4.000\t8.000\tSPEAKER_01\t4.000\n"),
+		transcript:  []byte("[00:00:00.000–00:00:04.000] **SPEAKER_00:** I will send the revised intake form by Friday.\n[00:00:04.000–00:00:08.000] **SPEAKER_01:** That works.\n"),
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, content, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d.cfg.VaultPath = vault
+	d.cfg.ApolloExtractionModel = "qwen3.5:9b"
+	d.cfg.ApolloMaxReasoningDurationSeconds = 5
+	run, err := d.importEchoRun(echoImportRequest{RunID: "echo-kernel25-process", SourcePath: source, DiarizationPath: diarization})
+	if err != nil {
+		t.Fatal(err)
+	}
+	person, err := d.createFamePerson(famePersonRequest{PreferredName: "Trinh", Status: fameStatusConfirmed})
+	if err != nil {
+		t.Fatal(err)
+	}
+	citation := fameExtractionCitation(vault, transcript, 0)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		responseContent := fmt.Sprintf("{\"action_items\":[{\"speaker\":\"SPEAKER_00\",\"action\":\"send the revised intake form\",\"time_constraint\":\"Friday\",\"evidence\":%q}],\"commitments\":[],\"decisions\":[],\"unresolved_questions\":[],\"uncertainties\":[]}", citation)
+		_ = json.NewEncoder(w).Encode(ollamaResponse{Message: message{Role: "assistant", Content: responseContent}})
+	}))
+	defer server.Close()
+	d.cfg.OllamaURL = server.URL
+
+	request := httptest.NewRequest(http.MethodPost, "/v1/fame/process", strings.NewReader(fmt.Sprintf(`{"run_id":"%s","confirmations":[{"speaker":"SPEAKER_00","person_id":"%s"}]}`, run.RunID, person.PersonID)))
+	response := httptest.NewRecorder()
+	d.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("process status=%d body=%s", response.Code, response.Body.String())
+	}
+	var result fameProcessResult
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Conversation.RunID != run.RunID || len(result.Corrections) != 1 || result.Extraction == nil || len(result.Extraction.Observations) != 1 {
+		t.Fatalf("process result=%+v", result)
+	}
+	var assigned string
+	if err := d.db.QueryRow(`SELECT person_id FROM fame_segment_attributions WHERE conversation_id = ? AND anonymous_speaker = ? LIMIT 1`, result.Conversation.ConversationID, "SPEAKER_00").Scan(&assigned); err != nil {
+		t.Fatal(err)
+	}
+	if assigned != person.PersonID || result.Extraction.Observations[0].ActorPersonID != person.PersonID {
+		t.Fatalf("speaker resolution assigned=%q observation=%+v", assigned, result.Extraction.Observations[0])
+	}
+}
+
 func TestKernel24AFamePreservesIdentityEvidenceAndCorrectionHistory(t *testing.T) {
 	d := kernel15Daemon(t, janusTestPackage("TEST:FAME", "expire"))
 	defer d.Close()

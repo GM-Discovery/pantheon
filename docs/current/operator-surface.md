@@ -21,9 +21,15 @@ classification.
 | `pantheon show processors` | local processor availability | Rumor/Intake |
 | `pantheon show rumor` / `queue` / `source <id>` | audio sources, due work, attempts, handoff | Rumor |
 | `pantheon mail status` / `messages` / `rules` / `actions` | recorded mail understanding, backlog, deterministic filters, and action receipts | Mail |
-| `pantheon show zodiac` | schedules, due instances, provider health, projections, and exceptions | Zodiac |
+| `pantheon show zodiac` | schedules, Libra report definitions/runs, due instances, provider health, projections, and exceptions | Zodiac |
+| `pantheon show zeus` | configured machine-owned roots and the latest inventory/dry-run receipt | Zeus |
+| `pantheon zeus inventory` / `dry-run` | record or evaluate configured machine-owned cache roots; dry-run never deletes | Zeus |
+| `pantheon show archimedes` | referrals, exchanges, privacy incidents, retention receipts, and configured transport state | System/Archimedes |
+| `pantheon archimedes referrals` / `exchanges` | inspect durable referral and exchange records without exposing temporary bodies or alias maps | System/Archimedes |
+| `pantheon show actions` / `actions show <id>` | inspect Apollo-derived calendar, email, and clarification drafts | System/Actions |
 | `pantheon zodiac today` / `upcoming` / `needs-you` | human-readable temporal work views | Zodiac |
 | `pantheon show apollo` / `apollo report <id>` | local reasoning state and cited reports | Models/Apollo |
+| `pantheon report assemble ...` / `report assemblies` | deterministic event, daily, or weekly evidence manifests and replay receipts | Reports/Continuity/Zodiac |
 | `pantheon show janus` / `transitions` / `transition <id>` | temporal subjects and transitions | Work/Temporal |
 | `pantheon show future` / `future proposals` / `future proposal <id>` | authority state and proposals | Prometheus/Work |
 | `pantheon show mercury` / `orders` / `order <id>` | seals, Go, and execution evidence | Work/System |
@@ -34,6 +40,11 @@ classification.
 | `pantheon bifrost status` / `list` / `show` / `approvals` / `invocations` | external capability registry and receipts | Bifrost |
 | `pantheon bifrost mail status` | bounded mail crossing state | Bifrost |
 | `pantheon help`, `help --commands`, `help --codes` | discoverability and package vocabulary | Help |
+
+The external intake bridge is an HTTP integration surface rather than a CLI
+command. Inspect its authenticated receipts with `GET /v1/intake/external`;
+the bridge accepts `POST /v1/intake/external` for n8n/Omi envelopes and keeps
+the complete source payload in the configured Intake area.
 
 ## Routine or significant mutating commands
 
@@ -49,6 +60,9 @@ classification.
 | `pantheon bifrost register ...` | significant registry mutation | local control token; registration approval is separate metadata | Capability registration |
 | `pantheon bifrost enable/disable <id>` | restricted capability state | local control token; all required Bifrost approvals for enable | Capability controls |
 | `pantheon bifrost mail intake` | restricted external read | local control token, Bifrost use approval, Prometheus | Mail intake |
+| `pantheon bifrost invocations` | inspect external capability receipts, including Archimedes egress outcomes | none | Bifrost |
+| `pantheon archimedes refer --reason <text> --question <text>` | local referral proposal | local control token; no transport or authority | System/Archimedes |
+| `pantheon actions accept <id>` | accept one typed action draft into Future | local control token; no Mercury round is started | System/Actions |
 | `pantheon mail check` | restricted explicit mail round | local control token, Bifrost read approval, Prometheus | Mail |
 | `pantheon zodiac round` | deterministic schedule evaluation | local control token, Prometheus; due consequential work still enters Future | Zodiac |
 | `pantheon zodiac schedule ...` | declare an explicit obligation or recurring system schedule | local control token; no authority is created | Zodiac |

@@ -309,7 +309,10 @@ func (d *daemon) echoTranscriptPath(sourcePath string) string {
 		return ""
 	}
 	base := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
-	pattern := filepath.Join(d.cfg.VaultPath, "80 Pantheon Raw", "Audio", "*", "*", "*", base+".kernel24-safe-*.speaker-transcript.md")
+	// Transcript names carry a run or safety marker between the source base
+	// name and the stable speaker-transcript suffix. Keep lookup independent of
+	// the kernel that produced the artifact.
+	pattern := filepath.Join(d.cfg.VaultPath, "80 Pantheon Raw", "Audio", "*", "*", "*", base+".*.speaker-transcript.md")
 	matches, err := filepath.Glob(pattern)
 	if err != nil || len(matches) == 0 {
 		return ""

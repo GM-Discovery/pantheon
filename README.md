@@ -27,6 +27,13 @@ The agent is not Pantheon.
 
 **Pantheon is the system.**
 
+## License
+
+Pantheon's own source code is licensed under the GNU Affero General Public
+License, version 3 (AGPLv3). See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Third-party dependencies, model weights, and system tools retain their own
+licenses; see [the licensing inventory](docs/licensing.md).
+
 For implemented current state, use the [active architecture brief](docs/pantheon-architecture-brief.md),
 the [current system inventory](docs/current/system-inventory.md), and the
 [GUI readiness contract](docs/gui/GUI-CONTRACT.md). This README remains the

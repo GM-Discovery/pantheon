@@ -34,6 +34,7 @@ type canonicalConfig struct {
 	Retention     *canonicalRetention      `json:"retention,omitempty"`
 	Ingestion     *canonicalIngestion      `json:"ingestion,omitempty"`
 	Rumor         *canonicalRumor          `json:"rumor,omitempty"`
+	Omi           *canonicalOmi            `json:"omi,omitempty"`
 	Present       map[string]any           `json:"present,omitempty"`
 	Past          map[string]any           `json:"past,omitempty"`
 	Weave         map[string]any           `json:"weave,omitempty"`
@@ -44,8 +45,8 @@ type canonicalConfig struct {
 	Zodiac        *canonicalZodiac         `json:"zodiac,omitempty"`
 	Prometheus    map[string]any           `json:"prometheus,omitempty"`
 	Notifications map[string]any           `json:"notifications,omitempty"`
-	Zeus          map[string]any           `json:"zeus,omitempty"`
-	Archimedes    map[string]any           `json:"archimedes,omitempty"`
+	Zeus          *canonicalZeus           `json:"zeus,omitempty"`
+	Archimedes    *canonicalArchimedes     `json:"archimedes,omitempty"`
 	Panopticon    map[string]any           `json:"panopticon,omitempty"`
 	Setup         map[string]any           `json:"setup,omitempty"`
 	Organs        map[string]any           `json:"organs,omitempty"`
@@ -95,12 +96,29 @@ type canonicalRumor struct {
 	PollSeconds           *int     `json:"poll_seconds,omitempty"`
 }
 
+type canonicalOmi struct {
+	Enabled             *bool   `json:"enabled,omitempty"`
+	Device              *string `json:"device,omitempty"`
+	Adapter             *string `json:"adapter,omitempty"`
+	AddressType         *string `json:"address_type,omitempty"`
+	SyncIntervalSeconds *int    `json:"sync_interval_seconds,omitempty"`
+	PacketCount         *int    `json:"packet_count,omitempty"`
+	MaxBatches          *int    `json:"max_batches,omitempty"`
+	OutputDir           *string `json:"output_dir,omitempty"`
+}
+
 type canonicalTime struct {
 	Timezone *string `json:"timezone,omitempty"`
 }
 
 type canonicalRetention struct {
 	RawInputDays *int `json:"raw_input_days,omitempty"`
+}
+
+type canonicalZeus struct {
+	Enabled        *bool    `json:"enabled,omitempty"`
+	Roots          []string `json:"roots,omitempty"`
+	QuarantinePath *string  `json:"quarantine_path,omitempty"`
 }
 
 type canonicalMercury struct {
@@ -165,6 +183,8 @@ type canonicalApolloSettings struct {
 	MaxRetrievalRounds       *int                       `json:"max_retrieval_rounds,omitempty"`
 	MaxSources               *int                       `json:"max_sources,omitempty"`
 	MaxContextBytes          *int                       `json:"max_context_bytes,omitempty"`
+	ContextTokens            *int                       `json:"context_tokens,omitempty"`
+	MaxOutputTokens          *int                       `json:"max_output_tokens,omitempty"`
 	MaxReasoningDurationSecs *int                       `json:"max_reasoning_duration_seconds,omitempty"`
 	RequireCitations         *bool                      `json:"require_citations,omitempty"`
 	ExternalResearch         *canonicalExternalResearch `json:"external_research,omitempty"`
@@ -175,7 +195,15 @@ type canonicalExternalResearch struct {
 }
 
 type canonicalArchimedes struct {
-	Model *string `json:"model,omitempty"`
+	Enabled          *bool   `json:"enabled,omitempty"`
+	Provider         *string `json:"provider,omitempty"`
+	Endpoint         *string `json:"endpoint,omitempty"`
+	Model            *string `json:"model,omitempty"`
+	Route            *string `json:"route,omitempty"`
+	CredentialEnv    *string `json:"credential_env,omitempty"`
+	Capability       *string `json:"capability,omitempty"`
+	TimeoutSeconds   *int    `json:"timeout_seconds,omitempty"`
+	MaxResponseBytes *int    `json:"max_response_bytes,omitempty"`
 }
 
 type legacyConfig struct {
@@ -200,6 +228,15 @@ type config struct {
 	LocalModel                        string   `json:"local_model,omitempty"`
 	ApolloExtractionModel             string   `json:"apollo_extraction_model,omitempty"`
 	FrontierModel                     string   `json:"frontier_model,omitempty"`
+	ArchimedesEnabled                 bool     `json:"archimedes_enabled,omitempty"`
+	ArchimedesProvider                string   `json:"archimedes_provider,omitempty"`
+	ArchimedesEndpoint                string   `json:"archimedes_endpoint,omitempty"`
+	ArchimedesModel                   string   `json:"archimedes_model,omitempty"`
+	ArchimedesRoute                   string   `json:"archimedes_route,omitempty"`
+	ArchimedesCredentialEnv           string   `json:"archimedes_credential_env,omitempty"`
+	ArchimedesBifrostCapabilityID     string   `json:"archimedes_bifrost_capability_id,omitempty"`
+	ArchimedesTimeoutSeconds          int      `json:"archimedes_timeout_seconds,omitempty"`
+	ArchimedesMaxResponseBytes        int      `json:"archimedes_max_response_bytes,omitempty"`
 	VaultPath                         string   `json:"vault_path,omitempty"`
 	RoadmapPath                       string   `json:"roadmap_path,omitempty"`
 	IntakePath                        string   `json:"intake_path,omitempty"`
@@ -223,6 +260,14 @@ type config struct {
 	RumorOnComplete                   string   `json:"rumor_on_complete,omitempty"`
 	RumorStabilitySeconds             int      `json:"rumor_stability_seconds,omitempty"`
 	RumorPollSeconds                  int      `json:"rumor_poll_seconds,omitempty"`
+	OmiEnabled                        bool     `json:"omi_enabled,omitempty"`
+	OmiDevice                         string   `json:"omi_device,omitempty"`
+	OmiAdapter                        string   `json:"omi_adapter,omitempty"`
+	OmiAddressType                    string   `json:"omi_address_type,omitempty"`
+	OmiSyncIntervalSeconds            int      `json:"omi_sync_interval_seconds,omitempty"`
+	OmiPacketCount                    int      `json:"omi_packet_count,omitempty"`
+	OmiMaxBatches                     int      `json:"omi_max_batches,omitempty"`
+	OmiOutputDir                      string   `json:"omi_output_dir,omitempty"`
 	MercuryMode                       string   `json:"mercury_mode,omitempty"`
 	MercuryAgent                      string   `json:"mercury_agent,omitempty"`
 	MercuryBinary                     string   `json:"mercury_binary,omitempty"`
@@ -254,9 +299,14 @@ type config struct {
 	ZodiacBriefCatchUpPolicy          string   `json:"zodiac_brief_catch_up_policy,omitempty"`
 	ZodiacConflictPolicy              string   `json:"zodiac_conflict_policy,omitempty"`
 	ZodiacWakeSeconds                 int      `json:"zodiac_wake_seconds,omitempty"`
+	ZeusEnabled                       bool     `json:"zeus_enabled,omitempty"`
+	ZeusRoots                         []string `json:"zeus_roots,omitempty"`
+	ZeusQuarantinePath                string   `json:"zeus_quarantine_path,omitempty"`
 	ApolloMaxRetrievalRounds          int      `json:"apollo_max_retrieval_rounds,omitempty"`
 	ApolloMaxSources                  int      `json:"apollo_max_sources,omitempty"`
 	ApolloMaxContextBytes             int      `json:"apollo_max_context_bytes,omitempty"`
+	ApolloContextTokens               int      `json:"apollo_context_tokens,omitempty"`
+	ApolloMaxOutputTokens             int      `json:"apollo_max_output_tokens,omitempty"`
 	ApolloMaxReasoningDurationSeconds int      `json:"apollo_max_reasoning_duration_seconds,omitempty"`
 	ApolloRequireCitations            bool     `json:"apollo_require_citations,omitempty"`
 	ApolloExternalResearchEnabled     bool     `json:"apollo_external_research_enabled,omitempty"`
@@ -335,11 +385,14 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 		WhisperEnabled:  true,
 		WhisperLanguage: "auto",
 		RumorRetryLimit: 3, RumorLanguage: "auto", RumorOnComplete: "intake", RumorStabilitySeconds: 2, RumorPollSeconds: 5,
+		OmiAdapter: "hci0", OmiAddressType: "random", OmiSyncIntervalSeconds: 900, OmiPacketCount: 36, OmiMaxBatches: 128,
 		MercuryMode: "hermes", MercuryAgent: "Terra", MercuryDeterministicFallback: true, MercuryRoundOnCronWake: true,
 		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
 		MailEnabled: true, MailAdapter: "himalaya", MailAccount: "gmail", MailInbox: "INBOX", MailBacklogEnabled: true, MailBatchSize: 100, MailDirection: "newest_to_oldest", MailMarkReadPolicy: "standing_authority_only", MailAttachmentPolicy: "approval_required", MailActionCapabilityID: "gmail-mail-actions",
 		ZodiacEnabled: true, ZodiacDefaultTimezone: "America/Los_Angeles", ZodiacPersonalProjection: "apple", ZodiacWorkProjection: "google", ZodiacWorkHoursStart: "09:00", ZodiacWorkHoursEnd: "17:00", ZodiacBriefTime: "07:00", ZodiacBriefCatchUpPolicy: "run_once", ZodiacConflictPolicy: "needs_you", ZodiacWakeSeconds: 30,
-		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
+		ArchimedesEnabled: false, ArchimedesProvider: archimedesProviderFake, ArchimedesRoute: "passthrough-local-fake", ArchimedesCredentialEnv: "PANTHEON_ARCHIMEDES_API_KEY", ArchimedesBifrostCapabilityID: "archimedes-provider", ArchimedesTimeoutSeconds: 60, ArchimedesMaxResponseBytes: 1 << 20,
+		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloContextTokens: 8192, ApolloMaxOutputTokens: 2048, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
+		ZeusEnabled: false,
 	}
 	sources := map[string]string{
 		"schema_version":          "user",
@@ -419,6 +472,56 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	} else {
 		sources["retention.raw_input_days"] = "default"
 	}
+	if canonical.Zeus != nil {
+		if canonical.Zeus.Enabled != nil {
+			resolved.ZeusEnabled = *canonical.Zeus.Enabled
+			sources["zeus.enabled"] = "user"
+		} else {
+			sources["zeus.enabled"] = "default"
+		}
+		if canonical.Zeus.Roots != nil {
+			resolved.ZeusRoots = append([]string(nil), canonical.Zeus.Roots...)
+			sources["zeus.roots"] = "user"
+		} else {
+			sources["zeus.roots"] = "default"
+		}
+		if canonical.Zeus.QuarantinePath != nil {
+			resolved.ZeusQuarantinePath = strings.TrimSpace(*canonical.Zeus.QuarantinePath)
+			sources["zeus.quarantine_path"] = "user"
+		} else {
+			sources["zeus.quarantine_path"] = "default"
+		}
+	} else {
+		sources["zeus.enabled"] = "default"
+		sources["zeus.roots"] = "default"
+		sources["zeus.quarantine_path"] = "default"
+	}
+	if canonical.Omi != nil {
+		if canonical.Omi.Enabled != nil {
+			resolved.OmiEnabled = *canonical.Omi.Enabled
+		}
+		if canonical.Omi.Device != nil {
+			resolved.OmiDevice = strings.TrimSpace(*canonical.Omi.Device)
+		}
+		if canonical.Omi.Adapter != nil {
+			resolved.OmiAdapter = strings.TrimSpace(*canonical.Omi.Adapter)
+		}
+		if canonical.Omi.AddressType != nil {
+			resolved.OmiAddressType = strings.TrimSpace(*canonical.Omi.AddressType)
+		}
+		if canonical.Omi.SyncIntervalSeconds != nil {
+			resolved.OmiSyncIntervalSeconds = *canonical.Omi.SyncIntervalSeconds
+		}
+		if canonical.Omi.PacketCount != nil {
+			resolved.OmiPacketCount = *canonical.Omi.PacketCount
+		}
+		if canonical.Omi.MaxBatches != nil {
+			resolved.OmiMaxBatches = *canonical.Omi.MaxBatches
+		}
+		if canonical.Omi.OutputDir != nil {
+			resolved.OmiOutputDir = strings.TrimSpace(*canonical.Omi.OutputDir)
+		}
+	}
 	if canonical.Models != nil {
 		if canonical.Models.Apollo != nil {
 			if canonical.Models.Apollo.Model != nil {
@@ -440,6 +543,41 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 			sources["models.archimedes.model"] = "user"
 		}
 	}
+	if canonical.Archimedes != nil {
+		if canonical.Archimedes.Enabled != nil {
+			resolved.ArchimedesEnabled = *canonical.Archimedes.Enabled
+		}
+		if canonical.Archimedes.Provider != nil {
+			resolved.ArchimedesProvider = strings.TrimSpace(*canonical.Archimedes.Provider)
+		}
+		if canonical.Archimedes.Endpoint != nil {
+			resolved.ArchimedesEndpoint = strings.TrimSpace(*canonical.Archimedes.Endpoint)
+		}
+		if canonical.Archimedes.Model != nil {
+			resolved.ArchimedesModel = strings.TrimSpace(*canonical.Archimedes.Model)
+		}
+		if canonical.Archimedes.Route != nil {
+			resolved.ArchimedesRoute = strings.TrimSpace(*canonical.Archimedes.Route)
+		}
+		if canonical.Archimedes.CredentialEnv != nil {
+			resolved.ArchimedesCredentialEnv = strings.TrimSpace(*canonical.Archimedes.CredentialEnv)
+		}
+		if canonical.Archimedes.Capability != nil {
+			resolved.ArchimedesBifrostCapabilityID = strings.TrimSpace(*canonical.Archimedes.Capability)
+		}
+		if canonical.Archimedes.TimeoutSeconds != nil {
+			resolved.ArchimedesTimeoutSeconds = *canonical.Archimedes.TimeoutSeconds
+		}
+		if canonical.Archimedes.MaxResponseBytes != nil {
+			resolved.ArchimedesMaxResponseBytes = *canonical.Archimedes.MaxResponseBytes
+		}
+	}
+	if resolved.ArchimedesModel == "" {
+		resolved.ArchimedesModel = resolved.FrontierModel
+	}
+	if resolved.FrontierModel == "" {
+		resolved.FrontierModel = resolved.ArchimedesModel
+	}
 	if strings.TrimSpace(resolved.ApolloExtractionModel) == "" {
 		resolved.ApolloExtractionModel = resolved.LocalModel
 		sources["models.apollo.extraction_model"] = "fallback to models.apollo.model"
@@ -453,6 +591,12 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 		}
 		if canonical.Apollo.MaxContextBytes != nil {
 			resolved.ApolloMaxContextBytes = *canonical.Apollo.MaxContextBytes
+		}
+		if canonical.Apollo.ContextTokens != nil {
+			resolved.ApolloContextTokens = *canonical.Apollo.ContextTokens
+		}
+		if canonical.Apollo.MaxOutputTokens != nil {
+			resolved.ApolloMaxOutputTokens = *canonical.Apollo.MaxOutputTokens
 		}
 		if canonical.Apollo.MaxReasoningDurationSecs != nil {
 			resolved.ApolloMaxReasoningDurationSeconds = *canonical.Apollo.MaxReasoningDurationSecs
@@ -639,6 +783,12 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	if resolved.ApolloMaxContextBytes == 0 {
 		resolved.ApolloMaxContextBytes = 200000
 	}
+	if resolved.ApolloContextTokens == 0 {
+		resolved.ApolloContextTokens = 8192
+	}
+	if resolved.ApolloMaxOutputTokens == 0 {
+		resolved.ApolloMaxOutputTokens = 2048
+	}
 	if resolved.ApolloMaxReasoningDurationSeconds == 0 {
 		resolved.ApolloMaxReasoningDurationSeconds = 900
 	}
@@ -653,6 +803,21 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	}
 	if resolved.RumorTranscriptDestination == "" && resolved.VaultPath != "" {
 		resolved.RumorTranscriptDestination = filepath.Join(resolved.VaultPath, "80 Pantheon Raw", "Audio Transcripts")
+	}
+	if resolved.OmiAdapter == "" {
+		resolved.OmiAdapter = "hci0"
+	}
+	if resolved.OmiAddressType == "" {
+		resolved.OmiAddressType = "random"
+	}
+	if resolved.OmiSyncIntervalSeconds == 0 {
+		resolved.OmiSyncIntervalSeconds = 900
+	}
+	if resolved.OmiPacketCount == 0 {
+		resolved.OmiPacketCount = 36
+	}
+	if resolved.OmiMaxBatches == 0 {
+		resolved.OmiMaxBatches = 128
 	}
 	if resolved.BifrostMailAccount == "" {
 		resolved.BifrostMailAccount = "gmail"
@@ -671,6 +836,24 @@ func resolveCanonicalConfig(path string, canonical canonicalConfig) (configResol
 	}
 	if resolved.BifrostMailMaxMessages == 0 {
 		resolved.BifrostMailMaxMessages = 50
+	}
+	if resolved.ArchimedesProvider == "" {
+		resolved.ArchimedesProvider = archimedesProviderFake
+	}
+	if resolved.ArchimedesRoute == "" {
+		resolved.ArchimedesRoute = "passthrough-local-fake"
+	}
+	if resolved.ArchimedesCredentialEnv == "" {
+		resolved.ArchimedesCredentialEnv = "PANTHEON_ARCHIMEDES_API_KEY"
+	}
+	if resolved.ArchimedesBifrostCapabilityID == "" {
+		resolved.ArchimedesBifrostCapabilityID = "archimedes-provider"
+	}
+	if resolved.ArchimedesTimeoutSeconds == 0 {
+		resolved.ArchimedesTimeoutSeconds = 60
+	}
+	if resolved.ArchimedesMaxResponseBytes == 0 {
+		resolved.ArchimedesMaxResponseBytes = 1 << 20
 	}
 	if resolved.MailAdapter == "" {
 		resolved.MailAdapter = "himalaya"
@@ -751,6 +934,7 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		ApolloExtractionModel: localModel,
 		OllamaURL:             strings.TrimSpace(legacy.OllamaURL),
 		FrontierModel:         strings.TrimSpace(legacy.FrontierModel),
+		ArchimedesModel:       strings.TrimSpace(legacy.FrontierModel),
 		VaultPath:             legacy.VaultPath,
 		RoadmapPath:           legacy.RoadmapPath,
 		IntakePath:            filepath.Join(home, "Pantheon Intake"),
@@ -763,7 +947,8 @@ func resolveLegacyConfig(path string, raw map[string]json.RawMessage, legacy leg
 		BifrostEnabled: true, BifrostMailAccount: "gmail", BifrostMailMailbox: "INBOX", BifrostMailCapabilityID: "gmail-mail", BifrostMailSchedule: "hourly", BifrostMailMaxMessages: 50,
 		MailEnabled: true, MailAdapter: "himalaya", MailAccount: "gmail", MailInbox: "INBOX", MailBacklogEnabled: true, MailBatchSize: 100, MailDirection: "newest_to_oldest", MailMarkReadPolicy: "standing_authority_only", MailAttachmentPolicy: "approval_required", MailActionCapabilityID: "gmail-mail-actions",
 		ZodiacEnabled: true, ZodiacDefaultTimezone: "America/Los_Angeles", ZodiacPersonalProjection: "apple", ZodiacWorkProjection: "google", ZodiacWorkHoursStart: "09:00", ZodiacWorkHoursEnd: "17:00", ZodiacBriefTime: "07:00", ZodiacBriefCatchUpPolicy: "run_once", ZodiacConflictPolicy: "needs_you", ZodiacWakeSeconds: 30,
-		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
+		ArchimedesEnabled: false, ArchimedesProvider: archimedesProviderFake, ArchimedesRoute: "passthrough-local-fake", ArchimedesCredentialEnv: "PANTHEON_ARCHIMEDES_API_KEY", ArchimedesBifrostCapabilityID: "archimedes-provider", ArchimedesTimeoutSeconds: 60, ArchimedesMaxResponseBytes: 1 << 20,
+		ApolloMaxRetrievalRounds: 12, ApolloMaxSources: 64, ApolloMaxContextBytes: 200000, ApolloContextTokens: 8192, ApolloMaxOutputTokens: 2048, ApolloMaxReasoningDurationSeconds: 900, ApolloRequireCitations: true,
 		SchemaVersion: 0,
 		ListenAddress: defaultListenAddress,
 	}
@@ -826,6 +1011,42 @@ func validateResolvedConfig(cfg config) error {
 	if endpoint.User != nil {
 		return errors.New("models.apollo.endpoint must not contain credentials; configure secrets through a separate mechanism")
 	}
+	if cfg.ArchimedesProvider != archimedesProviderFake && cfg.ArchimedesProvider != archimedesProviderOpenAICompatible && cfg.ArchimedesProvider != archimedesProviderSwitchyard {
+		return fmt.Errorf("archimedes.provider must be %q, %q, or %q", archimedesProviderFake, archimedesProviderOpenAICompatible, archimedesProviderSwitchyard)
+	}
+	if strings.TrimSpace(cfg.ArchimedesBifrostCapabilityID) == "" {
+		return errors.New("archimedes.capability must be configured")
+	}
+	if !validArchimedesCredentialEnvName(cfg.ArchimedesCredentialEnv) {
+		return errors.New("archimedes.credential_env must be an environment variable name; credentials must not be placed in configuration")
+	}
+	if cfg.ArchimedesTimeoutSeconds <= 0 || cfg.ArchimedesTimeoutSeconds > 3600 {
+		return errors.New("archimedes.timeout_seconds must be between 1 and 3600")
+	}
+	if cfg.ArchimedesMaxResponseBytes < 1024 || cfg.ArchimedesMaxResponseBytes > 16<<20 {
+		return errors.New("archimedes.max_response_bytes must be between 1024 and 16777216")
+	}
+	if cfg.ArchimedesEnabled {
+		if cfg.ArchimedesProvider != archimedesProviderOpenAICompatible && cfg.ArchimedesProvider != archimedesProviderSwitchyard {
+			return errors.New("archimedes.enabled requires an explicit transport provider; local-fake remains test-only")
+		}
+		if cfg.ArchimedesProvider == archimedesProviderOpenAICompatible {
+			if strings.TrimSpace(cfg.ArchimedesEndpoint) == "" {
+				return errors.New("archimedes.endpoint is required when Archimedes external transport is enabled")
+			}
+			frontierEndpoint, parseErr := url.Parse(strings.TrimSpace(cfg.ArchimedesEndpoint))
+			if parseErr != nil || frontierEndpoint.Hostname() == "" || frontierEndpoint.User != nil || frontierEndpoint.RawQuery != "" || frontierEndpoint.Fragment != "" {
+				return errors.New("archimedes.endpoint must be a credential-free URL without query or fragment")
+			}
+			localEndpoint := localApolloHosts[strings.ToLower(frontierEndpoint.Hostname())]
+			if frontierEndpoint.Scheme != "https" && !(frontierEndpoint.Scheme == "http" && localEndpoint) {
+				return errors.New("archimedes.endpoint must use HTTPS; plain HTTP is allowed only for an explicit local test endpoint")
+			}
+			if strings.TrimSpace(cfg.ArchimedesModel) == "" {
+				return errors.New("archimedes.model is required when Archimedes external transport is enabled")
+			}
+		}
+	}
 	if cfg.RawInputDays <= 0 || cfg.RawInputDays > 36500 {
 		return errors.New("retention.raw_input_days must be between 1 and 36500")
 	}
@@ -859,7 +1080,7 @@ func validateResolvedConfig(cfg config) error {
 	if cfg.ZodiacWakeSeconds < 5 || cfg.ZodiacWakeSeconds > 86400 {
 		return errors.New("zodiac.wake_seconds must be between 5 and 86400")
 	}
-	for field, value := range map[string]string{"paths.vault": cfg.VaultPath, "paths.roadmap": cfg.RoadmapPath, "paths.intake": cfg.IntakePath, "paths.father_time_chronicles": cfg.FatherTimeChroniclesPath, "paths.raw": cfg.RawPath, "paths.apollo_reports": cfg.ApolloReportsPath, "ingestion.whisper.binary": cfg.WhisperBinary, "ingestion.media.converter": cfg.MediaConverter} {
+	for field, value := range map[string]string{"paths.vault": cfg.VaultPath, "paths.roadmap": cfg.RoadmapPath, "paths.intake": cfg.IntakePath, "paths.father_time_chronicles": cfg.FatherTimeChroniclesPath, "paths.raw": cfg.RawPath, "paths.apollo_reports": cfg.ApolloReportsPath, "ingestion.whisper.binary": cfg.WhisperBinary, "ingestion.media.converter": cfg.MediaConverter, "omi.output_dir": cfg.OmiOutputDir} {
 		if value == "" {
 			continue
 		}
@@ -895,6 +1116,20 @@ func validateResolvedConfig(cfg config) error {
 		if !filepath.IsAbs(watchPath) {
 			return errors.New("rumor.watch_paths must contain absolute paths")
 		}
+	}
+	if cfg.ZeusEnabled && len(cfg.ZeusRoots) == 0 {
+		return errors.New("zeus.roots must contain at least one explicit machine-owned root when Zeus is enabled")
+	}
+	for _, root := range cfg.ZeusRoots {
+		if strings.TrimSpace(root) == "" {
+			return errors.New("zeus.roots must not contain empty paths")
+		}
+		if !filepath.IsAbs(root) {
+			return errors.New("zeus.roots must contain absolute paths")
+		}
+	}
+	if cfg.ZeusQuarantinePath != "" && !filepath.IsAbs(cfg.ZeusQuarantinePath) {
+		return errors.New("zeus.quarantine_path must be an absolute path when configured")
 	}
 	if cfg.RumorTranscriptDestination != "" && !filepath.IsAbs(cfg.RumorTranscriptDestination) {
 		return errors.New("rumor.transcript_destination must be an absolute path when configured")
@@ -938,7 +1173,27 @@ func validateResolvedConfig(cfg config) error {
 	if cfg.RumorOnComplete != "intake" && cfg.RumorOnComplete != "none" && cfg.RumorOnComplete != "" {
 		return errors.New("rumor.on_complete must be intake or none")
 	}
-	if cfg.ApolloMaxRetrievalRounds <= 0 || cfg.ApolloMaxSources <= 0 || cfg.ApolloMaxContextBytes <= 0 || cfg.ApolloMaxReasoningDurationSeconds <= 0 {
+	if cfg.OmiEnabled {
+		if strings.TrimSpace(cfg.OmiDevice) == "" {
+			return errors.New("omi.device is required when Omi storage sync is enabled")
+		}
+		if cfg.OmiAddressType != "public" && cfg.OmiAddressType != "random" {
+			return errors.New("omi.address_type must be public or random")
+		}
+		if cfg.OmiSyncIntervalSeconds < 60 || cfg.OmiSyncIntervalSeconds > 86400 {
+			return errors.New("omi.sync_interval_seconds must be between 60 and 86400")
+		}
+		if cfg.OmiPacketCount <= 0 || cfg.OmiPacketCount > 4096 {
+			return errors.New("omi.packet_count must be between 1 and 4096")
+		}
+		if cfg.OmiMaxBatches <= 0 || cfg.OmiMaxBatches > 1024 {
+			return errors.New("omi.max_batches must be between 1 and 1024")
+		}
+		if strings.TrimSpace(cfg.OmiOutputDir) == "" || !filepath.IsAbs(cfg.OmiOutputDir) {
+			return errors.New("omi.output_dir must be an absolute path when Omi storage sync is enabled")
+		}
+	}
+	if cfg.ApolloMaxRetrievalRounds <= 0 || cfg.ApolloMaxSources <= 0 || cfg.ApolloMaxContextBytes <= 0 || cfg.ApolloContextTokens <= 0 || cfg.ApolloMaxOutputTokens <= 0 || cfg.ApolloMaxReasoningDurationSeconds <= 0 {
 		return errors.New("apollo retrieval and reasoning budgets must be positive")
 	}
 	return nil
@@ -951,6 +1206,9 @@ func canonicalConfigFor(cfg config) canonicalConfig {
 	}
 	vault, roadmap, intake, fatherTime, raw, apolloReports := cfg.VaultPath, cfg.RoadmapPath, cfg.IntakePath, cfg.FatherTimeChroniclesPath, cfg.RawPath, cfg.ApolloReportsPath
 	model, endpoint, archimedes := cfg.LocalModel, cfg.OllamaURL, cfg.FrontierModel
+	if strings.TrimSpace(cfg.ArchimedesModel) != "" {
+		archimedes = cfg.ArchimedesModel
+	}
 	retentionDays := cfg.RawInputDays
 	if retentionDays == 0 {
 		retentionDays = 30
@@ -961,19 +1219,28 @@ func canonicalConfigFor(cfg config) canonicalConfig {
 		Paths:         &canonicalPaths{Vault: &vault, Roadmap: &roadmap, Intake: &intake, FatherTime: &fatherTime, Raw: &raw, ApolloReports: &apolloReports},
 		Time:          &canonicalTime{Timezone: &cfg.Timezone},
 		Retention:     &canonicalRetention{RawInputDays: &retentionDays},
+		Zeus:          &canonicalZeus{Enabled: &cfg.ZeusEnabled, Roots: append([]string(nil), cfg.ZeusRoots...), QuarantinePath: &cfg.ZeusQuarantinePath},
 		Models: &canonicalModels{
 			Apollo:     &canonicalApollo{Model: &model, Endpoint: &endpoint},
 			Archimedes: &canonicalArchimedes{Model: &archimedes},
+		},
+		Archimedes: &canonicalArchimedes{
+			Enabled: &cfg.ArchimedesEnabled, Provider: &cfg.ArchimedesProvider,
+			Endpoint: &cfg.ArchimedesEndpoint, Model: &archimedes,
+			Route: &cfg.ArchimedesRoute, CredentialEnv: &cfg.ArchimedesCredentialEnv,
+			Capability: &cfg.ArchimedesBifrostCapabilityID, TimeoutSeconds: &cfg.ArchimedesTimeoutSeconds,
+			MaxResponseBytes: &cfg.ArchimedesMaxResponseBytes,
 		},
 		Ingestion: &canonicalIngestion{
 			Whisper: &canonicalWhisper{Enabled: &cfg.WhisperEnabled, Binary: &cfg.WhisperBinary, Model: &cfg.WhisperModel, Language: &cfg.WhisperLanguage, VADModel: &cfg.WhisperVADModel},
 			Media:   &canonicalMedia{Converter: &cfg.MediaConverter},
 		},
 		Rumor:   &canonicalRumor{Enabled: &cfg.RumorEnabled, WatchPaths: append([]string(nil), cfg.RumorWatchPaths...), WhisperModel: &cfg.RumorWhisperModel, Language: &cfg.RumorLanguage, RetryLimit: &cfg.RumorRetryLimit, TranscriptDestination: &cfg.RumorTranscriptDestination, OnComplete: &cfg.RumorOnComplete, StabilitySeconds: &cfg.RumorStabilitySeconds, PollSeconds: &cfg.RumorPollSeconds},
+		Omi:     &canonicalOmi{Enabled: &cfg.OmiEnabled, Device: &cfg.OmiDevice, Adapter: &cfg.OmiAdapter, AddressType: &cfg.OmiAddressType, SyncIntervalSeconds: &cfg.OmiSyncIntervalSeconds, PacketCount: &cfg.OmiPacketCount, MaxBatches: &cfg.OmiMaxBatches, OutputDir: &cfg.OmiOutputDir},
 		Mercury: &canonicalMercury{Mode: &cfg.MercuryMode, Agent: &cfg.MercuryAgent, Binary: &cfg.MercuryBinary, DeterministicFallback: &cfg.MercuryDeterministicFallback, RoundOnCronWake: &cfg.MercuryRoundOnCronWake},
 		Bifrost: &canonicalBifrost{Enabled: &cfg.BifrostEnabled, Mail: &canonicalBifrostMail{Account: &cfg.BifrostMailAccount, Mailbox: &cfg.BifrostMailMailbox, Capability: &cfg.BifrostMailCapabilityID, Schedule: &cfg.BifrostMailSchedule, MaxMessages: &cfg.BifrostMailMaxMessages}},
 		Mail:    &canonicalMail{Enabled: &cfg.MailEnabled, Adapter: &cfg.MailAdapter, Account: &cfg.MailAccount, Inbox: &cfg.MailInbox, BacklogEnabled: &cfg.MailBacklogEnabled, BatchSize: &cfg.MailBatchSize, Direction: &cfg.MailDirection, MarkReadPolicy: &cfg.MailMarkReadPolicy, AttachmentPolicy: &cfg.MailAttachmentPolicy, ActionCapability: &cfg.MailActionCapabilityID},
-		Apollo:  &canonicalApolloSettings{MaxRetrievalRounds: &cfg.ApolloMaxRetrievalRounds, MaxSources: &cfg.ApolloMaxSources, MaxContextBytes: &cfg.ApolloMaxContextBytes, MaxReasoningDurationSecs: &cfg.ApolloMaxReasoningDurationSeconds, RequireCitations: &cfg.ApolloRequireCitations, ExternalResearch: &canonicalExternalResearch{Enabled: &cfg.ApolloExternalResearchEnabled}},
+		Apollo:  &canonicalApolloSettings{MaxRetrievalRounds: &cfg.ApolloMaxRetrievalRounds, MaxSources: &cfg.ApolloMaxSources, MaxContextBytes: &cfg.ApolloMaxContextBytes, ContextTokens: &cfg.ApolloContextTokens, MaxOutputTokens: &cfg.ApolloMaxOutputTokens, MaxReasoningDurationSecs: &cfg.ApolloMaxReasoningDurationSeconds, RequireCitations: &cfg.ApolloRequireCitations, ExternalResearch: &canonicalExternalResearch{Enabled: &cfg.ApolloExternalResearchEnabled}},
 	}
 }
 
@@ -1100,6 +1367,7 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 	fmt.Fprintf(&b, "paths.raw: %s (%s)\n", displayConfigValue(effectiveRawPath(cfg)), sourceOrOptional(resolution.Sources, "paths.raw"))
 	fmt.Fprintf(&b, "paths.apollo_reports: %s (%s)\n", displayConfigValue(cfg.ApolloReportsPath), sourceOrOptional(resolution.Sources, "paths.apollo_reports"))
 	fmt.Fprintf(&b, "retention.raw_input_days: %d (%s)\n", cfg.RawInputDays, sourceOrOptional(resolution.Sources, "retention.raw_input_days"))
+	fmt.Fprintf(&b, "zeus: enabled=%t roots=%s quarantine=%s\n", cfg.ZeusEnabled, displayConfigValue(strings.Join(cfg.ZeusRoots, ",")), displayConfigValue(cfg.ZeusQuarantinePath))
 	timezone := cfg.Timezone
 	if timezone == "" {
 		timezone = time.Local.String()
@@ -1108,7 +1376,8 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 	fmt.Fprintf(&b, "models.apollo.model: %s (%s)\n", cfg.LocalModel, sourceOrOptional(resolution.Sources, "models.apollo.model"))
 	fmt.Fprintf(&b, "models.apollo.extraction_model: %s (%s)\n", cfg.ApolloExtractionModel, sourceOrOptional(resolution.Sources, "models.apollo.extraction_model"))
 	fmt.Fprintf(&b, "models.apollo.endpoint: %s (%s)\n", cfg.OllamaURL, sourceOrOptional(resolution.Sources, "models.apollo.endpoint"))
-	fmt.Fprintf(&b, "models.archimedes.model: %s (%s; reserved/inactive)\n", displayConfigValue(cfg.FrontierModel), sourceOrOptional(resolution.Sources, "models.archimedes.model"))
+	fmt.Fprintf(&b, "models.archimedes.model: %s (%s)\n", displayConfigValue(cfg.ArchimedesModel), sourceOrOptional(resolution.Sources, "models.archimedes.model"))
+	fmt.Fprintf(&b, "archimedes: enabled=%t provider=%s endpoint=%s model=%s route=%s capability=%s credential_env=%s timeout_seconds=%d max_response_bytes=%d\n", cfg.ArchimedesEnabled, cfg.ArchimedesProvider, displayConfigValue(cfg.ArchimedesEndpoint), displayConfigValue(cfg.ArchimedesModel), cfg.ArchimedesRoute, cfg.ArchimedesBifrostCapabilityID, cfg.ArchimedesCredentialEnv, cfg.ArchimedesTimeoutSeconds, cfg.ArchimedesMaxResponseBytes)
 	fmt.Fprintf(&b, "ingestion.whisper: %s (binary=%s, model=%s, language=%s)\n", readinessConfigBool(cfg.WhisperEnabled), displayConfigValue(cfg.WhisperBinary), displayConfigValue(cfg.WhisperModel), cfg.WhisperLanguage)
 	fmt.Fprintf(&b, "ingestion.media.converter: %s\n", displayConfigValue(cfg.MediaConverter))
 	fmt.Fprintf(&b, "bifrost.enabled: %t\n", cfg.BifrostEnabled)
@@ -1119,6 +1388,7 @@ func renderResolvedConfig(path string, resolution configResolution) string {
 		rumorModel = cfg.WhisperModel
 	}
 	fmt.Fprintf(&b, "rumor: %s (watch_paths=%s, model=%s, language=%s, retry_limit=%d, stability_seconds=%d, poll_seconds=%d, on_complete=%s)\n", readinessConfigBool(cfg.RumorEnabled), displayConfigValue(strings.Join(cfg.RumorWatchPaths, ",")), displayConfigValue(rumorModel), cfg.RumorLanguage, cfg.RumorRetryLimit, cfg.RumorStabilitySeconds, cfg.RumorPollSeconds, cfg.RumorOnComplete)
+	fmt.Fprintf(&b, "omi: %s (device=%s, adapter=%s, address_type=%s, sync_interval_seconds=%d, packet_count=%d, max_batches=%d, output_dir=%s)\n", readinessConfigBool(cfg.OmiEnabled), displayConfigValue(cfg.OmiDevice), cfg.OmiAdapter, cfg.OmiAddressType, cfg.OmiSyncIntervalSeconds, cfg.OmiPacketCount, cfg.OmiMaxBatches, displayConfigValue(cfg.OmiOutputDir))
 	fmt.Fprintf(&b, "mercury.mode: %s\n", displayConfigValue(cfg.MercuryMode))
 	fmt.Fprintf(&b, "mercury.agent: %s\n", displayConfigValue(cfg.MercuryAgent))
 	fmt.Fprintf(&b, "mercury.binary: %s\n", displayConfigValue(cfg.MercuryBinary))
