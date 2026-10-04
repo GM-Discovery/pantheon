@@ -1,6 +1,7 @@
 package pantheon
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -78,6 +79,7 @@ type doResponse struct {
 	Basis      string  `json:"basis,omitempty"`
 	Result     string  `json:"result,omitempty"`
 	AuditID    string  `json:"audit_id,omitempty"`
+	RequestID  string  `json:"request_id,omitempty"`
 	Message    string  `json:"message,omitempty"`
 }
 
@@ -198,6 +200,14 @@ func newDaemon(opts daemonOptions) (*daemon, error) {
 		input TEXT, capability TEXT, model TEXT, outcome TEXT NOT NULL,
 		result TEXT, error TEXT, duration_ms INTEGER NOT NULL
 	)`); err != nil {
+		db.Close()
+		return nil, err
+	}
+	// Kernel-additive: one id that follows a single request through every
+	// stage it touches. Added with ensureIntakeColumn rather than baked
+	// into the CREATE above so existing databases gain it without losing
+	// their audit history.
+	if err := ensureIntakeColumn(db, "audit_events", "request_id", "TEXT"); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -865,6 +875,7 @@ func (d *daemon) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 func (d *daemon) handleInput(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
+	ctx := withRequestID(r.Context())
 	var request inputRequest
 	if err := decodeJSON(r, &request); err != nil || strings.TrimSpace(request.Input) == "" {
 		if err == nil {
@@ -878,22 +889,22 @@ func (d *daemon) handleInput(w http.ResponseWriter, r *http.Request) {
 	}
 	decision, err := routeRequest(d.cfg, d.capabilities, request.Input)
 	if err != nil {
-		id := d.audit("POST /v1/input", request.Input, "", d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/input", request.Input, "", d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
 		writeJSON(w, http.StatusBadGateway, apiError{fmt.Sprintf("routing failed (audit %s): %v", id, err)})
 		return
 	}
 	if decision.Capability != "reason" {
-		id := d.audit("POST /v1/input", request.Input, decision.Capability, d.cfg.LocalModel, "refused", "", "automatic execution is not authorized", time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/input", request.Input, decision.Capability, d.cfg.LocalModel, "refused", "", "automatic execution is not authorized", time.Since(started))
 		writeJSON(w, http.StatusConflict, apiError{fmt.Sprintf("capability %q requires explicit authorization (audit %s)", decision.Capability, id)})
 		return
 	}
 	result, err := d.reason(request.Input)
 	if err != nil {
-		id := d.audit("POST /v1/input", request.Input, decision.Capability, d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/input", request.Input, decision.Capability, d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
 		writeJSON(w, http.StatusBadGateway, apiError{fmt.Sprintf("Apollo request failed (audit %s): %v", id, err)})
 		return
 	}
-	id := d.audit("POST /v1/input", request.Input, decision.Capability, d.cfg.LocalModel, "completed", result, "", time.Since(started))
+	id := d.auditCtx(ctx, "POST /v1/input", request.Input, decision.Capability, d.cfg.LocalModel, "completed", result, "", time.Since(started))
 	writeJSON(w, http.StatusOK, inputResponse{AuditID: id, Capability: decision.Capability, Model: d.cfg.LocalModel, Result: result})
 }
 
@@ -920,13 +931,14 @@ func (d *daemon) handleRoute(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, decision)
 }
 func (d *daemon) handleNotify(w http.ResponseWriter, r *http.Request) {
+	ctx := withRequestID(r.Context())
 	paused, err := d.paused()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	if paused {
-		id := d.audit("POST /v1/notify", "", "notify", "", "blocked", "", "Pantheon is paused; external work is blocked", 0)
+		id := d.auditCtx(ctx, "POST /v1/notify", "", "notify", "", "blocked", "", "Pantheon is paused; external work is blocked", 0)
 		writeJSON(w, http.StatusServiceUnavailable, apiError{fmt.Sprintf("Pantheon is paused; notification not delivered (audit %s)", id)})
 		return
 	}
@@ -939,17 +951,17 @@ func (d *daemon) handleNotify(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if _, err := d.auditRequired("POST /v1/notify", request.Input, "notify", "", "started", "notification delivery authorized", "", time.Since(started)); err != nil {
+	if _, err := d.auditRequiredCtx(ctx, "POST /v1/notify", request.Input, "notify", "", "started", "notification delivery authorized", "", time.Since(started)); err != nil {
 		writeError(w, http.StatusServiceUnavailable, fmt.Errorf("notification blocked: audit unavailable: %w", err))
 		return
 	}
 	output, err := exec.Command(notifyCommand, "pantheon-alerts", "Pantheon", request.Input).CombinedOutput()
 	if err != nil {
-		id := d.audit("POST /v1/notify", request.Input, "notify", "", "failed", "", fmt.Sprintf("%v: %s", err, strings.TrimSpace(string(output))), time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/notify", request.Input, "notify", "", "failed", "", fmt.Sprintf("%v: %s", err, strings.TrimSpace(string(output))), time.Since(started))
 		writeJSON(w, http.StatusBadGateway, apiError{fmt.Sprintf("notification failed (audit %s): %v", id, err)})
 		return
 	}
-	id := d.audit("POST /v1/notify", request.Input, "notify", "", "completed", "notification sent", "", time.Since(started))
+	id := d.auditCtx(ctx, "POST /v1/notify", request.Input, "notify", "", "completed", "notification sent", "", time.Since(started))
 	writeJSON(w, http.StatusOK, map[string]string{"audit_id": id, "result": "Notification sent."})
 }
 
@@ -1525,11 +1537,61 @@ func (d *daemon) audit(endpoint, input, capability, model, outcome, result, errT
 	return id
 }
 
+// requestIDKey carries the per-request correlation id. A context value
+// rather than a parameter on d.audit: that function already has eight
+// positional arguments and 90-odd call sites, and a ninth would make every
+// one of them harder to read while most of them gain nothing.
+type requestIDKeyType struct{}
+
+var requestIDKey requestIDKeyType
+
+// withRequestID stamps a fresh correlation id on a request's context. Called
+// once per inbound HTTP request, at the top of the handler, so every audit
+// row that request produces can be grouped afterwards.
+func withRequestID(ctx context.Context) context.Context {
+	return context.WithValue(ctx, requestIDKey, fmt.Sprintf("req-%d", time.Now().UnixNano()))
+}
+
+// requestIDFrom returns the correlation id, or "" when there is none.
+// Deliberately not an error: an unstamped context must still audit, just
+// without a thread to follow. Losing the audit row would be worse than
+// losing the correlation.
+func requestIDFrom(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if id, ok := ctx.Value(requestIDKey).(string); ok {
+		return id
+	}
+	return ""
+}
+
+// auditCtx is d.audit with the correlation id taken from the context, so a
+// handler's several audit rows (started/refused/failed/completed) can be
+// replayed as one request.
+func (d *daemon) auditCtx(ctx context.Context, endpoint, input, capability, model, outcome, result, errText string, duration time.Duration) string {
+	id, _ := d.writeAuditCorrelated(requestIDFrom(ctx), endpoint, input, capability, model, outcome, result, errText, duration)
+	return id
+}
+
+// auditRequiredCtx is auditRequired with the correlation id, for the
+// fail-closed path: when this errors the caller must not do the work.
+func (d *daemon) auditRequiredCtx(ctx context.Context, endpoint, input, capability, model, outcome, result, errText string, duration time.Duration) (string, error) {
+	return d.writeAuditCorrelated(requestIDFrom(ctx), endpoint, input, capability, model, outcome, result, errText, duration)
+}
+
+// writeAudit records an event with no correlation id. Retained so the
+// existing call sites keep working unchanged; new request-scoped code
+// should use auditCtx/auditRequiredCtx instead.
 func (d *daemon) writeAudit(endpoint, input, capability, model, outcome, result, errText string, duration time.Duration) (string, error) {
+	return d.writeAuditCorrelated("", endpoint, input, capability, model, outcome, result, errText, duration)
+}
+
+func (d *daemon) writeAuditCorrelated(requestID, endpoint, input, capability, model, outcome, result, errText string, duration time.Duration) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	id := fmt.Sprintf("evt-%d", time.Now().UnixNano())
-	if _, err := d.db.Exec(`INSERT INTO audit_events (id, occurred_at, endpoint, input, capability, model, outcome, result, error, duration_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, time.Now().Format(time.RFC3339Nano), endpoint, input, capability, model, outcome, result, errText, duration.Milliseconds()); err != nil {
+	if _, err := d.db.Exec(`INSERT INTO audit_events (id, occurred_at, endpoint, input, capability, model, outcome, result, error, duration_ms, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, time.Now().Format(time.RFC3339Nano), endpoint, input, capability, model, outcome, result, errText, duration.Milliseconds(), nullableString(requestID)); err != nil {
 		return "", err
 	}
 	return id, nil
@@ -1624,6 +1686,10 @@ func (d *daemon) executeCapability(cap capability, input string) (string, error)
 // the audit log rather than from this code.
 func (d *daemon) handleDo(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
+	// One id for this whole request: routing, the authority decision and
+	// the execution all audit under it, so the request replays as a unit
+	// instead of as unrelated events.
+	ctx := withRequestID(r.Context())
 	var request inputRequest
 	if err := decodeJSON(r, &request); err != nil || strings.TrimSpace(request.Input) == "" {
 		if err == nil {
@@ -1638,21 +1704,21 @@ func (d *daemon) handleDo(w http.ResponseWriter, r *http.Request) {
 
 	decision, err := routeRequest(d.cfg, d.capabilities, request.Input)
 	if err != nil {
-		id := d.audit("POST /v1/do", request.Input, "", d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/do", request.Input, "", d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
 		writeJSON(w, http.StatusBadGateway, apiError{fmt.Sprintf("routing failed (audit %s): %v", id, err)})
 		return
 	}
 
 	cap, found := d.capabilities.capabilityByName(decision.Capability)
 	if !found {
-		id := d.audit("POST /v1/do", request.Input, decision.Capability, d.cfg.LocalModel, "refused", "", "routed to an undeclared capability", time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/do", request.Input, decision.Capability, d.cfg.LocalModel, "refused", "", "routed to an undeclared capability", time.Since(started))
 		writeJSON(w, http.StatusConflict, apiError{fmt.Sprintf("capability %q is not declared (audit %s)", decision.Capability, id)})
 		return
 	}
 
 	allowed, basis, grantID := d.autonomousAuthority(cap)
 	if !allowed {
-		id := d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "refused", "", "automatic execution is not authorized: "+basis, time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "refused", "", "automatic execution is not authorized: "+basis, time.Since(started))
 		writeJSON(w, http.StatusConflict, doResponse{
 			Capability: cap.Name,
 			Risk:       cap.Risk,
@@ -1661,6 +1727,7 @@ func (d *daemon) handleDo(w http.ResponseWriter, r *http.Request) {
 			Authorized: false,
 			Basis:      basis,
 			AuditID:    id,
+			RequestID:  requestIDFrom(ctx),
 			Message:    fmt.Sprintf("Pantheon routed to: %s\n%s selected, but automatic %s execution is not yet authorized.", cap.Name, cap.Name, cap.Name),
 		})
 		return
@@ -1668,14 +1735,14 @@ func (d *daemon) handleDo(w http.ResponseWriter, r *http.Request) {
 
 	// Authority is recorded before the work runs, and a failed audit write
 	// stops the work -- an unlogged autonomous action is worse than none.
-	if _, err := d.auditRequired("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "started", "", "autonomous execution authorized: "+basis, time.Since(started)); err != nil {
+	if _, err := d.auditRequiredCtx(ctx, "POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "started", "", "autonomous execution authorized: "+basis, time.Since(started)); err != nil {
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("audit write failed; autonomous execution refused: %w", err))
 		return
 	}
 
 	result, err := d.executeCapability(cap, request.Input)
 	if err != nil {
-		id := d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
+		id := d.auditCtx(ctx, "POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
 		writeJSON(w, http.StatusBadGateway, apiError{fmt.Sprintf("%s failed (audit %s): %v", cap.Name, id, err)})
 		return
 	}
@@ -1683,13 +1750,13 @@ func (d *daemon) handleDo(w http.ResponseWriter, r *http.Request) {
 	// Single-use grants are consumed only now, after the work succeeded.
 	if grantID != "" {
 		if err := d.consumeGrant(grantID); err != nil {
-			d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "completed", result, "grant consumption failed: "+err.Error(), time.Since(started))
+			d.auditCtx(ctx, "POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "completed", result, "grant consumption failed: "+err.Error(), time.Since(started))
 			writeJSON(w, http.StatusOK, doResponse{Capability: cap.Name, Risk: cap.Risk, Reason: decision.Reason, Confidence: decision.Confidence, Authorized: true, Basis: basis, Result: result})
 			return
 		}
 	}
 
-	id := d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "completed", result, "", time.Since(started))
+	id := d.auditCtx(ctx, "POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "completed", result, "", time.Since(started))
 	writeJSON(w, http.StatusOK, doResponse{
 		Capability: cap.Name,
 		Risk:       cap.Risk,
@@ -1698,6 +1765,7 @@ func (d *daemon) handleDo(w http.ResponseWriter, r *http.Request) {
 		Authorized: true,
 		Basis:      basis,
 		AuditID:    id,
+		RequestID:  requestIDFrom(ctx),
 		Result:     result,
 		Message:    fmt.Sprintf("Pantheon routed to: %s", cap.Name),
 	})

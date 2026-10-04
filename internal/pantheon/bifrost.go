@@ -1040,7 +1040,16 @@ func (d *daemon) bifrostMailIntake(ctx context.Context, request bifrostMailIntak
 		if newest == "" || received.After(func() time.Time { parsed, _ := parseBifrostMailDate(newest); return parsed }()) {
 			newest = received.UTC().Format(time.RFC3339Nano)
 		}
-		messageRaw, readErrorText, readErr := d.runHimalaya(ctx, "--account", account, "message", "read", sourceID)
+		// Himalaya envelope search returns both a provider-native ID and the
+		// RFC 5322 Message-ID header. The latter is our durable source key, but
+		// message read requires the provider-native ID (for Gmail, typically a
+		// numeric IMAP UID or backend ID). Keep the stable source key for
+		// deduplication and receipts, while using the provider ID for retrieval.
+		readID := strings.TrimSpace(envelope.ID)
+		if readID == "" {
+			readID = sourceID
+		}
+		messageRaw, readErrorText, readErr := d.runHimalaya(ctx, "--account", account, "message", "read", "--mailbox", mailbox, readID)
 		if readErr != nil {
 			result.Failed++
 			allSucceeded = false

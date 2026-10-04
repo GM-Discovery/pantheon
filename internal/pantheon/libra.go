@@ -56,6 +56,7 @@ var libraAllowedSourceFamilies = map[string]bool{
 	"integrated_events": true,
 	"weekly_reports":    true,
 	"situation_briefs":  true,
+	"mail":              true,
 	"vault":             true,
 }
 
@@ -140,6 +141,23 @@ type libraReportDefinitionRequest struct {
 	Outputs         []string `json:"outputs,omitempty"`
 	CatchUpPolicy   string   `json:"catch_up_policy,omitempty"`
 	Enabled         *bool    `json:"enabled,omitempty"`
+}
+
+type libraBackfillRequest struct {
+	ReportDefinitionID string `json:"report_definition_id,omitempty"`
+	StartDate          string `json:"start_date"`
+	EndDate            string `json:"end_date"`
+	BatchBytes         int    `json:"batch_bytes,omitempty"`
+}
+
+type libraBackfillResult struct {
+	ReportDefinitionID string           `json:"report_definition_id"`
+	StartDate          string           `json:"start_date"`
+	EndDate            string           `json:"end_date"`
+	SourceCount        int              `json:"source_count"`
+	BatchCount         int              `json:"batch_count"`
+	BatchRuns          []libraReportRun `json:"batch_runs"`
+	FinalRun           libraReportRun   `json:"final_run"`
 }
 
 type libraReportRun struct {
@@ -898,12 +916,64 @@ func libraCosmicForecast(date string) string {
 	return forecasts[index]
 }
 
+func humanApolloReportBody(body []byte) string {
+	text := strings.TrimSpace(string(body))
+	if strings.HasPrefix(text, "---") {
+		if end := strings.Index(text[3:], "\n---"); end >= 0 {
+			text = strings.TrimSpace(text[end+3+len("\n---"):])
+		}
+	}
+	lines := strings.Split(text, "\n")
+	start := -1
+	for index, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "## Human-readable result" || trimmed == "## Concise summary" {
+			start = index + 1
+			break
+		}
+	}
+	if start < 0 {
+		return strings.TrimSpace(text)
+	}
+	kept := make([]string, 0, len(lines)-start)
+	for _, line := range lines[start:] {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "## Evidence" || trimmed == "## Future-ready result" || trimmed == "## Handoff" {
+			break
+		}
+		if trimmed == "```" || strings.HasPrefix(trimmed, "```json") {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.TrimSpace(strings.Join(kept, "\n"))
+}
+
+func formatLibraSources(assembly reportAssemblyReceipt) string {
+	if len(assembly.Sources) == 0 {
+		return "No verified source links were recorded."
+	}
+	lines := make([]string, 0, len(assembly.Sources))
+	for _, source := range assembly.Sources {
+		label := source.Kind
+		if label == "" {
+			label = "source"
+		}
+		lines = append(lines, "- "+label+": "+source.Citation)
+	}
+	return strings.Join(lines, "\n")
+}
+
 func renderLibraReport(run libraReportRun, report libraReportDefinition, assembly reportAssemblyReceipt, apolloBody []byte) ([]byte, string) {
 	outputs := report.Recipe.Outputs
 	if len(outputs) == 0 {
 		outputs = []string{report.Destination}
 	}
-	body := fmt.Sprintf("# %s\n\n> Cosmic forecast: %s\n\n## Reporting window\n\n%s through %s\n\n## Evidence assembly\n\n- Assembly: `%s`\n- Manifest: `%s`\n- Verified source count: %d\n- Configured outputs: %s\n\n## Apollo report\n\n%s\n", report.Name, libraCosmicForecast(run.WindowEnd), run.WindowStart, run.WindowEnd, assembly.AssemblyID, filepath.ToSlash(assembly.ManifestPath), assembly.SourceCount, strings.Join(outputs, ", "), strings.TrimSpace(string(apolloBody)))
+	humanBody := humanApolloReportBody(apolloBody)
+	if humanBody == "" {
+		humanBody = "No human-readable findings were produced."
+	}
+	body := fmt.Sprintf("# %s\n\n> Cosmic forecast: %s\n\n## Reporting window\n\n%s through %s\n\n## Human-readable findings\n\n%s\n\n## Evidence coverage\n\n- Verified source count: %d\n- Configured outputs: %s\n\n### Source links\n\n%s\n\n### Assembly receipt\n\n- Assembly: `%s`\n- Manifest: `%s`\n", report.Name, libraCosmicForecast(run.WindowEnd), run.WindowStart, run.WindowEnd, humanBody, assembly.SourceCount, strings.Join(outputs, ", "), formatLibraSources(assembly), assembly.AssemblyID, filepath.ToSlash(assembly.ManifestPath))
 	bodyHash := sha256Bytes([]byte(body))
 	frontmatter := fmt.Sprintf("---\npantheon:\n  kind: libra-report\n  report_definition_id: %s\n  run_id: %s\n  window_start: %s\n  window_end: %s\n  assembly_id: %s\n  body_sha256: %s\n---\n\n", yamlQuote(report.ID), yamlQuote(run.RunID), yamlQuote(run.WindowStart), yamlQuote(run.WindowEnd), yamlQuote(assembly.AssemblyID), yamlQuote(bodyHash))
 	return []byte(frontmatter + body), bodyHash
@@ -1176,6 +1246,148 @@ func (d *daemon) processLibraReportWithSources(ctx context.Context, report libra
 	return run, nil
 }
 
+func (d *daemon) loadBackfillReportDefinition(id string) (libraReportDefinition, error) {
+	if strings.TrimSpace(id) != "" {
+		return d.loadLibraReportDefinition(strings.TrimSpace(id))
+	}
+	rows, err := d.db.Query(`SELECT id FROM zodiac_report_definitions WHERE enabled = 1 AND cadence = 'daily' ORDER BY updated_at DESC, id DESC`)
+	if err != nil {
+		return libraReportDefinition{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return libraReportDefinition{}, err
+		}
+		return libraReportDefinition{}, errors.New("historical backfill requires an enabled daily Libra report definition")
+	}
+	var definitionID string
+	if err := rows.Scan(&definitionID); err != nil {
+		return libraReportDefinition{}, err
+	}
+	return d.loadLibraReportDefinition(definitionID)
+}
+
+func libraBackfillDateWindow(report libraReportDefinition, startDate, endDate string) (libraReportWindow, error) {
+	location, err := time.LoadLocation(report.Timezone)
+	if err != nil {
+		return libraReportWindow{}, err
+	}
+	start, err := time.ParseInLocation("2006-01-02", startDate, location)
+	if err != nil {
+		return libraReportWindow{}, errors.New("start_date must use YYYY-MM-DD")
+	}
+	end, err := time.ParseInLocation("2006-01-02", endDate, location)
+	if err != nil {
+		return libraReportWindow{}, errors.New("end_date must use YYYY-MM-DD")
+	}
+	if end.Before(start) {
+		return libraReportWindow{}, errors.New("end_date must not precede start_date")
+	}
+	return libraReportWindow{Key: "historical:" + startDate + ".." + endDate, StartDate: startDate, EndDate: endDate, Start: start, End: end}, nil
+}
+
+func (d *daemon) splitLibraBackfillRefs(refs []string, maxBytes int) ([][]string, error) {
+	if maxBytes < 8000 {
+		maxBytes = 24000
+	}
+	var batches [][]string
+	var current []string
+	currentBytes := 0
+	for _, ref := range refs {
+		absolute, _, err := d.reportAssemblySourcePath(ref)
+		if err != nil {
+			return nil, err
+		}
+		info, err := os.Stat(absolute)
+		if err != nil {
+			return nil, err
+		}
+		size := int(info.Size()) + 160
+		if len(current) > 0 && currentBytes+size > maxBytes {
+			batches = append(batches, current)
+			current = nil
+			currentBytes = 0
+		}
+		current = append(current, ref)
+		currentBytes += size
+	}
+	if len(current) > 0 {
+		batches = append(batches, current)
+	}
+	return batches, nil
+}
+
+func (d *daemon) processLibraHistoricalBackfill(ctx context.Context, request libraBackfillRequest) (libraBackfillResult, error) {
+	report, err := d.loadBackfillReportDefinition(request.ReportDefinitionID)
+	if err != nil {
+		return libraBackfillResult{}, err
+	}
+	window, err := libraBackfillDateWindow(report, strings.TrimSpace(request.StartDate), strings.TrimSpace(request.EndDate))
+	if err != nil {
+		return libraBackfillResult{}, err
+	}
+	refs, err := d.autoReportRefsBetweenWithRecipe(window.Start, window.End, report.Recipe)
+	if err != nil {
+		return libraBackfillResult{}, err
+	}
+	if len(refs) == 0 {
+		return libraBackfillResult{}, libraNeedsEvidence
+	}
+	batches, err := d.splitLibraBackfillRefs(refs, request.BatchBytes)
+	if err != nil {
+		return libraBackfillResult{}, err
+	}
+	result := libraBackfillResult{ReportDefinitionID: report.ID, StartDate: window.StartDate, EndDate: window.EndDate, SourceCount: len(refs), BatchCount: len(batches), BatchRuns: []libraReportRun{}}
+	batchRefs := make([]string, 0, len(batches))
+	for index, batch := range batches {
+		batchReport := report
+		batchReport.Name = fmt.Sprintf("Historical evidence batch %d of %d", index+1, len(batches))
+		batchReport.NotifyOnSuccess = false
+		batchReport.Recipe.Outputs = []string{libraOutputIntegrated}
+		batchReport.Recipe.Instructions = strings.TrimSpace(strings.Join([]string{
+			"This is an intermediate evidence digest for a historical backfill. Extract named people only when the sources name them; distinguish named people from anonymous speakers and people merely mentioned. Capture plain-language facts, requests, commitments, decisions, relationships, and uncertainties with citations. Do not produce code, JSON, or raw transcript dumps.",
+			report.Recipe.Instructions,
+		}, " "))
+		batchWindow := window
+		batchWindow.Key = fmt.Sprintf("historical:%s..%s:batch-%03d", window.StartDate, window.EndDate, index+1)
+		schedule := zodiacSchedule{ID: "libra-backfill-" + sha256Bytes([]byte(report.ID + "\x00" + batchWindow.Key))[:24], Owner: "libra", SourceID: report.ID, Action: zodiacActionBriefGenerate}
+		instance := zodiacInstance{ID: "libra-backfill-" + sha256Bytes([]byte(schedule.ID + "\x00instance"))[:24], DueAt: window.End.Format(time.RFC3339Nano)}
+		run, runErr := d.processLibraReportWithSources(ctx, batchReport, schedule, instance, batchWindow, batch)
+		if runErr != nil {
+			return result, runErr
+		}
+		result.BatchRuns = append(result.BatchRuns, run)
+		if run.State != "completed" || strings.TrimSpace(run.ApolloReportPath) == "" {
+			return result, fmt.Errorf("historical evidence batch %d did not complete: %s", index+1, run.State)
+		}
+		_, relative, pathErr := d.reportAssemblySourcePath(run.ApolloReportPath)
+		if pathErr != nil {
+			return result, pathErr
+		}
+		batchRefs = append(batchRefs, relative)
+	}
+
+	finalReport := report
+	finalReport.Name = "Historical Conversation Backfill"
+	finalReport.NotifyOnSuccess = false
+	finalReport.Recipe.Outputs = []string{libraOutputSituation}
+	finalReport.Recipe.Instructions = strings.TrimSpace(strings.Join([]string{
+		"This is the final human-readable historical baseline assembled from intermediate evidence digests. Consolidate duplicate people carefully. Include a clear People and identity context section, explicitly distinguishing named people, people mentioned, anonymous speakers, and uncertain identity. Then summarize facts, themes, requests, commitments, decisions, unresolved questions, and evidence gaps. Use plain prose and exact source citations. Do not output JSON, code, or a transcript dump.",
+		report.Recipe.Instructions,
+	}, " "))
+	finalWindow := window
+	finalWindow.Key = "historical:" + window.StartDate + ".." + window.EndDate + ":final"
+	finalSchedule := zodiacSchedule{ID: "libra-backfill-final-" + sha256Bytes([]byte(report.ID + "\x00" + finalWindow.Key))[:24], Owner: "libra", SourceID: report.ID, Action: zodiacActionBriefGenerate}
+	finalInstance := zodiacInstance{ID: "libra-backfill-final-" + sha256Bytes([]byte(finalSchedule.ID + "\x00instance"))[:24], DueAt: window.End.Format(time.RFC3339Nano)}
+	finalRun, err := d.processLibraReportWithSources(ctx, finalReport, finalSchedule, finalInstance, finalWindow, batchRefs)
+	if err != nil {
+		return result, err
+	}
+	result.FinalRun = finalRun
+	return result, nil
+}
+
 func libraEventWindow(report libraReportDefinition, occurredAt, eventKey string) (libraReportWindow, error) {
 	location, err := time.LoadLocation(report.Timezone)
 	if err != nil {
@@ -1351,6 +1563,27 @@ func (d *daemon) handleListLibraReportRuns(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"runs": runs, "note": "A completed run proves assembly, Apollo, Vault, and requested notification stages recorded their receipts."})
+}
+
+func (d *daemon) handleLibraHistoricalBackfill(w http.ResponseWriter, r *http.Request) {
+	if !d.guiControlRequired(w, r) {
+		return
+	}
+	var request libraBackfillRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	result, err := d.processLibraHistoricalBackfill(r.Context(), request)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, libraNeedsEvidence) || strings.Contains(err.Error(), "blocked_model_unavailable") {
+			status = http.StatusBadGateway
+		}
+		writeError(w, status, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (d *daemon) handleCreateLibraReportDefinition(w http.ResponseWriter, r *http.Request) {

@@ -29,6 +29,13 @@ func testKernel9Daemon(t *testing.T, cfg config) *daemon {
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, occurred_at TEXT NOT NULL, endpoint TEXT NOT NULL, input TEXT, capability TEXT, model TEXT, outcome TEXT NOT NULL, result TEXT, error TEXT, duration_ms INTEGER NOT NULL)`); err != nil {
 		t.Fatal(err)
 	}
+	// Deliberately created WITHOUT request_id above, then migrated -- the
+	// same additive step the daemon runs on an existing database, so every
+	// test exercises the real upgrade path rather than a table that was
+	// born with the column.
+	if err := ensureIntakeColumn(db, "audit_events", "request_id", "TEXT"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS runtime_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL); INSERT OR REPLACE INTO runtime_state (key, value, updated_at) VALUES ('paused', 'false', 'now')`); err != nil {
 		t.Fatal(err)
 	}

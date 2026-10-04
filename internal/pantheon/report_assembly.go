@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -235,10 +236,15 @@ func libraRecipeAllowsPath(recipe libraReportRecipe, relative string) bool {
 	return true
 }
 
+func libraRecipeAllowsMail(recipe libraReportRecipe) bool {
+	return len(recipe.SourceFamilies) == 0 || containsLibraString(recipe.SourceFamilies, "all") || containsLibraString(recipe.SourceFamilies, "mail")
+}
+
 func (d *daemon) autoReportRefsBetweenWithRecipe(start, end time.Time, recipe libraReportRecipe) ([]string, error) {
 	location := start.Location()
 	startDate, endDate := start.In(location).Format("2006-01-02"), end.In(location).Format("2006-01-02")
 	refs := map[string]bool{}
+	mailRefs := map[string]bool{}
 	inRange := func(value string) bool {
 		parsed, parseErr := time.Parse(time.RFC3339Nano, strings.TrimSpace(value))
 		if parseErr != nil {
@@ -271,6 +277,64 @@ func (d *daemon) autoReportRefsBetweenWithRecipe(start, end time.Time, recipe li
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
+	// Local Omi storage sync enters through Rumor rather than the external
+	// Intake webhook. Completed Rumor transcripts are already durable Vault
+	// evidence, so include their transcript artifacts in the same time-window
+	// source set used by external Intake receipts.
+	rows, err = d.db.Query(`SELECT transcript_path, completed_at FROM rumor_sources WHERE state = ? AND intake_state = 'received' AND transcript_path IS NOT NULL AND transcript_path != ''`, rumorStateCompleted)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var path, completedAt string
+		if err := rows.Scan(&path, &completedAt); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if !inRange(completedAt) {
+			continue
+		}
+		if _, relative, pathErr := d.reportAssemblySourcePath(path); pathErr == nil {
+			if err := addReportAssemblyRef(relative, refs); err != nil {
+				rows.Close()
+				return nil, err
+			}
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	// Historical transcript files can predate the current Rumor database. The
+	// Vault archive is the durable source of truth for a backfill, so scan it
+	// directly and merge any files whose embedded capture date or file date is
+	// inside the requested window.
+	transcriptRoot := filepath.Join(d.cfg.VaultPath, "80 Pantheon Raw", "Audio Transcripts")
+	if err := filepath.WalkDir(transcriptRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if errors.Is(walkErr, os.ErrNotExist) {
+			return filepath.SkipDir
+		}
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 || strings.ToLower(filepath.Ext(entry.Name())) != ".md" {
+			return nil
+		}
+		info, statErr := entry.Info()
+		if statErr != nil {
+			return statErr
+		}
+		captureDate := transcriptArchiveDate(entry.Name(), info.ModTime(), location)
+		if captureDate < startDate || captureDate > endDate {
+			return nil
+		}
+		_, relative, pathErr := d.reportAssemblySourcePath(path)
+		if pathErr != nil {
+			return pathErr
+		}
+		return addReportAssemblyRef(relative, refs)
+	}); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
 	rows, err = d.db.Query(`SELECT report_path, created_at FROM apollo_reports WHERE report_path IS NOT NULL AND report_path != ''`)
 	if err != nil {
 		return nil, err
@@ -289,6 +353,30 @@ func (d *daemon) autoReportRefsBetweenWithRecipe(start, end time.Time, recipe li
 				rows.Close()
 				return nil, err
 			}
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	rows, err = d.db.Query(`SELECT apollo_report_path, received_at FROM mail_messages WHERE state = ? AND apollo_report_path IS NOT NULL AND apollo_report_path != ''`, mailStateUnderstood)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var path, receivedAt string
+		if err := rows.Scan(&path, &receivedAt); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if !libraRecipeAllowsMail(recipe) || !inRange(receivedAt) {
+			continue
+		}
+		if _, relative, pathErr := d.reportAssemblySourcePath(path); pathErr == nil {
+			if err := addReportAssemblyRef(relative, refs); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			mailRefs[relative] = true
 		}
 	}
 	if err := rows.Close(); err != nil {
@@ -326,12 +414,23 @@ func (d *daemon) autoReportRefsBetweenWithRecipe(start, end time.Time, recipe li
 	}
 	result := make([]string, 0, len(refs))
 	for ref := range refs {
-		if libraRecipeAllowsPath(recipe, ref) {
+		if mailRefs[ref] || libraRecipeAllowsPath(recipe, ref) {
 			result = append(result, ref)
 		}
 	}
 	sort.Strings(result)
 	return result, nil
+}
+
+var transcriptArchiveDatePattern = regexp.MustCompile(`20\d{6}`)
+
+func transcriptArchiveDate(name string, modifiedAt time.Time, location *time.Location) string {
+	if match := transcriptArchiveDatePattern.FindString(name); match != "" {
+		if parsed, err := time.ParseInLocation("20060102", match, location); err == nil {
+			return parsed.Format("2006-01-02")
+		}
+	}
+	return modifiedAt.In(location).Format("2006-01-02")
 }
 
 func reportMinInt(left, right int) int {

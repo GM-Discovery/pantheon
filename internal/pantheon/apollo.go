@@ -234,6 +234,9 @@ func (d *daemon) apolloEvidence(payload apolloOrderPayload) (string, []string, i
 		sourceCount++
 	}
 	for _, ref := range payload.SourceRefs {
+		if maxContextBytes <= 0 {
+			break
+		}
 		clean := filepath.Clean(ref)
 		if d.cfg.VaultPath == "" || !pathWithin(d.cfg.VaultPath, clean) {
 			return "", nil, 0, nil, fmt.Errorf("Apollo source reference escapes configured Vault: %s", ref)
@@ -247,11 +250,13 @@ func (d *daemon) apolloEvidence(payload apolloOrderPayload) (string, []string, i
 		}
 		if len(body) > maxContextBytes {
 			body = body[:maxContextBytes]
+			warnings = append(warnings, "source was bounded to the remaining apollo.max_context_bytes")
 		}
 		citation := apolloCitation(d.cfg.VaultPath, clean)
 		citations = append(citations, citation)
 		sections = append(sections, "AUTHORIZED LOCAL SOURCE "+citation+":\n"+string(body))
 		sourceCount++
+		maxContextBytes -= len(body)
 	}
 	return strings.Join(sections, "\n\n"), citations, sourceCount, warnings, nil
 }
@@ -743,7 +748,7 @@ func (d *daemon) processApolloOrder(ctx context.Context, order mercuryOrder, com
 	if err != nil {
 		return apolloRunResult{}, err
 	}
-	reportBody := fmt.Sprintf("# Apollo Report %s\n\n## Request\n\n%s\n\n## Status\n\n%s\n\n%s\n\n## Evidence\n\n%s\n\n## Future-ready result\n\n```json\n%s\n```\n", reportID, order.RequestText, status, formatApolloStructuredReport(futureResult, answer), formatApolloCitations(citations), futureJSON)
+	reportBody := fmt.Sprintf("# Apollo Report %s\n\n## Request\n\n%s\n\n## Status\n\n%s\n\n## Human-readable result\n\n%s\n\n## Handoff\n\n- Future handoff (awaiting): %s\n\n## Evidence\n\n%s\n", reportID, order.RequestText, status, formatApolloStructuredReport(futureResult, answer), futureResult.Awaiting, formatApolloCitations(citations))
 	bodyDigest := sha256.Sum256([]byte(reportBody))
 	sourceMetadata, _ := json.Marshal(citations)
 	frontmatter := fmt.Sprintf("---\nreport_id: %s\norder_id: %s\norder_seal_digest: %s\ngo_id: %s\nattempt_id: %s\ncreated_at: %s\napollo_model: %s\nendpoint_class: local\nsource_citations: %s\nbody_sha256: sha256:%s\n---\n\n", reportID, order.OrderID, order.SealDigest, command.GoID, attemptID, createdAt, d.cfg.LocalModel, sourceMetadata, hex.EncodeToString(bodyDigest[:]))
@@ -780,7 +785,22 @@ func formatApolloStructuredReport(result futureReadyResult, answer string) strin
 	if summary == "" {
 		summary = "No supported summary was produced."
 	}
-	return fmt.Sprintf("## Concise summary\n\n%s\n\n## Concrete requests and action items\n\n%s\n\n## Commitments and deadlines\n\n%s\n\n## Decisions\n\n%s\n\n## Unresolved questions\n\n%s\n\n## Uncertainties and gaps\n\n%s", summary, formatApolloItems(result.ActionItems), formatApolloItems(result.Commitments), formatApolloItems(result.Decisions), formatApolloItems(result.UnresolvedThreads), formatApolloStrings(result.Uncertainties))
+	sections := []string{
+		"## Concise summary\n\n" + summary,
+		"## What happened (facts)\n\n" + formatApolloItems(result.Facts),
+		"## People and identity context\n\n" + formatApolloItems(result.PeopleInvolved),
+		"## Concrete requests and action items\n\n" + formatApolloItems(result.ActionItems),
+		"## Commitments and deadlines\n\n" + formatApolloItems(result.Commitments),
+		"## Decisions\n\n" + formatApolloItems(result.Decisions),
+		"## Unresolved questions\n\n" + formatApolloItems(result.UnresolvedThreads),
+		"## Proposed next steps\n\n" + formatApolloItems(result.Recommendations),
+		"## Candidate follow-ups\n\n" + formatApolloItems(result.CandidateFollowups),
+		"## Uncertainties and gaps\n\n" + formatApolloStrings(result.Uncertainties),
+	}
+	if len(result.Interpretations) > 0 {
+		sections = append(sections, "## Model interpretations (not facts)\n\n"+formatApolloItems(result.Interpretations))
+	}
+	return strings.Join(sections, "\n\n")
 }
 
 func formatApolloItems(items []map[string]any) string {
@@ -795,23 +815,21 @@ func formatApolloItems(items []map[string]any) string {
 			if strings.TrimSpace(key) == "" || value == nil {
 				continue
 			}
-			if text := strings.TrimSpace(fmt.Sprint(value)); text != "" && text != "<nil>" {
+			if text := strings.TrimSpace(formatApolloValue(value)); text != "" && text != "<nil>" {
 				keys = append(keys, key)
 			}
 		}
-		sort.Strings(keys)
+		sort.SliceStable(keys, func(i, j int) bool {
+			left, right := apolloKeyRank(keys[i]), apolloKeyRank(keys[j])
+			if left != right {
+				return left < right
+			}
+			return keys[i] < keys[j]
+		})
 		for _, key := range keys {
-			value := item[key]
-			encoded, err := json.Marshal(value)
-			if err != nil {
-				continue
-			}
-			text := strings.TrimSpace(string(encoded))
-			if stringValue, ok := value.(string); ok {
-				text = strings.TrimSpace(stringValue)
-			}
+			text := strings.TrimSpace(formatApolloValue(item[key]))
 			if text != "" {
-				parts = append(parts, key+": "+text)
+				parts = append(parts, "**"+humanizeApolloKey(key)+":** "+text)
 			}
 		}
 		if len(parts) == 0 {
@@ -822,9 +840,60 @@ func formatApolloItems(items []map[string]any) string {
 	return strings.Join(lines, "\n")
 }
 
+func apolloKeyRank(key string) int {
+	for index, preferred := range []string{"summary", "title", "subject", "action", "request", "commitment", "decision", "question", "owner", "person", "deadline", "date", "start", "end", "reason", "source"} {
+		if strings.EqualFold(key, preferred) {
+			return index
+		}
+	}
+	return 1000
+}
+
+func humanizeApolloKey(key string) string {
+	words := strings.Fields(strings.NewReplacer("_", " ", "-", " ").Replace(strings.TrimSpace(key)))
+	for index, word := range words {
+		if word != "" {
+			words[index] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+func formatApolloValue(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(typed)
+	case []any:
+		parts := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if text := strings.TrimSpace(formatApolloValue(item)); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, "; ")
+	case map[string]any:
+		keys := make([]string, 0, len(typed))
+		for key, item := range typed {
+			if strings.TrimSpace(formatApolloValue(item)) != "" {
+				keys = append(keys, key)
+			}
+		}
+		sort.Strings(keys)
+		parts := make([]string, 0, len(keys))
+		for _, key := range keys {
+			parts = append(parts, humanizeApolloKey(key)+": "+formatApolloValue(typed[key]))
+		}
+		return strings.Join(parts, "; ")
+	default:
+		return strings.TrimSpace(fmt.Sprint(value))
+	}
+}
+
 func formatApolloStrings(values []string) string {
 	if len(values) == 0 {
-		return "None recorded; the report should not be treated as evidence that uncertainty was absent."
+		return "No additional uncertainties were recorded."
 	}
 	lines := make([]string, 0, len(values))
 	for _, value := range values {
@@ -833,7 +902,7 @@ func formatApolloStrings(values []string) string {
 		}
 	}
 	if len(lines) == 0 {
-		return "None recorded; the report should not be treated as evidence that uncertainty was absent."
+		return "No additional uncertainties were recorded."
 	}
 	return strings.Join(lines, "\n")
 }
@@ -844,7 +913,7 @@ func formatApolloCitations(citations []string) string {
 	}
 	lines := make([]string, 0, len(citations))
 	for _, citation := range citations {
-		lines = append(lines, "- "+citation)
+		lines = append(lines, "- Source: "+citation)
 	}
 	return strings.Join(lines, "\n")
 }

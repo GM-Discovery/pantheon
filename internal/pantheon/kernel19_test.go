@@ -190,6 +190,9 @@ func TestKernel19BifrostMailIntakeIsBoundedNormalizedAndIdempotent(t *testing.T)
 	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
 		if strings.Contains(line, "message read") {
 			reads++
+			if !strings.Contains(line, "message read --mailbox INBOX 42") {
+				t.Fatalf("message read did not use provider ID and mailbox: %s", line)
+			}
 		}
 	}
 	if reads != 1 {

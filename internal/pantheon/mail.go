@@ -408,8 +408,8 @@ func (d *daemon) saveMailBacklogState(state mailBacklogState) error {
 }
 
 func (d *daemon) mailMessageIDsSince(value string, exclude map[string]bool) ([]string, error) {
-	query := `SELECT source_id FROM mail_messages WHERE state = ?`
-	args := []any{mailStateUnclassified}
+	query := `SELECT source_id FROM mail_messages WHERE (state = ? OR (state = ? AND instr(lower(COALESCE(last_error, '')), 'blocked_model_unavailable') > 0))`
+	args := []any{mailStateUnclassified, mailStateFailed}
 	if strings.TrimSpace(value) != "" {
 		query += ` AND updated_at >= ?`
 		args = append(args, value)
@@ -437,8 +437,8 @@ func (d *daemon) mailBacklogMessageIDs(exclude map[string]bool, limit int, curso
 	if limit <= 0 {
 		limit = 100
 	}
-	query := `SELECT source_id FROM mail_messages WHERE state = ?`
-	args := []any{mailStateUnclassified}
+	query := `SELECT source_id FROM mail_messages WHERE (state = ? OR (state = ? AND instr(lower(COALESCE(last_error, '')), 'blocked_model_unavailable') > 0))`
+	args := []any{mailStateUnclassified, mailStateFailed}
 	if strings.TrimSpace(cursor) != "" {
 		query += ` AND received_at < ?`
 		args = append(args, cursor)
@@ -446,6 +446,28 @@ func (d *daemon) mailBacklogMessageIDs(exclude map[string]bool, limit int, curso
 	query += ` ORDER BY received_at DESC, source_id DESC LIMIT ?`
 	args = append(args, limit)
 	rows, err := d.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		if !exclude[id] {
+			result = append(result, id)
+		}
+	}
+	return result, rows.Err()
+}
+
+func (d *daemon) mailRetryableFailedIDs(exclude map[string]bool, limit int) ([]string, error) {
+	if limit <= 0 {
+		limit = 1
+	}
+	rows, err := d.db.Query(`SELECT source_id FROM mail_messages WHERE state = ? AND instr(lower(COALESCE(last_error, '')), 'blocked_model_unavailable') > 0 ORDER BY received_at ASC, source_id ASC LIMIT ?`, mailStateFailed, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -526,7 +548,7 @@ func (d *daemon) processOneMailMessage(ctx context.Context, sourceID string) (ma
 	if err != nil {
 		return mailMessage{}, false, err
 	}
-	if item.State != mailStateUnclassified {
+	if item.State != mailStateUnclassified && !(item.State == mailStateFailed && strings.Contains(strings.ToLower(item.LastError), "blocked_model_unavailable")) {
 		return item, false, nil
 	}
 	if rule, matched, err := d.applyMailRejectionRules(item); err != nil {
@@ -751,6 +773,20 @@ func (d *daemon) mailRound(ctx context.Context, request mailRunRequest) (mailRou
 			backlogIDs, err := d.mailBacklogMessageIDs(processedIDs, d.cfg.MailBatchSize, backlogState.CursorReceivedAt)
 			if err != nil {
 				return finish(err)
+			}
+			retryIDs, err := d.mailRetryableFailedIDs(processedIDs, d.cfg.MailBatchSize)
+			if err != nil {
+				return finish(err)
+			}
+			seenBacklogIDs := make(map[string]bool, len(backlogIDs)+len(retryIDs))
+			for _, id := range backlogIDs {
+				seenBacklogIDs[id] = true
+			}
+			for _, id := range retryIDs {
+				if !seenBacklogIDs[id] {
+					backlogIDs = append(backlogIDs, id)
+					seenBacklogIDs[id] = true
+				}
 			}
 			for _, id := range backlogIDs {
 				item, processed, processErr := d.processOneMailMessage(ctx, id)
