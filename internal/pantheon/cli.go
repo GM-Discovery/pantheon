@@ -302,6 +302,11 @@ func runClient(args []string) error {
 			return fmt.Errorf("usage: pantheon notify \"message\"")
 		}
 		return clientPOST("/v1/notify", inputRequest{Input: strings.Join(args[1:], " ")})
+	case "do":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pantheon do \"request\"")
+		}
+		return clientPOST("/v1/do", inputRequest{Input: strings.Join(args[1:], " ")})
 	case "pause":
 		return clientPOST("/v1/pause", nil)
 	case "resume":
@@ -965,8 +970,41 @@ func runReportCommand(args []string) error {
 	if len(args) == 1 && args[0] == "assemblies" {
 		return clientGET("/v1/reports/assemblies")
 	}
-	if len(args) == 0 || args[0] != "assemble" {
-		return fmt.Errorf("usage: pantheon report assemble [--kind event|daily] --date YYYY-MM-DD [--source <Vault-relative-path>] | pantheon report assemblies")
+	if len(args) == 0 {
+		return fmt.Errorf("usage: pantheon report assemble [--kind event|daily] --date YYYY-MM-DD [--source <Vault-relative-path>] | pantheon report backfill --start YYYY-MM-DD --end YYYY-MM-DD | pantheon report assemblies")
+	}
+	if args[0] == "backfill" {
+		request := libraBackfillRequest{}
+		for i := 1; i < len(args); i++ {
+			if i+1 >= len(args) || !strings.HasPrefix(args[i], "--") {
+				return fmt.Errorf("usage: pantheon report backfill --start YYYY-MM-DD --end YYYY-MM-DD [--definition <id>] [--batch-bytes <n>]")
+			}
+			value := args[i+1]
+			switch args[i] {
+			case "--start":
+				request.StartDate = value
+			case "--end":
+				request.EndDate = value
+			case "--definition":
+				request.ReportDefinitionID = value
+			case "--batch-bytes":
+				parsed, err := strconv.Atoi(value)
+				if err != nil || parsed < 8000 {
+					return fmt.Errorf("batch-bytes must be an integer of at least 8000")
+				}
+				request.BatchBytes = parsed
+			default:
+				return fmt.Errorf("unknown report backfill option %q", args[i])
+			}
+			i++
+		}
+		if request.StartDate == "" || request.EndDate == "" {
+			return errors.New("report backfill requires --start and --end")
+		}
+		return clientPOSTWithControl("/v1/zodiac/report-backfill", request)
+	}
+	if args[0] != "assemble" {
+		return fmt.Errorf("usage: pantheon report assemble [--kind event|daily] --date YYYY-MM-DD [--source <Vault-relative-path>] | pantheon report backfill --start YYYY-MM-DD --end YYYY-MM-DD | pantheon report assemblies")
 	}
 	request := reportAssemblyRequest{Kind: reportAssemblyDaily}
 	for i := 1; i < len(args); i++ {

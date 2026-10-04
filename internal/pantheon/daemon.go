@@ -66,6 +66,21 @@ type statusResponse struct {
 	Rumor                 map[string]any `json:"rumor"`
 }
 
+// doResponse is `pantheon do`'s result: what Pantheon routed to, whether
+// it authorized itself to run it, on what basis, and the audit id that
+// records the decision either way.
+type doResponse struct {
+	Capability string  `json:"capability"`
+	Risk       string  `json:"risk,omitempty"`
+	Reason     string  `json:"reason,omitempty"`
+	Confidence float64 `json:"confidence,omitempty"`
+	Authorized bool    `json:"authorized"`
+	Basis      string  `json:"basis,omitempty"`
+	Result     string  `json:"result,omitempty"`
+	AuditID    string  `json:"audit_id,omitempty"`
+	Message    string  `json:"message,omitempty"`
+}
+
 type inputRequest struct {
 	Input string `json:"input"`
 }
@@ -378,6 +393,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/gui/zodiac/constellations", d.handleCreateZodiacConstellation)
 	mux.HandleFunc("GET /v1/gui/zodiac/report-definitions", d.handleListLibraReportDefinitions)
 	mux.HandleFunc("GET /v1/gui/zodiac/report-runs", d.handleListLibraReportRuns)
+	mux.HandleFunc("POST /v1/gui/zodiac/report-backfill", d.handleLibraHistoricalBackfill)
 	mux.HandleFunc("POST /v1/gui/zodiac/report-definitions", d.handleCreateLibraReportDefinition)
 	mux.HandleFunc("POST /v1/gui/zodiac/report-definitions/{id}/enable", func(w http.ResponseWriter, r *http.Request) { d.handleSetLibraReportEnabled(w, r, true) })
 	mux.HandleFunc("POST /v1/gui/zodiac/report-definitions/{id}/disable", func(w http.ResponseWriter, r *http.Request) { d.handleSetLibraReportEnabled(w, r, false) })
@@ -479,6 +495,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/input", d.handleInput)
 	mux.HandleFunc("POST /v1/route", d.handleRoute)
 	mux.HandleFunc("POST /v1/notify", d.handleNotify)
+	mux.HandleFunc("POST /v1/do", d.handleDo)
 	mux.HandleFunc("POST /v1/pause", d.handlePause)
 	mux.HandleFunc("POST /v1/resume", d.handleResume)
 	mux.HandleFunc("POST /v1/prometheus/hard-stop", d.handlePrometheusHardStopAudit)
@@ -529,6 +546,7 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/zodiac/constellations", d.handleListZodiacConstellations)
 	mux.HandleFunc("GET /v1/zodiac/report-definitions", d.handleListLibraReportDefinitions)
 	mux.HandleFunc("GET /v1/zodiac/report-runs", d.handleListLibraReportRuns)
+	mux.HandleFunc("POST /v1/zodiac/report-backfill", d.handleLibraHistoricalBackfill)
 	mux.HandleFunc("GET /v1/zodiac/today", d.handleZodiacToday)
 	mux.HandleFunc("GET /v1/zodiac/upcoming", d.handleZodiacUpcoming)
 	mux.HandleFunc("GET /v1/zodiac/needs-you", d.handleZodiacNeedsYou)
@@ -1527,4 +1545,160 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 }
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, apiError{err.Error()})
+}
+
+// capabilityByName returns the registered capability of that name. A
+// request routed to a capability Pantheon does not declare is refused
+// rather than guessed at -- the registry is the authority on what exists.
+func (c capabilityConfig) capabilityByName(name string) (capability, bool) {
+	for _, candidate := range c.Capabilities {
+		if strings.EqualFold(strings.TrimSpace(candidate.Name), strings.TrimSpace(name)) {
+			return candidate, true
+		}
+	}
+	return capability{}, false
+}
+
+// autonomousAuthority decides whether a routed capability may execute
+// without a human in the loop for this one request. It implements the
+// README's "autonomously route and execute low-risk capabilities while
+// refusing automatic execution of capabilities that have not yet been
+// authorized" as a rule over declared risk and real grants, replacing the
+// previous single hardcoded allowlist entry.
+//
+// Order matters. An explicit grant is consulted FIRST, so a human can
+// authorize something the risk tier would otherwise refuse, and that
+// decision is recorded in capability_grants rather than in this function.
+//
+// The fallback tier is deliberately narrow: low risk only, and only for
+// capability types whose effect is defined by Pantheon rather than by a
+// model's own judgement. A `delegated` capability hands work to an agent
+// that chooses its own actions, so its blast radius is not bounded by its
+// declared risk -- those always require a grant, whatever their tier.
+//
+// Returns the grant id when authority came from a grant, so the caller can
+// consume a single-use grant only after the work actually succeeds.
+func (d *daemon) autonomousAuthority(cap capability) (allowed bool, basis string, grantID string) {
+	if grant, err := d.matchingGrant(cap.Name, ""); err == nil && grant.ID != "" {
+		return true, "explicit grant " + grant.ID, grant.ID
+	}
+
+	risk := strings.ToLower(strings.TrimSpace(cap.Risk))
+	kind := strings.ToLower(strings.TrimSpace(cap.Type))
+
+	if risk != "low" {
+		return false, fmt.Sprintf("risk tier %q requires an explicit grant", cap.Risk), ""
+	}
+	switch kind {
+	case "deterministic", "model":
+		return true, fmt.Sprintf("low-risk %s capability", kind), ""
+	default:
+		return false, fmt.Sprintf("%s capabilities require an explicit grant regardless of risk tier", kind), ""
+	}
+}
+
+// executeCapability performs an authorized capability. It is the ONLY
+// place autonomous execution happens, and it refuses anything it has no
+// defined executor for -- a capability may be declared and authorized and
+// still have nothing behind it, which must read as a refusal rather than a
+// silent success.
+func (d *daemon) executeCapability(cap capability, input string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(cap.Name)) {
+	case "reason":
+		return d.reason(input)
+	case "notify":
+		output, err := exec.Command(notifyCommand, "pantheon-alerts", "Pantheon", input).CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("%v: %s", err, strings.TrimSpace(string(output)))
+		}
+		return "notification sent", nil
+	default:
+		return "", fmt.Errorf("no autonomous executor is defined for capability %q", cap.Name)
+	}
+}
+
+// handleDo is `pantheon do`: route, authorize, then execute or refuse.
+//
+// Every outcome is audited, including both refusal paths, so the question
+// "what did Pantheon decide to do on its own, and why" is answerable from
+// the audit log rather than from this code.
+func (d *daemon) handleDo(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	var request inputRequest
+	if err := decodeJSON(r, &request); err != nil || strings.TrimSpace(request.Input) == "" {
+		if err == nil {
+			err = errors.New("input is required")
+		}
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if d.blockIfPaused(w, "POST /v1/do", request.Input, "") {
+		return
+	}
+
+	decision, err := routeRequest(d.cfg, d.capabilities, request.Input)
+	if err != nil {
+		id := d.audit("POST /v1/do", request.Input, "", d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
+		writeJSON(w, http.StatusBadGateway, apiError{fmt.Sprintf("routing failed (audit %s): %v", id, err)})
+		return
+	}
+
+	cap, found := d.capabilities.capabilityByName(decision.Capability)
+	if !found {
+		id := d.audit("POST /v1/do", request.Input, decision.Capability, d.cfg.LocalModel, "refused", "", "routed to an undeclared capability", time.Since(started))
+		writeJSON(w, http.StatusConflict, apiError{fmt.Sprintf("capability %q is not declared (audit %s)", decision.Capability, id)})
+		return
+	}
+
+	allowed, basis, grantID := d.autonomousAuthority(cap)
+	if !allowed {
+		id := d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "refused", "", "automatic execution is not authorized: "+basis, time.Since(started))
+		writeJSON(w, http.StatusConflict, doResponse{
+			Capability: cap.Name,
+			Risk:       cap.Risk,
+			Reason:     decision.Reason,
+			Confidence: decision.Confidence,
+			Authorized: false,
+			Basis:      basis,
+			AuditID:    id,
+			Message:    fmt.Sprintf("Pantheon routed to: %s\n%s selected, but automatic %s execution is not yet authorized.", cap.Name, cap.Name, cap.Name),
+		})
+		return
+	}
+
+	// Authority is recorded before the work runs, and a failed audit write
+	// stops the work -- an unlogged autonomous action is worse than none.
+	if _, err := d.auditRequired("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "started", "", "autonomous execution authorized: "+basis, time.Since(started)); err != nil {
+		writeError(w, http.StatusInternalServerError, fmt.Errorf("audit write failed; autonomous execution refused: %w", err))
+		return
+	}
+
+	result, err := d.executeCapability(cap, request.Input)
+	if err != nil {
+		id := d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "failed", "", err.Error(), time.Since(started))
+		writeJSON(w, http.StatusBadGateway, apiError{fmt.Sprintf("%s failed (audit %s): %v", cap.Name, id, err)})
+		return
+	}
+
+	// Single-use grants are consumed only now, after the work succeeded.
+	if grantID != "" {
+		if err := d.consumeGrant(grantID); err != nil {
+			d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "completed", result, "grant consumption failed: "+err.Error(), time.Since(started))
+			writeJSON(w, http.StatusOK, doResponse{Capability: cap.Name, Risk: cap.Risk, Reason: decision.Reason, Confidence: decision.Confidence, Authorized: true, Basis: basis, Result: result})
+			return
+		}
+	}
+
+	id := d.audit("POST /v1/do", request.Input, cap.Name, d.cfg.LocalModel, "completed", result, "", time.Since(started))
+	writeJSON(w, http.StatusOK, doResponse{
+		Capability: cap.Name,
+		Risk:       cap.Risk,
+		Reason:     decision.Reason,
+		Confidence: decision.Confidence,
+		Authorized: true,
+		Basis:      basis,
+		AuditID:    id,
+		Result:     result,
+		Message:    fmt.Sprintf("Pantheon routed to: %s", cap.Name),
+	})
 }
