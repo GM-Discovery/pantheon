@@ -506,6 +506,8 @@ func (d *daemon) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/route", d.handleRoute)
 	mux.HandleFunc("POST /v1/notify", d.handleNotify)
 	mux.HandleFunc("POST /v1/do", d.handleDo)
+	mux.HandleFunc("GET /v1/trace/{request_id}", d.handleTrace)
+	mux.HandleFunc("GET /v1/failures", d.handleFailures)
 	mux.HandleFunc("POST /v1/pause", d.handlePause)
 	mux.HandleFunc("POST /v1/resume", d.handleResume)
 	mux.HandleFunc("POST /v1/prometheus/hard-stop", d.handlePrometheusHardStopAudit)

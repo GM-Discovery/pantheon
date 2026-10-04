@@ -307,6 +307,13 @@ func runClient(args []string) error {
 			return fmt.Errorf("usage: pantheon do \"request\"")
 		}
 		return clientPOST("/v1/do", inputRequest{Input: strings.Join(args[1:], " ")})
+	case "trace":
+		// No id given: show what broke recently, with the ids to trace.
+		// You rarely know the request id at the moment you need it.
+		if len(args) < 2 {
+			return clientGET("/v1/failures")
+		}
+		return clientGET("/v1/trace/" + url.PathEscape(args[1]))
 	case "pause":
 		return clientPOST("/v1/pause", nil)
 	case "resume":
