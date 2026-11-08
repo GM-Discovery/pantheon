@@ -1323,7 +1323,7 @@ func validWeaveRelationship(v string) bool {
 
 func runWeaveLinksCommand(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: pantheon weave-links [crawl|run|preview|apply|rollback]")
+		return errors.New("usage: pantheon weave-links [crawl|materialize-shards|run|preview|apply|rollback]")
 	}
 	configPath, err := configPathFromDefaults()
 	if err != nil {
@@ -1336,6 +1336,20 @@ func runWeaveLinksCommand(args []string) error {
 	root := filepath.Dir(filepath.Dir(configPath))
 	stateDir := filepath.Join(root, "state", "weave-links")
 	switch args[0] {
+	case "materialize-shards":
+		flags := flag.NewFlagSet("weave-links materialize-shards", flag.ContinueOnError)
+		graph := flags.String("graph", filepath.Join(stateDir, "user-chunk-graph.json"), "user chunk graph to materialize")
+		root := flags.String("root", defaultUserShardRoot, "Vault-relative directory for generated shard notes")
+		batchSize := flags.Int("batch-size", 110, "shards to materialize per durable batch")
+		batches := flags.Int("batches", 1, "durable batches to process in this invocation")
+		statePath := flags.String("state", filepath.Join(stateDir, "shard-materialization.json"), "durable shard materialization state")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if pathWithin(cfg.VaultPath, *graph) {
+			return errors.New("chunk graph must be outside the configured Vault")
+		}
+		return runUserShardMaterialization(*statePath, *graph, stateDir, cfg.VaultPath, *root, *batchSize, *batches)
 	case "crawl":
 		flags := flag.NewFlagSet("weave-links crawl", flag.ContinueOnError)
 		batchSize := flags.Int("batch-size", 500, "user-authored chunks to process per durable batch")

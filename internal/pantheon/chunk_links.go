@@ -96,9 +96,9 @@ func buildUserChunkLinkCorpus(vault string) (chunkLinkCorpus, error) {
 		ordinal := ordinalByPath[chunk.Path]
 		ordinalByPath[chunk.Path]++
 		terms := chunkLinkTerms(chunk.Text)
-		idHash := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%d", chunk.Path, ordinal)))
+		id := userChunkID(chunk.Path, ordinal)
 		node := chunkLinkNode{
-			ID:      "uch-" + hex.EncodeToString(idHash[:])[:20],
+			ID:      id,
 			Path:    chunk.Path,
 			Ordinal: ordinal,
 			Excerpt: connectionExcerpt(chunk.Text),
@@ -115,6 +115,11 @@ func buildUserChunkLinkCorpus(vault string) (chunkLinkCorpus, error) {
 	}
 	corpus.Hash = hex.EncodeToString(hash.Sum(nil))
 	return corpus, nil
+}
+
+func userChunkID(path string, ordinal int) string {
+	h := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%d", path, ordinal)))
+	return "uch-" + hex.EncodeToString(h[:])[:20]
 }
 
 func chunkLinkTerms(text string) []string {
