@@ -48,6 +48,21 @@ type userShardState struct {
 	Status           string `json:"status"`
 }
 
+type userShardIndexState struct {
+	Version          string `json:"version"`
+	RunID            string `json:"run_id"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
+	VaultPath        string `json:"vault_path"`
+	GraphPath        string `json:"graph_path"`
+	ShardRoot        string `json:"shard_root"`
+	BatchSize        int    `json:"batch_size"`
+	NextOffset       int    `json:"next_offset"`
+	TotalShards      int    `json:"total_shards"`
+	CompletedBatches int    `json:"completed_batches"`
+	Status           string `json:"status"`
+}
+
 func userShardRelativePath(root, id string) string {
 	return filepath.ToSlash(filepath.Join(root, id[:2], id+".md"))
 }
@@ -92,6 +107,116 @@ func loadUserShardState(path string) (userShardState, error) {
 		return userShardState{}, errors.New("invalid user shard materialization cursor")
 	}
 	return state, nil
+}
+
+func loadUserShardIndexState(path string) (userShardIndexState, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return userShardIndexState{}, err
+	}
+	var state userShardIndexState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return userShardIndexState{}, err
+	}
+	if state.Version != chunkLinkGraphVersion || (state.Status != "active" && state.Status != "completed") {
+		return userShardIndexState{}, errors.New("invalid user shard index state")
+	}
+	if state.NextOffset < 0 || state.NextOffset > state.TotalShards {
+		return userShardIndexState{}, errors.New("invalid user shard index cursor")
+	}
+	return state, nil
+}
+
+func renderUserShardIndexPage(graph chunkLinkGraph, root string, batch, batchSize int) []byte {
+	start := batch * batchSize
+	end := min(start+batchSize, len(graph.Nodes))
+	var b strings.Builder
+	fmt.Fprintf(&b, "---\npantheon_shard_index_batch: true\nshard_batch: %d\nshard_count: %d\ngraph_source: %q\n---\n\n# User shards — batch %03d\n\n", batch+1, end-start, graph.Version, batch+1)
+	for _, node := range graph.Nodes[start:end] {
+		fmt.Fprintf(&b, "- [[%s|%s]] — source: [[%s|%s]]\n", userShardRelativePath(root, node.ID), node.ID, node.Path, strings.TrimSuffix(filepath.Base(node.Path), filepath.Ext(node.Path)))
+	}
+	return []byte(b.String())
+}
+
+func renderUserShardIndex(graph chunkLinkGraph, root string, completedBatches, batchSize int, status string) []byte {
+	var b strings.Builder
+	fmt.Fprintf(&b, "---\npantheon_shard_index: true\nshard_count: %d\ncompleted_batches: %d\nstatus: %s\ninventory_hash: %s\n---\n\n# User-authored shard graph\n\nThis derived layer contains %d user-authored shards from the Nexus archive. Agent-authored text is excluded. The batch index pages below expose the full graph without putting all shard links into one giant note.\n\n", len(graph.Nodes), completedBatches, status, graph.InventoryHash, len(graph.Nodes))
+	for batchStart := 0; batchStart < completedBatches*batchSize && batchStart < len(graph.Nodes); batchStart += batchSize {
+		batch := batchStart / batchSize
+		end := min(batchStart+batchSize, len(graph.Nodes))
+		page := filepath.ToSlash(filepath.Join(root, fmt.Sprintf("User shards — batch %03d.md", batch+1)))
+		fmt.Fprintf(&b, "- [[%s|User shards — batch %03d]] — %d shards\n", page, batch+1, end-batchStart)
+	}
+	if completedBatches*batchSize < len(graph.Nodes) {
+		fmt.Fprintf(&b, "\nProgress: %d/%d shards indexed; resume with `pantheon weave-links index-shards`.\n", min(completedBatches*batchSize, len(graph.Nodes)), len(graph.Nodes))
+	} else {
+		b.WriteString("\nAll user-authored shard batches are indexed. Open this note in Obsidian and use its local graph to see the complete user-only shard graph.\n")
+	}
+	return []byte(b.String())
+}
+
+func runUserShardIndexing(statePath, graphPath, vault, root string, batchSize, batches int) error {
+	if batchSize <= 0 || batchSize > 500 {
+		return errors.New("shard index batch size must be between 1 and 500")
+	}
+	if batches <= 0 || batches > 1000 {
+		return errors.New("shard index batches must be between 1 and 1000")
+	}
+	graph, err := loadChunkLinkGraph(graphPath)
+	if err != nil {
+		return err
+	}
+	if graph.VaultPath != vault || graph.Authorship != "nexus_user" {
+		return errors.New("chunk graph is not the current user-authored graph for this Vault")
+	}
+	root = filepath.ToSlash(strings.Trim(root, "/"))
+	if root == "" || strings.HasPrefix(root, "../") || filepath.IsAbs(root) {
+		return errors.New("shard root must be a non-empty Vault-relative directory")
+	}
+	state, err := loadUserShardIndexState(statePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+		now := time.Now().UTC()
+		state = userShardIndexState{Version: chunkLinkGraphVersion, RunID: now.Format("20060102T150405.000000000Z"), CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano), VaultPath: vault, GraphPath: graphPath, ShardRoot: root, BatchSize: batchSize, TotalShards: len(graph.Nodes), Status: "active"}
+		if err := writeJSONAtomic(statePath, state, 0o600); err != nil {
+			return err
+		}
+	} else {
+		if state.Status == "completed" {
+			return fmt.Errorf("shard indexing %s is already complete; use a new --state path for another index", state.RunID)
+		}
+		if state.VaultPath != vault || state.GraphPath != graphPath || state.ShardRoot != root || state.TotalShards != len(graph.Nodes) {
+			return errors.New("shard index inputs changed; start a new index state")
+		}
+		if state.BatchSize != batchSize {
+			return fmt.Errorf("existing shard index uses batch size %d", state.BatchSize)
+		}
+	}
+	for batch := 0; batch < batches && state.Status == "active"; batch++ {
+		end := min(state.NextOffset+state.BatchSize, len(graph.Nodes))
+		batchIndex := state.NextOffset / state.BatchSize
+		pageRel := filepath.ToSlash(filepath.Join(root, fmt.Sprintf("User shards — batch %03d.md", batchIndex+1)))
+		if err := writeBytesAtomic(filepath.Join(vault, filepath.FromSlash(pageRel)), renderUserShardIndexPage(graph, root, batchIndex, state.BatchSize), 0o600); err != nil {
+			return err
+		}
+		state.NextOffset = end
+		state.CompletedBatches++
+		if state.NextOffset >= len(graph.Nodes) {
+			state.Status = "completed"
+		}
+		state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		indexPath := filepath.Join(vault, filepath.FromSlash(filepath.Join(root, "User shards — Index.md")))
+		if err := writeBytesAtomic(indexPath, renderUserShardIndex(graph, root, state.CompletedBatches, state.BatchSize, state.Status), 0o600); err != nil {
+			return err
+		}
+		if err := writeJSONAtomic(statePath, state, 0o600); err != nil {
+			return err
+		}
+		fmt.Printf("Shard index batch %d: %d/%d shards\n", state.CompletedBatches, state.NextOffset, len(graph.Nodes))
+	}
+	return nil
 }
 
 func runUserShardMaterialization(statePath, graphPath, stateDir, vault, root string, batchSize, batches int) error {

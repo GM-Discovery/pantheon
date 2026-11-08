@@ -1323,7 +1323,7 @@ func validWeaveRelationship(v string) bool {
 
 func runWeaveLinksCommand(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: pantheon weave-links [crawl|materialize-shards|promote-bread-standard|run|preview|apply|rollback]")
+		return errors.New("usage: pantheon weave-links [crawl|materialize-shards|index-shards|promote-bread-standard|run|preview|apply|rollback]")
 	}
 	configPath, err := configPathFromDefaults()
 	if err != nil {
@@ -1336,6 +1336,20 @@ func runWeaveLinksCommand(args []string) error {
 	root := filepath.Dir(filepath.Dir(configPath))
 	stateDir := filepath.Join(root, "state", "weave-links")
 	switch args[0] {
+	case "index-shards":
+		flags := flag.NewFlagSet("weave-links index-shards", flag.ContinueOnError)
+		graph := flags.String("graph", filepath.Join(stateDir, "user-chunk-graph.json"), "user chunk graph to index")
+		root := flags.String("root", defaultUserShardRoot, "Vault-relative shard root")
+		batchSize := flags.Int("batch-size", 100, "shards per durable index batch")
+		batches := flags.Int("batches", 1, "durable batches to process in this invocation")
+		statePath := flags.String("state", filepath.Join(stateDir, "shard-index.json"), "durable shard index state")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if pathWithin(cfg.VaultPath, *graph) || pathWithin(cfg.VaultPath, *statePath) {
+			return errors.New("shard index graph and state must be outside the configured Vault")
+		}
+		return runUserShardIndexing(*statePath, *graph, cfg.VaultPath, *root, *batchSize, *batches)
 	case "promote-bread-standard":
 		flags := flag.NewFlagSet("weave-links promote-bread-standard", flag.ContinueOnError)
 		limit := flags.Int("limit", 40, "maximum user shards to promote")
