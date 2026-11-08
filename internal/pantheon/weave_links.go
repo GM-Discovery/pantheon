@@ -1323,7 +1323,7 @@ func validWeaveRelationship(v string) bool {
 
 func runWeaveLinksCommand(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: pantheon weave-links [crawl|materialize-shards|run|preview|apply|rollback]")
+		return errors.New("usage: pantheon weave-links [crawl|materialize-shards|promote-bread-standard|run|preview|apply|rollback]")
 	}
 	configPath, err := configPathFromDefaults()
 	if err != nil {
@@ -1336,6 +1336,19 @@ func runWeaveLinksCommand(args []string) error {
 	root := filepath.Dir(filepath.Dir(configPath))
 	stateDir := filepath.Join(root, "state", "weave-links")
 	switch args[0] {
+	case "promote-bread-standard":
+		flags := flag.NewFlagSet("weave-links promote-bread-standard", flag.ContinueOnError)
+		limit := flags.Int("limit", 40, "maximum user shards to promote")
+		maxPerSource := flags.Int("max-per-source", 2, "maximum promoted shards from one conversation note")
+		root := flags.String("root", defaultUserShardRoot, "Vault-relative shard root")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		journal, err := promoteBreadStandardShards(cfg.VaultPath, stateDir, *root, *limit, *maxPerSource)
+		if journal != "" {
+			fmt.Printf("Bread Standard promotion journal: %s\n", journal)
+		}
+		return err
 	case "materialize-shards":
 		flags := flag.NewFlagSet("weave-links materialize-shards", flag.ContinueOnError)
 		graph := flags.String("graph", filepath.Join(stateDir, "user-chunk-graph.json"), "user chunk graph to materialize")
