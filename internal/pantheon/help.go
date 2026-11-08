@@ -63,6 +63,7 @@ var pantheonCommands = []commandHelpEntry{
 	{Group: "RUMOR / AUDIO", Command: "pantheon rumor ignore <source-id>", Purpose: "paper-jam an unwanted source without deleting its raw audio", Args: "id", Mutates: "yes", Control: "local control token"},
 	{Group: "REPORTS / CONTINUITY", Command: "pantheon report assemble --date <YYYY-MM-DD>", Purpose: "assemble a replay-safe Vault evidence manifest for a daily continuity or event report", Args: "[--kind event|daily] [--source Vault-relative-path]", Mutates: "yes", Control: "local control token"},
 	{Group: "REPORTS / CONTINUITY", Command: "pantheon report assemblies", Purpose: "inspect durable report-assembly receipts and exact source sets", Mutates: "no"},
+	{Group: "WEAVE / LINKING", Command: "pantheon weave-links crawl", Purpose: "crawl user-authored Nexus chunks into a separate resumable link graph; agent chunks and Vault notes are untouched", Args: "[--batch-size n --max-links-per-chunk n]", Mutates: "yes"},
 	{Group: "MAIL / INTELLIGENCE", Command: "pantheon mail check", Purpose: "run one explicit bounded Gmail intake and Apollo-understanding round", Mutates: "yes", Control: "local control token plus Bifrost use approval"},
 	{Group: "MAIL / INTELLIGENCE", Command: "pantheon show mail", Purpose: "inspect recorded mail understanding, backlog, filters, and action receipts", Mutates: "no"},
 	{Group: "MAIL / INTELLIGENCE", Command: "pantheon show mail messages", Purpose: "list recorded mail messages without contacting the mailbox", Mutates: "no"},

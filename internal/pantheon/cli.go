@@ -337,6 +337,8 @@ func runClient(args []string) error {
 		return clientPOSTMarkdown("/v1/weave/review", weaveRetrieveRequest{Query: strings.Join(args[1:], " ")})
 	case "weave-refresh":
 		return clientPOSTWithControl("/v1/weave/refresh", nil)
+	case "weave-links":
+		return runWeaveLinksCommand(args[1:])
 	case "hermes", "past":
 		return fmt.Errorf("pantheon %s remains a direct command during this daemon milestone; it is not yet daemon-routed", command)
 	default:

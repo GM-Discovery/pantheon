@@ -13,7 +13,7 @@
   },
   "models": {
     "apollo": {
-      "model": "mistral-small3.1:latest",
+      "model": "ministral-3:14b-instruct-2512-q4_K_M",
       "extraction_model": "granite3.3:8b",
       "endpoint": "http://172.17.0.1:11434/api/chat"
     },
@@ -84,7 +84,7 @@
     "poll_seconds": 2
   },
   "omi": {
-    "enabled": false,
+    "enabled": true,
     "device": "FC:92:2A:DB:64:79",
     "adapter": "hci0",
     "address_type": "random",

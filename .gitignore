@@ -30,3 +30,6 @@ state/
 config/*secret*
 config/*token*
 config/*.local.*
+
+# Private working memory and screenshots
+workingmemory/

@@ -56,7 +56,7 @@
     {
       "name": "reason",
       "type": "model",
-      "model": "mistral-small3.1:latest",
+      "model": "ministral-3:14b-instruct-2512-q4_K_M",
       "risk": "low"
     }
   ]
