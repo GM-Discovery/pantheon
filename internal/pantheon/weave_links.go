@@ -1323,7 +1323,7 @@ func validWeaveRelationship(v string) bool {
 
 func runWeaveLinksCommand(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: pantheon weave-links [crawl|materialize-shards|index-shards|promote-bread-standard|run|preview|apply|rollback]")
+		return errors.New("usage: pantheon weave-links [crawl|materialize-shards|index-shards|build-human-map|promote-bread-standard|run|preview|apply|rollback]")
 	}
 	configPath, err := configPathFromDefaults()
 	if err != nil {
@@ -1336,6 +1336,21 @@ func runWeaveLinksCommand(args []string) error {
 	root := filepath.Dir(filepath.Dir(configPath))
 	stateDir := filepath.Join(root, "state", "weave-links")
 	switch args[0] {
+	case "build-human-map":
+		flags := flag.NewFlagSet("weave-links build-human-map", flag.ContinueOnError)
+		graph := flags.String("graph", filepath.Join(stateDir, "user-chunk-graph.json"), "user chunk graph to map")
+		root := flags.String("root", defaultHumanMapRoot, "Vault-relative human map directory")
+		mapCount := flags.Int("map-count", 140, "number of named topic maps")
+		batchSize := flags.Int("batch-size", 1, "topic maps per durable batch")
+		batches := flags.Int("batches", 1, "durable batches to process in this invocation")
+		statePath := flags.String("state", filepath.Join(stateDir, "human-map.json"), "durable human map state")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if pathWithin(cfg.VaultPath, *graph) || pathWithin(cfg.VaultPath, *statePath) {
+			return errors.New("human map graph and state must be outside the configured Vault")
+		}
+		return runHumanMapBuilder(*statePath, *graph, cfg.VaultPath, *root, *mapCount, *batchSize, *batches)
 	case "index-shards":
 		flags := flag.NewFlagSet("weave-links index-shards", flag.ContinueOnError)
 		graph := flags.String("graph", filepath.Join(stateDir, "user-chunk-graph.json"), "user chunk graph to index")
